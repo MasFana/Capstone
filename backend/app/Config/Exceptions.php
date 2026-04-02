@@ -101,6 +101,13 @@ class Exceptions extends BaseConfig
      */
     public function handler(int $statusCode, Throwable $exception): ExceptionHandlerInterface
     {
+        $request = service('request');
+        $path = $request->getPath();
+
+        if (str_starts_with($path, 'api/')) {
+            return new \App\Libraries\JsonApiExceptionHandler($this);
+        }
+
         return new ExceptionHandler($this);
     }
 }

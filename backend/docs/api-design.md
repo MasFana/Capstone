@@ -58,10 +58,50 @@ Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL**
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/v1/auth/login` | Login user |
-| POST | `/api/v1/auth/logout` | Logout user |
-| GET | `/api/v1/auth/me` | Get current user profile |
-| GET | `/api/v1/roles` | List roles |
+| POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
+| POST | `/api/v1/auth/logout` | Logout current Bearer token |
+| GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
+| GET | `/api/v1/roles` | List roles, restricted to `Super Admin` via role filter |
+
+### 4.1 Login Contract
+
+#### Request
+
+```json
+{
+  "username": "superadmin",
+  "password": "password123"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Login successful.",
+  "access_token": "<token>",
+  "token_type": "Bearer",
+  "user": {
+    "id": 1,
+    "role_id": 1,
+    "name": "Super Admin User",
+    "username": "superadmin",
+    "is_active": true,
+    "role": {
+      "id": 1,
+      "name": "Super Admin"
+    }
+  }
+}
+```
+
+### 4.2 Auth Header
+
+Protected endpoints require:
+
+```http
+Authorization: Bearer <access_token>
+```
 
 ## 5. Lookup Endpoints
 

@@ -80,13 +80,50 @@ Fungsi: Menyimpan akun pengguna sistem.
 | `role_id` | tinyint | not null, FK | Relasi ke `roles.id` |
 | `name` | varchar(255) | not null | Nama user |
 | `username` | varchar(100) | not null, unique | Username login |
-| `password` | varchar(255) | not null | Password hash |
+| `password` | varchar(255) | nullable | Password hash legacy/app field |
+| `email` | varchar(255) | nullable | Email opsional untuk profil/internal use |
 | `is_active` | boolean | default true | Status aktif user |
+| `last_active` | timestamp | nullable | Waktu akses terakhir |
+| `status` | varchar(255) | nullable | Status auth tambahan kompatibel dengan Shield |
+| `status_message` | varchar(255) | nullable | Pesan status auth |
+| `active` | boolean | default false | Flag aktivasi yang dipakai provider auth |
+| `force_pass_reset` | boolean | default false | Penanda paksa reset password |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
 
-### 3.3 `items`
+### 3.3 `auth_identities`
+
+Fungsi: Menyimpan identitas autentikasi dan personal access token untuk Shield-compatible API auth.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID identity |
+| `user_id` | bigint | not null, FK | Relasi ke `users.id` |
+| `type` | varchar(255) | not null | Tipe identity, mis. `email_password`, `access_token`, `username` |
+| `name` | varchar(255) | nullable | Nama token/identity |
+| `secret` | varchar(255) | not null | Secret atau hash token |
+| `secret2` | varchar(255) | nullable | Hash password / secret tambahan |
+| `expires` | timestamp | nullable | Waktu kedaluwarsa token |
+| `extra` | text | nullable | Scope atau metadata tambahan |
+| `force_reset` | boolean | default false | Penanda paksa reset |
+| `last_used_at` | timestamp | nullable | Waktu terakhir dipakai |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+| `updated_at` | timestamp | nullable | Waktu diperbarui |
+
+### 3.4 `auth_logins`
+
+Fungsi: Audit trail untuk percobaan login berbasis credential.
+
+### 3.5 `auth_token_logins`
+
+Fungsi: Audit trail untuk penggunaan Bearer token.
+
+### 3.6 `settings`
+
+Fungsi: Menyimpan konfigurasi setting yang dibutuhkan oleh package Settings/Shield.
+
+### 3.7 `items`
 
 Fungsi: Menyimpan master barang dan saldo stok berjalan.
 

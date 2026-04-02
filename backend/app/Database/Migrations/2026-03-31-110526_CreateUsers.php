@@ -30,13 +30,41 @@ class CreateUser extends Migration
             "password" => [
                 "type" => "VARCHAR",
                 "constraint" => 255,
-                "null" => false,
+                "null" => true,
+            ],
+            "email" => [
+                "type" => "VARCHAR",
+                "constraint" => 255,
+                "null" => true,
             ],
             "is_active" => [
                 "type" => "BOOLEAN",
                 "default" => true,
             ],
-
+            "last_active" => [
+                "type" => "DATETIME",
+                "null" => true,
+            ],
+            "status" => [
+                "type" => "VARCHAR",
+                "constraint" => 255,
+                "null" => true,
+            ],
+            "status_message" => [
+                "type" => "VARCHAR",
+                "constraint" => 255,
+                "null" => true,
+            ],
+            "active" => [
+                "type" => "BOOLEAN",
+                "default" => false,
+                "null" => false,
+            ],
+            "force_pass_reset" => [
+                "type" => "BOOLEAN",
+                "default" => false,
+                "null" => false,
+            ],
             "created_at" => [
                 "type" => "DATETIME",
                 "null" => true,
