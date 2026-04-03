@@ -1,69 +1,157 @@
-# CodeIgniter 4 Application Starter
+# Backend Setup Guide
 
-## What is CodeIgniter?
+This backend uses **CodeIgniter 4**, **MySQL/MariaDB**, and **CodeIgniter Shield**.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+Use this guide to set up the backend locally, start the database, run migrations and seeders, and start the API server.
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+## Requirements
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+- PHP **8.2+**
+- Composer
+- Docker + Docker Compose
+- PHP extensions:
+  - `intl`
+  - `mbstring`
+  - `json`
+  - `mysqlnd`
+  - `libcurl`
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+## 1. Start the database
 
-## Installation & updates
+From the **project root**:
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+```bash
+docker compose up -d db adminer
+```
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+This uses the root-level `docker-compose.yaml` and starts:
 
-## Setup
+- **MariaDB** on `127.0.0.1:3306`
+- **Adminer** on `http://127.0.0.1:9000`
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+Default database values from the compose file:
 
-## Important Change with index.php
+- Database: `db`
+- Root username: `root`
+- Root password: `root`
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+## 2. Install backend dependencies
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+From the `backend` directory:
 
-**Please** read the user guide for a better explanation of how CI4 works!
+```bash
+composer install
+```
 
-## Repository Management
+## 3. Configure environment
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+The backend expects a `.env` file in the `backend` folder.
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+If `.env` does not exist yet, create it from the default template:
 
-## Server Requirements
+```bash
+cp env .env
+```
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+Make sure these values are correct in `backend/.env`:
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+```ini
+app.baseURL = 'http://127.0.0.1:8080/'
+database.default.hostname = 127.0.0.1
+database.default.database = db
+database.default.username = root
+database.default.password = root
+database.default.DBDriver = MySQLi
+database.default.port = 3306
+```
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+These values already match the provided Docker database setup.
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+## 4. Run database migrations
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+From the `backend` directory:
+
+```bash
+php spark migrate
+```
+
+## 5. Seed initial data
+
+The project currently provides these seeders:
+
+- `RoleSeeder`
+- `UserSeeder`
+- `TestSeeder`
+
+To seed roles and users in the correct order, run:
+
+```bash
+php spark db:seed TestSeeder
+```
+
+`TestSeeder` calls:
+
+1. `RoleSeeder`
+2. `UserSeeder`
+
+## 6. Run the backend server
+
+From the `backend` directory:
+
+```bash
+php spark serve
+```
+
+The backend will be available at:
+
+```text
+http://127.0.0.1:8080
+```
+
+## Default seeded accounts
+
+After running `TestSeeder`, these users are created:
+
+| Role | Username | Email |
+|---|---|---|
+| admin | `admin` | `admin@example.com` |
+| dapur | `spkgizi` | `spkgizi@example.com` |
+| gudang | `gudang` | `gudang@example.com` |
+
+Default password for all seeded users:
+
+```text
+password123
+```
+
+## Full quick start
+
+### From project root
+
+```bash
+docker compose up -d db adminer
+```
+
+### From backend directory
+
+```bash
+composer install
+php spark migrate
+php spark db:seed TestSeeder
+php spark serve
+```
+
+## Useful commands
+
+```bash
+php spark list
+php spark migrate:status
+php spark migrate:refresh
+composer test
+```
+
+## Notes
+
+- Database container data is stored in the root `db/` folder via Docker volume mapping.
+- If port `3306` or `9000` is already in use, stop the conflicting service first.
+- If the app cannot connect to the database, verify the database container is running and check `backend/.env`.
