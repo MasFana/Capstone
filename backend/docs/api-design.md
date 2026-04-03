@@ -61,7 +61,7 @@ Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL**
 | POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
 | POST | `/api/v1/auth/logout` | Logout current Bearer token |
 | GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
-| GET | `/api/v1/roles` | List roles, restricted to `Super Admin` via role filter |
+| GET | `/api/v1/roles` | List roles, restricted to `admin` via role filter |
 
 ### 4.1 Login Contract
 
@@ -69,7 +69,7 @@ Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL**
 
 ```json
 {
-  "username": "superadmin",
+  "username": "admin",
   "password": "password123"
 }
 ```
@@ -84,12 +84,12 @@ Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL**
   "user": {
     "id": 1,
     "role_id": 1,
-    "name": "Super Admin User",
-    "username": "superadmin",
+    "name": "Admin User",
+    "username": "admin",
     "is_active": true,
     "role": {
       "id": 1,
-      "name": "Super Admin"
+      "name": "admin"
     }
   }
 }
@@ -114,14 +114,165 @@ Authorization: Bearer <access_token>
 
 ## 6. User Management Endpoints
 
+All user management endpoints are restricted to users with the `admin` role.
+
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/users` | List users |
-| POST | `/api/v1/users` | Create user |
+| GET | `/api/v1/users` | List all users (excludes soft-deleted) |
+| POST | `/api/v1/users` | Create new user |
 | GET | `/api/v1/users/{id}` | Get user detail |
-| PUT | `/api/v1/users/{id}` | Update user |
-| PATCH | `/api/v1/users/{id}/deactivate` | Deactivate user |
-| DELETE | `/api/v1/users/{id}` | Soft delete user |
+| PUT | `/api/v1/users/{id}` | Update user profile and role |
+| PATCH | `/api/v1/users/{id}/activate` | Activate user account |
+| PATCH | `/api/v1/users/{id}/deactivate` | Deactivate user account (blocks login) |
+| PATCH | `/api/v1/users/{id}/password` | Change user password (revokes all tokens) |
+| DELETE | `/api/v1/users/{id}` | Soft delete user (revokes all tokens) |
+
+### 6.1 List Users
+
+#### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "role_id": 1,
+      "name": "Admin User",
+      "username": "admin",
+      "email": "admin@example.com",
+      "is_active": true,
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00",
+      "role": {
+        "id": 1,
+        "name": "admin"
+      }
+    }
+  ]
+}
+```
+
+### 6.2 Create User
+
+#### Request
+
+```json
+{
+  "role_id": 2,
+  "name": "New User",
+  "username": "newuser",
+  "email": "newuser@example.com",
+  "password": "password123",
+  "is_active": true
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "User created successfully.",
+  "data": {
+    "id": 4,
+    "role_id": 2,
+    "name": "New User",
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "is_active": true,
+    "created_at": "2026-04-02 12:00:00",
+    "updated_at": "2026-04-02 12:00:00",
+    "role": {
+      "id": 2,
+      "name": "dapur"
+    }
+  }
+}
+```
+
+### 6.3 Update User
+
+#### Request
+
+```json
+{
+  "name": "Updated Name",
+  "email": "updated@example.com",
+  "role_id": 3
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "User updated successfully.",
+  "data": {
+    "id": 4,
+    "role_id": 3,
+    "name": "Updated Name",
+    "username": "newuser",
+    "email": "updated@example.com",
+    "is_active": true,
+    "created_at": "2026-04-02 12:00:00",
+    "updated_at": "2026-04-02 12:30:00",
+    "role": {
+      "id": 3,
+      "name": "gudang"
+    }
+  }
+}
+```
+
+### 6.4 Deactivate User
+
+Deactivated users cannot log in. Both `is_active` and `active` fields are set to `false`.
+
+Soft-deleted users are treated as not found for all update, activate, deactivate, password-change, and delete operations.
+
+#### Response
+
+```json
+{
+  "message": "User deactivated successfully.",
+  "data": {
+    "id": 4,
+    "is_active": false,
+    ...
+  }
+}
+```
+
+### 6.5 Change Password
+
+Changing a user's password revokes all their access tokens. The user must log in again with the new password. Password updates use the Shield user entity flow so credential identity data stays synchronized.
+
+#### Request
+
+```json
+{
+  "password": "newpassword123"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Password changed successfully. All access tokens have been revoked."
+}
+```
+
+### 6.6 Delete User
+
+Soft deletes the user and revokes all their access tokens. The user cannot log in and will not appear in user lists.
+
+#### Response
+
+```json
+{
+  "message": "User deleted successfully."
+}
+```
 
 ## 7. Item Endpoints
 

@@ -14,7 +14,7 @@ class AuthService
     public function __construct()
     {
         $this->userProvider = new AppUserProvider();
-        $this->userModel    = new UserModel();
+        $this->userModel = new UserModel();
     }
 
     public function attemptLogin(string $username, string $password): array
@@ -23,40 +23,40 @@ class AuthService
 
         if (!$user) {
             return [
-                'success' => false,
-                'message' => 'Invalid credentials.',
+                "success" => false,
+                "message" => "Invalid credentials.",
             ];
         }
 
         if (!$this->isUserAllowedToLogin($user)) {
             return [
-                'success' => false,
-                'message' => 'Account is inactive or has been deleted.',
+                "success" => false,
+                "message" => "Account is inactive or has been deleted.",
             ];
         }
 
-        $authenticator = auth('session')->getAuthenticator();
+        $authenticator = auth("session")->getAuthenticator();
         $credentials = [
-            'username' => $username,
-            'password' => $password,
+            "username" => $username,
+            "password" => $password,
         ];
 
         $result = $authenticator->check($credentials);
 
         if (!$result->isOK()) {
             return [
-                'success' => false,
-                'message' => 'Invalid credentials.',
+                "success" => false,
+                "message" => "Invalid credentials.",
             ];
         }
 
         $loggedUser = $result->extraInfo();
-        $token = $loggedUser->generateAccessToken('api-access');
+        $token = $loggedUser->generateAccessToken("api-access");
 
         return [
-            'success' => true,
-            'token'   => $token->raw_token,
-            'user'    => $this->formatUserResponse($loggedUser),
+            "success" => true,
+            "token" => $token->raw_token,
+            "user" => $this->formatUserResponse($loggedUser),
         ];
     }
 
@@ -84,11 +84,12 @@ class AuthService
 
     protected function isUserAllowedToLogin(User $user): bool
     {
-        $userData = $this->userProvider->asArray()
-                                       ->where('id', $user->id)
-                                       ->where('is_active', true)
-                                       ->where('deleted_at', null)
-                                       ->first();
+        $userData = $this->userProvider
+            ->asArray()
+            ->where("id", $user->id)
+            ->where("is_active", true)
+            ->where("deleted_at", null)
+            ->first();
 
         return $userData !== null;
     }
@@ -96,27 +97,27 @@ class AuthService
     protected function formatUserResponse(User $user): array
     {
         $userData = $this->userProvider->getActiveUserWithRole((int) $user->id);
-        
+
         if (!$userData) {
             return [];
         }
 
-        unset($userData['password']);
+        unset($userData["password"]);
 
         $response = [
-            'id'         => $userData['id'],
-            'role_id'    => $userData['role_id'],
-            'name'       => $userData['name'],
-            'username'   => $userData['username'],
-            'email'      => $userData['email'] ?? null,
-            'is_active'  => (bool) $userData['is_active'],
-            'created_at' => $userData['created_at'],
-            'updated_at' => $userData['updated_at'],
+            "id" => $userData["id"],
+            "role_id" => $userData["role_id"],
+            "name" => $userData["name"],
+            "username" => $userData["username"],
+            "email" => $userData["email"] ?? null,
+            "is_active" => (bool) $userData["is_active"],
+            "created_at" => $userData["created_at"],
+            "updated_at" => $userData["updated_at"],
         ];
 
-        $response['role'] = [
-            'id'   => $userData['role_id'],
-            'name' => $userData['role_name'],
+        $response["role"] = [
+            "id" => $userData["role_id"],
+            "name" => $userData["role_name"],
         ];
 
         return $response;

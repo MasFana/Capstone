@@ -19,7 +19,7 @@ Sistem difokuskan pada:
 - **DBMS**: MySQL 8.0
 - **Architecture**: modular monolith
 - **API Prefix**: `/api/v1`
-- **Primary roles**: Super Admin, SPK/Gizi, Gudang
+- **Primary roles**: admin, dapur, gudang
 
 ## 3. Core Planning Decisions
 

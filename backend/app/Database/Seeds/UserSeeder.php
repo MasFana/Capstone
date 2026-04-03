@@ -11,16 +11,16 @@ class UserSeeder extends Seeder
     {
         $roleModel = new \App\Models\RoleModel();
         
-        $superAdminRole = $roleModel->findByName('Super Admin');
-        $spkRole = $roleModel->findByName('SPK/Gizi');
-        $gudangRole = $roleModel->findByName('Gudang');
+        $adminRole = $roleModel->findByName('admin');
+        $spkRole = $roleModel->findByName('dapur');
+        $gudangRole = $roleModel->findByName('gudang');
 
         $users = [
             [
-                'role_id'   => $superAdminRole['id'],
-                'name'      => 'Super Admin User',
-                'username'  => 'superadmin',
-                'email'     => 'superadmin@example.com',
+                'role_id'   => $adminRole['id'],
+                'name'      => 'Admin User',
+                'username'  => 'admin',
+                'email'     => 'admin@example.com',
                 'is_active' => true,
                 'active'    => true,
             ],

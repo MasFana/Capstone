@@ -6,7 +6,6 @@ namespace App\Models;
 
 use CodeIgniter\Shield\Models\UserModel as ShieldUserModel;
 use CodeIgniter\Shield\Entities\User;
-use CodeIgniter\Database\RawSql;
 
 class AppUserProvider extends ShieldUserModel
 {
@@ -18,6 +17,7 @@ class AppUserProvider extends ShieldUserModel
             ...$this->allowedFields,
             'role_id',
             'name',
+            'email',
             'is_active',
         ];
 
@@ -36,7 +36,16 @@ class AppUserProvider extends ShieldUserModel
 
     public function findById($id): ?User
     {
-        return $this->withDeleted()->find($id);
+        $user = $this->find($id);
+
+        return $user instanceof User ? $user : null;
+    }
+
+    public function findByIdIncludingDeleted($id): ?User
+    {
+        $user = $this->withDeleted()->find($id);
+
+        return $user instanceof User ? $user : null;
     }
 
     public function findActiveById(int $id): ?User
@@ -46,7 +55,7 @@ class AppUserProvider extends ShieldUserModel
                      ->where('deleted_at', null)
                      ->first();
 
-        return $user;
+        return $user instanceof User ? $user : null;
     }
 
     public function isActiveUser(User $user): bool
@@ -61,20 +70,11 @@ class AppUserProvider extends ShieldUserModel
 
     public function getUserWithRole(int $userId): ?array
     {
-        $user = $this->asArray()->find($userId);
-        
-        if (!$user) {
-            return null;
-        }
-
-        $roleModel = new RoleModel();
-        $role = $roleModel->find($user['role_id']);
-        
-        if ($role) {
-            $user['role'] = $role;
-        }
-
-        return $user;
+        return $this->select('users.*, roles.name as role_name')
+            ->join('roles', 'roles.id = users.role_id')
+            ->where('users.id', $userId)
+            ->asArray()
+            ->first();
     }
 
     public function getActiveUserWithRole(int $userId): ?array
@@ -88,10 +88,28 @@ class AppUserProvider extends ShieldUserModel
             ->first();
     }
 
+    public function getAllWithRoles(): array
+    {
+        return $this->select('users.*, roles.name as role_name')
+            ->join('roles', 'roles.id = users.role_id')
+            ->where('users.deleted_at', null)
+            ->asArray()
+            ->findAll();
+    }
+
+    public function revokeAllUserTokens(int $userId): void
+    {
+        $user = $this->findByIdIncludingDeleted($userId);
+        
+        if ($user instanceof User) {
+            $user->revokeAllAccessTokens();
+        }
+    }
+
     public function delete($id = null, bool $purge = false): bool
     {
         if (is_int($id) || is_string($id)) {
-            $user = $this->findById($id);
+            $user = $this->findByIdIncludingDeleted($id);
 
             if ($user instanceof User) {
                 $user->revokeAllAccessTokens();

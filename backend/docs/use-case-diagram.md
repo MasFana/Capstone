@@ -6,15 +6,15 @@ Dokumen ini memisahkan artefak use case dari dokumen desain utama dan sudah dise
 
 ## 2. Actors
 
-### 2.1 Super Admin
+### 2.1 admin
 
 Memiliki otoritas tertinggi. Aktor ini mengelola user, memantau audit, dan menyetujui atau menolak revisi transaksi.
 
-### 2.2 SPK/Gizi
+### 2.2 dapur
 
 Mengelola dish, komposisi bahan, menu, jadwal menu, input pasien, dan proses generate SPK.
 
-### 2.3 Gudang
+### 2.3 gudang
 
 Mengelola item operasional, transaksi stok masuk/keluar/retur, dan pengajuan revisi.
 
@@ -41,9 +41,9 @@ Mengelola item operasional, transaksi stok masuk/keluar/retur, dan pengajuan rev
 @startuml
 left to right direction
 
-actor "Super Admin" as SA
-actor "SPK/Gizi" as SG
-actor "Gudang" as G
+actor "admin" as SA
+actor "dapur" as SG
+actor "gudang" as G
 
 rectangle "Sistem Informasi Manajemen Gudang & SPK Instalasi Gizi" {
   usecase "Login" as UC1

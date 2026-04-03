@@ -10,7 +10,7 @@ Baseline desain yang dipakai:
 - **Database**: MySQL 8.0
 - **Architecture style**: Modular monolith
 - **API style**: RESTful API dengan endpoint workflow untuk proses operasional
-- **Primary users**: Super Admin, SPK/Gizi, Gudang
+- **Primary users**: admin, dapur, gudang
 
 Sistem ini adalah aplikasi internal rumah sakit untuk mengelola inventaris bahan makanan, siklus menu, input pasien harian, transaksi stok, rekomendasi belanja berbasis SPK, audit log, dan pelaporan.
 
@@ -315,7 +315,7 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 1. User membuat transaksi revisi dengan `is_revision=true`.
 2. `parent_transaction_id` menunjuk transaksi asal.
 3. `approval_status_id` berubah ke `PENDING`.
-4. Super Admin meninjau.
+4. admin meninjau.
 5. Jika disetujui, `approval_status_id` menjadi `APPROVED` dan `approved_by` diisi.
 6. Jika ditolak, status menjadi `REJECTED`.
 
@@ -328,7 +328,7 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 
 ### 8.6 Generate SPK
 
-1. User SPK/Gizi membuat `spk_calculations`.
+1. User dapur membuat `spk_calculations`.
 2. Sistem mengunci parameter utama seperti `category_id`, `estimated_patients`, tanggal target, dan referensi `daily_patient_id`.
 3. Sistem menghitung rekomendasi per item.
 4. Sistem menyimpan hasil ke `spk_recommendations`.
@@ -336,7 +336,7 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 
 ## 9. Role-Based Access Matrix
 
-| Feature / Action | Super Admin | SPK/Gizi | Gudang |
+| Feature / Action | admin | dapur | gudang |
 |---|---|---|---|
 | Login | Yes | Yes | Yes |
 | Manage users | Yes | No | No |

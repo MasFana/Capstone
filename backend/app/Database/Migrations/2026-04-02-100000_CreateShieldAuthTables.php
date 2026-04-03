@@ -5,8 +5,9 @@ namespace App\Database\Migrations;
 use CodeIgniter\Database\Migration;
 
 /**
- * Creates Shield auth support tables (auth_identities, auth_logins, auth_token_logins)
- * that reference our existing users table.
+ * Creates Shield auth support tables that reference our existing users table.
+ * Tables created: auth_identities, auth_logins, auth_token_logins, auth_remember_tokens,
+ * auth_groups_users, auth_permissions_users.
  * Does NOT create auth_users table since we have our own users table.
  */
 class CreateShieldAuthTables extends Migration
@@ -23,7 +24,7 @@ class CreateShieldAuthTables extends Migration
         $this->attributes = ($this->db->getPlatform() === 'MySQLi') ? ['ENGINE' => 'InnoDB'] : [];
     }
 
-    public function up()
+    public function up(): void
     {
         /*
          * Auth Identities Table
@@ -89,17 +90,70 @@ class CreateShieldAuthTables extends Migration
         $this->forge->addKey('user_id');
         // NOTE: Do NOT delete the user_id or identifier when the user is deleted for security audits
         $this->createTable($this->tables['token_logins']);
+
+        /*
+         * Auth Remember Tokens (remember-me) Table
+         * Used by Shield session authenticator for remember-me functionality.
+         */
+        $this->forge->addField([
+            'id'              => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'selector'        => ['type' => 'varchar', 'constraint' => 255],
+            'hashedValidator' => ['type' => 'varchar', 'constraint' => 255],
+            'user_id'         => ['type' => 'BIGINT'],
+            'expires'         => ['type' => 'datetime'],
+            'created_at'      => ['type' => 'datetime'],
+            'updated_at'      => ['type' => 'datetime'],
+        ]);
+        $this->forge->addPrimaryKey('id');
+        $this->forge->addUniqueKey('selector');
+        $this->forge->addKey('user_id');
+        $this->forge->addForeignKey('user_id', 'users', 'id', '', 'CASCADE');
+        $this->createTable($this->tables['remember_tokens']);
+
+        /*
+         * Auth Groups Users Table
+         * Maps users to Shield authorization groups.
+         * Note: This project uses custom roles table for business authorization.
+         * This table exists for Shield internal compatibility only.
+         */
+        $this->forge->addField([
+            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'user_id'    => ['type' => 'BIGINT'],
+            'group'      => ['type' => 'varchar', 'constraint' => 255],
+            'created_at' => ['type' => 'datetime'],
+        ]);
+        $this->forge->addPrimaryKey('id');
+        $this->forge->addKey('user_id');
+        $this->forge->addForeignKey('user_id', 'users', 'id', '', 'CASCADE');
+        $this->createTable($this->tables['groups_users']);
+
+        /*
+         * Auth Permissions Users Table
+         * Maps users to Shield authorization permissions.
+         * Note: This project uses custom roles table for business authorization.
+         * This table exists for Shield internal compatibility only.
+         */
+        $this->forge->addField([
+            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'user_id'    => ['type' => 'BIGINT'],
+            'permission' => ['type' => 'varchar', 'constraint' => 255],
+            'created_at' => ['type' => 'datetime'],
+        ]);
+        $this->forge->addPrimaryKey('id');
+        $this->forge->addKey('user_id');
+        $this->forge->addForeignKey('user_id', 'users', 'id', '', 'CASCADE');
+        $this->createTable($this->tables['permissions_users']);
     }
 
-    public function down()
+    public function down(): void
     {
-        $this->db->disableForeignKeyChecks();
-
+        // Drop in reverse order of creation to respect dependencies
+        $this->forge->dropTable($this->tables['permissions_users'], true);
+        $this->forge->dropTable($this->tables['groups_users'], true);
+        $this->forge->dropTable($this->tables['remember_tokens'], true);
         $this->forge->dropTable($this->tables['token_logins'], true);
         $this->forge->dropTable($this->tables['logins'], true);
         $this->forge->dropTable($this->tables['identities'], true);
-
-        $this->db->enableForeignKeyChecks();
     }
 
     private function createTable(string $tableName): void

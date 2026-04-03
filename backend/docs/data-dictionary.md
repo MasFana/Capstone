@@ -66,9 +66,14 @@ Fungsi: Menyimpan role utama pengguna.
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | tinyint | PK | ID role |
-| `name` | varchar(50) | not null, unique | Super Admin, SPK/Gizi, Gudang |
+| `name` | varchar(50) | not null, unique | admin, dapur, gudang |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
+
+Supported roles:
+- **admin**: Full system access, can manage users, roles, and all resources
+- **dapur**: Kitchen and nutrition planning access
+- **gudang**: Warehouse and inventory management access
 
 ### 3.2 `users`
 
@@ -82,15 +87,26 @@ Fungsi: Menyimpan akun pengguna sistem.
 | `username` | varchar(100) | not null, unique | Username login |
 | `password` | varchar(255) | nullable | Password hash legacy/app field |
 | `email` | varchar(255) | nullable | Email opsional untuk profil/internal use |
-| `is_active` | boolean | default true | Status aktif user |
+| `is_active` | boolean | default true | Status aktif user - controls login access |
 | `last_active` | timestamp | nullable | Waktu akses terakhir |
 | `status` | varchar(255) | nullable | Status auth tambahan kompatibel dengan Shield |
 | `status_message` | varchar(255) | nullable | Pesan status auth |
-| `active` | boolean | default false | Flag aktivasi yang dipakai provider auth |
+| `active` | boolean | default false | Flag aktivasi yang dipakai provider auth - synced with is_active |
 | `force_pass_reset` | boolean | default false | Penanda paksa reset password |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
+
+**User Management Behavior:**
+
+- **Deactivation**: Setting `is_active` and `active` to `false` blocks user from logging in. Existing tokens remain valid until revoked separately.
+- **Password Change**: Changing a user's password automatically revokes ALL their access tokens via `auth_identities` table. User must log in again with the new password, and the password update must go through the Shield user entity/save flow.
+- **Soft Delete**: Soft-deleting a user (`deleted_at` set) automatically revokes ALL their access tokens. Deleted users do not appear in user listings and cannot log in.
+- **Deleted User Mutations**: Soft-deleted users are treated as absent resources for update, activate, deactivate, password-change, and delete operations.
+- **Token Revocation**: Tokens are revoked by removing entries from `auth_identities` table where `type = 'access_token'` and `user_id` matches the target user.
+- **Role Assignment**: Users can only be assigned one of the three supported roles: admin, dapur, or gudang. Role changes are tracked via `updated_at`.
+- **Email Field**: Email is optional but recommended for user identification and recovery workflows.
+- **Active Flag Sync**: Both `is_active` (application-level) and `active` (Shield-level) must be kept in sync during user creation, update, activation, and deactivation operations.
 
 ### 3.3 `auth_identities`
 
@@ -115,15 +131,83 @@ Fungsi: Menyimpan identitas autentikasi dan personal access token untuk Shield-c
 
 Fungsi: Audit trail untuk percobaan login berbasis credential.
 
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID login attempt |
+| `ip_address` | varchar(255) | not null | IP address yang melakukan attempt |
+| `user_agent` | varchar(255) | nullable | Browser/client user agent |
+| `id_type` | varchar(255) | not null | Tipe identifier (email, username) |
+| `identifier` | varchar(255) | not null | Nilai identifier yang digunakan |
+| `user_id` | bigint | nullable | ID user jika berhasil login |
+| `date` | timestamp | not null | Waktu attempt |
+| `success` | boolean | not null | Berhasil atau gagal |
+
 ### 3.5 `auth_token_logins`
 
 Fungsi: Audit trail untuk penggunaan Bearer token.
 
-### 3.6 `settings`
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID token login attempt |
+| `ip_address` | varchar(255) | not null | IP address yang menggunakan token |
+| `user_agent` | varchar(255) | nullable | Browser/client user agent |
+| `id_type` | varchar(255) | not null | Tipe token |
+| `identifier` | varchar(255) | not null | Token identifier |
+| `user_id` | bigint | nullable | ID user jika token valid |
+| `date` | timestamp | not null | Waktu penggunaan |
+| `success` | boolean | not null | Valid atau invalid |
+
+### 3.6 `auth_remember_tokens`
+
+Fungsi: Menyimpan remember-me token untuk Shield session authenticator.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID remember token |
+| `selector` | varchar(255) | not null, unique | Token selector publik |
+| `hashedValidator` | varchar(255) | not null | Hash validator untuk validasi |
+| `user_id` | bigint | not null, FK | Relasi ke `users.id` |
+| `expires` | timestamp | not null | Waktu kedaluwarsa token |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+| `updated_at` | timestamp | nullable | Waktu diperbarui |
+
+**Note:** Foreign key `user_id` CASCADE on delete — menghapus user otomatis menghapus remember token mereka.
+
+### 3.7 `auth_groups_users`
+
+Fungsi: Menyimpan relasi user ke Shield authorization groups untuk kompatibilitas internal Shield.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID group assignment |
+| `user_id` | bigint | not null, FK | Relasi ke `users.id` |
+| `group` | varchar(255) | not null | Nama group Shield |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+
+**Important:** Tabel ini untuk kompatibilitas Shield internal saja. **Business authorization menggunakan tabel `roles`**, bukan Shield groups. Tabel ini TIDAK digunakan untuk authorization flow aplikasi utama.
+
+**Note:** Foreign key `user_id` CASCADE on delete — menghapus user otomatis menghapus group assignments mereka.
+
+### 3.8 `auth_permissions_users`
+
+Fungsi: Menyimpan relasi user ke Shield authorization permissions untuk kompatibilitas internal Shield.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | int | PK, increment | ID permission assignment |
+| `user_id` | bigint | not null, FK | Relasi ke `users.id` |
+| `permission` | varchar(255) | not null | Nama permission Shield |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+
+**Important:** Tabel ini untuk kompatibilitas Shield internal saja. **Business authorization menggunakan tabel `roles`**, bukan Shield permissions. Tabel ini TIDAK digunakan untuk authorization flow aplikasi utama.
+
+**Note:** Foreign key `user_id` CASCADE on delete — menghapus user otomatis menghapus permission assignments mereka.
+
+### 3.9 `settings`
 
 Fungsi: Menyimpan konfigurasi setting yang dibutuhkan oleh package Settings/Shield.
 
-### 3.7 `items`
+### 3.10 `items`
 
 Fungsi: Menyimpan master barang dan saldo stok berjalan.
 
@@ -172,7 +256,7 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | `is_revision` | boolean | default false | Penanda transaksi revisi |
 | `parent_transaction_id` | bigint | nullable, self FK | Referensi transaksi asal jika ini revisi |
 | `approval_status_id` | tinyint | default 1, FK | Relasi ke `approval_statuses.id` |
-| `approved_by` | bigint | nullable, FK | User Super Admin yang menyetujui |
+| `approved_by` | bigint | nullable, FK | User Admin yang menyetujui |
 | `user_id` | bigint | not null, FK | User pembuat transaksi |
 | `spk_id` | bigint | not null, FK | Relasi ke `spk_calculations.id` |
 | `created_at` | timestamp | nullable | Waktu dibuat |

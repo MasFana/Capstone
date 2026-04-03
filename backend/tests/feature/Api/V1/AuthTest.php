@@ -6,6 +6,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Shield\Entities\User;
+use CodeIgniter\Shield\Models\GroupModel;
 use App\Models\AppUserProvider;
 use App\Models\RoleModel;
 
@@ -31,9 +32,9 @@ class AuthTest extends CIUnitTestCase
     {
         $roleModel = new RoleModel();
         $roleModel->insertBatch([
-            ['name' => 'Super Admin'],
-            ['name' => 'SPK/Gizi'],
-            ['name' => 'Gudang'],
+            ['name' => 'admin'],
+            ['name' => 'dapur'],
+            ['name' => 'gudang'],
         ]);
     }
 
@@ -42,11 +43,11 @@ class AuthTest extends CIUnitTestCase
         $roleModel = new RoleModel();
         $userProvider = new AppUserProvider();
 
-        $superAdminRole = $roleModel->findByName('Super Admin');
-        $gudangRole = $roleModel->findByName('Gudang');
+        $adminRole = $roleModel->findByName('admin');
+        $gudangRole = $roleModel->findByName('gudang');
 
         $activeUser = new User([
-            'role_id'   => $superAdminRole['id'],
+            'role_id'   => $adminRole['id'],
             'name'      => 'Active User',
             'username'  => 'activeuser',
             'email'     => 'active@example.com',
@@ -252,7 +253,7 @@ class AuthTest extends CIUnitTestCase
     {
         $roleModel = new RoleModel();
         $userProvider = new AppUserProvider();
-        $gudangRole = $roleModel->findByName('Gudang');
+        $gudangRole = $roleModel->findByName('gudang');
 
         $gudangUser = new User([
             'role_id'   => $gudangRole['id'],
@@ -279,5 +280,46 @@ class AuthTest extends CIUnitTestCase
 
         $result->assertStatus(403);
         $result->assertJSONFragment(['message' => 'Insufficient permissions.']);
+    }
+
+    public function testShieldSupportTablesExistAndGroupLookupWorks(): void
+    {
+        $authConfig = config('Auth');
+        $db = \Config\Database::connect();
+        $userProvider = new AppUserProvider();
+        $groupModel = model(GroupModel::class);
+
+        $requiredTables = [
+            $authConfig->tables['remember_tokens'],
+            $authConfig->tables['groups_users'],
+            $authConfig->tables['permissions_users'],
+        ];
+
+        foreach ($requiredTables as $tableName) {
+            $this->assertTrue(
+                $db->tableExists($tableName),
+                "Shield support table '{$tableName}' must exist in the schema"
+            );
+        }
+
+        // Verify the existing Shield tables still exist
+        $existingTables = [
+            $authConfig->tables['identities'],
+            $authConfig->tables['logins'],
+            $authConfig->tables['token_logins'],
+        ];
+
+        foreach ($existingTables as $tableName) {
+            $this->assertTrue(
+                $db->tableExists($tableName),
+                "Shield core table '{$tableName}' must exist in the schema"
+            );
+        }
+
+        $user = $userProvider->findByUsername('activeuser');
+
+        $this->assertNotNull($user);
+        $this->assertSame([], $groupModel->getForUser($user));
+        $this->assertSame([], $user->getGroups());
     }
 }

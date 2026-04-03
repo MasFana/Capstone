@@ -34,17 +34,13 @@ class AuthGroups extends ShieldAuthGroups
      *
      * Whatever value you assign as the key will be used to refer to the group
      * when using functions such as:
-     *      $user->addGroup('superadmin');
+ *      $user->addGroup('admin');
      *
      * @var array<string, array<string, string>>
      *
      * @see https://codeigniter4.github.io/shield/quick_start_guide/using_authorization/#change-available-groups for more info
      */
     public array $groups = [
-        'superadmin' => [
-            'title'       => 'Super Admin',
-            'description' => 'Complete control of the site.',
-        ],
         'admin' => [
             'title'       => 'Admin',
             'description' => 'Day to day administrators of the site.',
@@ -90,17 +86,10 @@ class AuthGroups extends ShieldAuthGroups
      * This defines group-level permissions.
      */
     public array $matrix = [
-        'superadmin' => [
+        'admin' => [
             'admin.*',
             'users.*',
             'beta.*',
-        ],
-        'admin' => [
-            'admin.access',
-            'users.create',
-            'users.edit',
-            'users.delete',
-            'beta.access',
         ],
         'developer' => [
             'admin.access',
