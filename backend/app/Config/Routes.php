@@ -23,6 +23,23 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1', 'filter' => '
         $routes->get('auth/me', 'Auth::me');
         $routes->post('auth/logout', 'Auth::logout');
 
+        $routes->group('', ['filter' => 'role:admin,gudang'], static function ($routes) {
+            $routes->get('items', 'Items::index');
+            $routes->options('items', static fn () => service('response')->setStatusCode(204));
+            $routes->post('items', 'Items::create');
+            $routes->get('items/(:num)', 'Items::show/$1');
+            $routes->options('items/(:num)', static fn () => service('response')->setStatusCode(204));
+            $routes->put('items/(:num)', 'Items::update/$1');
+
+            $routes->get('stock-transactions', 'StockTransactions::index');
+            $routes->options('stock-transactions', static fn () => service('response')->setStatusCode(204));
+            $routes->post('stock-transactions', 'StockTransactions::create');
+            $routes->get('stock-transactions/(:num)', 'StockTransactions::show/$1');
+            $routes->options('stock-transactions/(:num)', static fn () => service('response')->setStatusCode(204));
+            $routes->get('stock-transactions/(:num)/details', 'StockTransactions::details/$1');
+            $routes->options('stock-transactions/(:num)/details', static fn () => service('response')->setStatusCode(204));
+        });
+
         $routes->group('', ['filter' => 'role:admin'], static function ($routes) {
             $routes->get('roles', 'Roles::index');
             
@@ -40,6 +57,7 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1', 'filter' => '
             $routes->patch('users/(:num)/password', 'Users::changePassword/$1');
             $routes->options('users/(:num)/password', static fn () => service('response')->setStatusCode(204));
             $routes->delete('users/(:num)', 'Users::delete/$1');
+            $routes->delete('items/(:num)', 'Items::delete/$1');
         });
     });
 });

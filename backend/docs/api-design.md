@@ -33,12 +33,14 @@ Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL**
     "page": 1,
     "perPage": 10,
     "total": 0,
-    "pageCount": 0
+    "totalPages": 0
   },
   "links": {
     "self": "/api/v1/items?page=1&perPage=10",
+    "first": "/api/v1/items?page=1&perPage=10",
+    "last": "/api/v1/items?page=1&perPage=10",
     "next": null,
-    "prev": null
+    "previous": null
   }
 }
 ```
@@ -276,14 +278,216 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 
 ## 7. Item Endpoints
 
+Phase 1 item management covers item master CRUD only. `qty` is read-only in this module and stock-related behavior stays in inventory transaction flows.
+
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/items` | List items |
+| GET | `/api/v1/items` | List items with pagination, filtering, and search |
 | POST | `/api/v1/items` | Create item |
 | GET | `/api/v1/items/{id}` | Get item detail |
-| PUT | `/api/v1/items/{id}` | Update item |
+| PUT | `/api/v1/items/{id}` | Partial update item |
 | DELETE | `/api/v1/items/{id}` | Soft delete item |
-| GET | `/api/v1/items/{id}/stock-summary` | Get current stock summary |
+
+### 7.1 Access Rules
+
+- `admin` and `gudang` can list, create, view, and update items.
+- `admin` only can soft delete items.
+- `dapur` has no access to item master management.
+
+### 7.2 List Items
+
+Supported query parameters:
+
+- `page`
+- `perPage`
+- `item_category_id`
+- `is_active`
+- `q`
+
+Rules:
+
+- unknown query parameters return `400` validation errors;
+- default order is category ascending, then item name ascending, then item id ascending;
+- soft-deleted items are excluded.
+
+#### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "item_category_id": 2,
+      "name": "Beras",
+      "unit_base": "gram",
+      "unit_convert": "kg",
+      "conversion_base": 1000,
+      "qty": "1500.00",
+      "is_active": true,
+      "created_at": "2026-04-03 10:00:00",
+      "updated_at": "2026-04-03 10:00:00",
+      "category": {
+        "id": 2,
+        "name": "KERING"
+      }
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 1,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/items?page=1&perPage=10",
+    "first": "/api/v1/items?page=1&perPage=10",
+    "last": "/api/v1/items?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+### 7.3 Create Item
+
+Writable fields:
+
+- `name`
+- `item_category_id`
+- `unit_base`
+- `unit_convert`
+- `conversion_base`
+- `is_active`
+
+Forbidden write fields:
+
+- `qty`
+- `id`
+- `created_at`
+- `updated_at`
+- `deleted_at`
+
+#### Request
+
+```json
+{
+  "name": "Minyak",
+  "item_category_id": 3,
+  "unit_base": "ml",
+  "unit_convert": "liter",
+  "conversion_base": 1000,
+  "is_active": true
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Item created successfully.",
+  "data": {
+    "id": 3,
+    "item_category_id": 3,
+    "name": "Minyak",
+    "unit_base": "ml",
+    "unit_convert": "liter",
+    "conversion_base": 1000,
+    "qty": "0.00",
+    "is_active": true,
+    "created_at": "2026-04-03 11:00:00",
+    "updated_at": "2026-04-03 11:00:00",
+    "category": {
+      "id": 3,
+      "name": "PENGEMAS"
+    }
+  }
+}
+```
+
+### 7.4 Get Item Detail
+
+#### Response
+
+```json
+{
+  "data": {
+    "id": 1,
+    "item_category_id": 2,
+    "name": "Beras",
+    "unit_base": "gram",
+    "unit_convert": "kg",
+    "conversion_base": 1000,
+    "qty": "1500.00",
+    "is_active": true,
+    "created_at": "2026-04-03 10:00:00",
+    "updated_at": "2026-04-03 10:00:00",
+    "category": {
+      "id": 2,
+      "name": "KERING"
+    }
+  }
+}
+```
+
+### 7.5 Update Item
+
+`PUT /api/v1/items/{id}`` uses partial-update semantics in Phase 1. Only fields present in the request are validated and updated.
+
+#### Request
+
+```json
+{
+  "name": "Beras Premium",
+  "is_active": false
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Item updated successfully.",
+  "data": {
+    "id": 1,
+    "item_category_id": 2,
+    "name": "Beras Premium",
+    "unit_base": "gram",
+    "unit_convert": "kg",
+    "conversion_base": 1000,
+    "qty": "1500.00",
+    "is_active": false,
+    "created_at": "2026-04-03 10:00:00",
+    "updated_at": "2026-04-03 11:30:00",
+    "category": {
+      "id": 2,
+      "name": "KERING"
+    }
+  }
+}
+```
+
+### 7.6 Delete Item
+
+#### Response
+
+```json
+{
+  "message": "Item deleted successfully."
+}
+```
+
+### 7.7 Validation Notes
+
+- `qty` cannot be created or updated directly through the item master endpoints.
+- `item_category_id` must reference an existing category.
+- `name` must be globally unique.
+- Missing or soft-deleted items return `404`.
+
+### 7.8 Deferred to Later Phase
+
+- `GET /api/v1/items/{id}/stock-summary`
+- stock usage locking rules
+- stock transaction integration
 
 ## 8. Inventory Transaction Endpoints
 
@@ -291,12 +495,174 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/stock-transactions` | List stock transactions |
+| GET | `/api/v1/stock-transactions` | List stock transactions with pagination |
 | POST | `/api/v1/stock-transactions` | Create stock transaction header + details |
-| GET | `/api/v1/stock-transactions/{id}` | Get transaction detail |
-| GET | `/api/v1/stock-transactions/{id}/details` | Get transaction item lines |
+| GET | `/api/v1/stock-transactions/{id}` | Get stock transaction header only |
+| GET | `/api/v1/stock-transactions/{id}/details` | Get stock transaction item lines only |
+
+### 8.1.1 Access Rules
+
+- `admin` dan `gudang` dapat mengakses endpoint transaksi stok Milestone 1.
+- `dapur` tidak memiliki akses ke endpoint transaksi stok.
+
+### 8.1.2 List Stock Transactions
+
+Supported query parameters:
+
+- `page`
+- `perPage`
+
+Rules:
+
+- unknown query parameters return `400` validation errors;
+- default order is `transaction_date` descending, then transaction id descending;
+- soft-deleted transactions are excluded.
+
+#### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 10,
+      "type_id": 1,
+      "transaction_date": "2026-04-18",
+      "is_revision": false,
+      "parent_transaction_id": null,
+      "approval_status_id": 1,
+      "approved_by": null,
+      "user_id": 2,
+      "spk_id": null,
+      "created_at": "2026-04-18 08:00:00",
+      "updated_at": "2026-04-18 08:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 1,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/stock-transactions?page=1&perPage=10",
+    "first": "/api/v1/stock-transactions?page=1&perPage=10",
+    "last": "/api/v1/stock-transactions?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+### 8.1.3 Create Stock Transaction
+
+Allowed request fields:
+
+- `type_id`
+- `transaction_date`
+- `spk_id`
+- `details`
+
+Allowed detail fields:
+
+- `item_id`
+- `qty`
+
+Forbidden client-controlled fields:
+
+- `user_id`
+- `approved_by`
+- `approval_status_id`
+- `is_revision`
+- `parent_transaction_id`
+- `created_at`
+- `updated_at`
+- `deleted_at`
+
+Rules:
+
+- `user_id` diambil dari authenticated Bearer token context;
+- transaksi normal Milestone 1 selalu dibuat dengan `approval_status_id = 1` dan `is_revision = false`;
+- `spk_id` bersifat opsional / nullable;
+- item yang sama tidak boleh muncul dua kali dalam satu request `details`;
+- transaksi `OUT` ditolak jika akan membuat `items.qty` menjadi negatif;
+- perubahan header, detail, qty, dan audit log ditulis dalam satu transaksi database.
+
+#### Request
+
+```json
+{
+  "type_id": 1,
+  "transaction_date": "2026-04-02",
+  "details": [
+    {
+      "item_id": 1,
+      "qty": 5000
+    }
+  ]
+}
+```
+
+> Catatan: `user_id` diambil dari authenticated session/token context, bukan dikirim bebas oleh client.
+
+#### Response
+
+```json
+{
+  "message": "Stock transaction created successfully.",
+  "data": {
+    "id": 10,
+    "approval_status_id": 1,
+    "is_revision": false
+  }
+}
+```
+
+### 8.1.4 Get Stock Transaction Header
+
+`GET /api/v1/stock-transactions/{id}` hanya mengembalikan resource header transaksi, bukan item lines.
+
+#### Response
+
+```json
+{
+  "data": {
+    "id": 10,
+    "type_id": 1,
+    "transaction_date": "2026-04-18",
+    "is_revision": false,
+    "parent_transaction_id": null,
+    "approval_status_id": 1,
+    "approved_by": null,
+    "user_id": 2,
+    "spk_id": null,
+    "created_at": "2026-04-18 08:00:00",
+    "updated_at": "2026-04-18 08:00:00"
+  }
+}
+```
+
+### 8.1.5 Get Stock Transaction Details
+
+`GET /api/v1/stock-transactions/{id}/details` hanya mengembalikan item lines transaksi.
+
+#### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "transaction_id": 10,
+      "item_id": 1,
+      "qty": "5000.00"
+    }
+  ]
+}
+```
 
 ### 8.2 Workflow Actions
+
+Endpoint berikut masih merupakan workflow lanjutan dan **belum diimplementasikan pada Milestone 1**.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -305,6 +671,8 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 | POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction |
 
 ### 8.3 Monthly Snapshot Endpoints
+
+Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -410,43 +778,26 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
   "message": "Item created successfully.",
   "data": {
     "id": 1,
+    "item_category_id": 2,
     "name": "Beras",
-    "qty": 0
+    "unit_base": "gram",
+    "unit_convert": "kg",
+    "conversion_base": 1000,
+    "qty": "0.00",
+    "is_active": true,
+    "created_at": "2026-04-03 11:00:00",
+    "updated_at": "2026-04-03 11:00:00",
+    "category": {
+      "id": 2,
+      "name": "KERING"
+    }
   }
 }
 ```
 
 ### 13.2 Create Stock Transaction
 
-#### Request
-
-```json
-{
-  "type_id": 1,
-  "transaction_date": "2026-04-02",
-  "details": [
-    {
-      "item_id": 1,
-      "qty": 5000
-    }
-  ]
-}
-```
-
-> Catatan: `user_id` idealnya diambil dari authenticated session/token context, bukan dikirim bebas oleh client.
-
-#### Response
-
-```json
-{
-  "message": "Stock transaction created successfully.",
-  "data": {
-    "id": 10,
-    "approval_status_id": 1,
-    "is_revision": false
-  }
-}
-```
+Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3 Create Stock Transaction** di atas.
 
 ### 13.3 Submit Revision
 

@@ -30,7 +30,11 @@ class CreateItems extends Migration
             "unit_convert" => [
                 "type" => "VARCHAR",
                 "constraint" => 20,
-                "null" => true,
+                "null" => false,
+            ],
+            "conversion_base" => [
+                "type" => "INT",
+                "null" => false,
             ],
             "is_active" => [
                 "type" => "BOOLEAN",
@@ -40,6 +44,7 @@ class CreateItems extends Migration
                 "type" => "DECIMAL",
                 "constraint" => "12,2",
                 "null" => false,
+                "default" => 0,
             ],
             "created_at" => [
                 "type" => "DATETIME",
@@ -63,8 +68,8 @@ class CreateItems extends Migration
             "CASCADE",
         );
 
-        // Primary key
         $this->forge->addKey("id", true);
+        $this->forge->addKey("name", false, true);
 
         $this->forge->createTable("items");
     }

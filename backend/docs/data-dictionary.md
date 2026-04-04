@@ -19,7 +19,7 @@ Fungsi: Menyimpan kategori barang sebagai lookup tetap.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
-| `id` | tinyint | PK | ID kategori barang |
+| `id` | bigint | PK, increment | ID kategori barang |
 | `name` | varchar(50) | not null, unique | Nama kategori: BASAH, KERING, PENGEMAS |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
@@ -30,7 +30,7 @@ Fungsi: Menyimpan tipe transaksi stok.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
-| `id` | tinyint | PK | ID tipe transaksi |
+| `id` | bigint | PK, increment | ID tipe transaksi |
 | `name` | varchar(50) | not null, unique | Nilai bisnis: IN, OUT, RETURN_IN |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
@@ -41,7 +41,7 @@ Fungsi: Menyimpan waktu makan standar.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
-| `id` | tinyint | PK | ID waktu makan |
+| `id` | bigint | PK, increment | ID waktu makan |
 | `name` | varchar(50) | not null, unique | SIANG, SORE, PAGI |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
@@ -52,7 +52,7 @@ Fungsi: Menyimpan status approval transaksi.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
-| `id` | tinyint | PK | ID status approval |
+| `id` | bigint | PK, increment | ID status approval |
 | `name` | varchar(50) | not null, unique | APPROVED, PENDING, REJECTED |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
@@ -215,7 +215,7 @@ Fungsi: Menyimpan master barang dan saldo stok berjalan.
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID item |
 | `name` | varchar(100) | not null | Nama barang |
-| `item_category_id` | tinyint | not null, FK | Relasi ke `item_categories.id` |
+| `item_category_id` | bigint | not null, FK | Relasi ke `item_categories.id` |
 | `unit_base` | varchar(20) | not null | Satuan terkecil / dapur |
 | `unit_convert` | varchar(20) | not null | Satuan besar / gudang |
 | `conversion_base` | int | not null | Nilai konversi dari satuan gudang ke satuan dasar |
@@ -224,6 +224,12 @@ Fungsi: Menyimpan master barang dan saldo stok berjalan.
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
+
+Perilaku Phase 1 item master API:
+
+- `name` diperlakukan unik secara global pada item master.
+- `qty` wajib dianggap read-only pada endpoint item master.
+- `item_category_id` harus merujuk ke kategori barang yang sudah ada.
 
 ## 4. Inventory & Stock Logic
 
@@ -251,21 +257,21 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID transaksi |
-| `type_id` | tinyint | not null, FK | Relasi ke `transaction_types.id` |
+| `type_id` | bigint | not null, FK | Relasi ke `transaction_types.id` |
 | `transaction_date` | date | not null | Tanggal transaksi |
 | `is_revision` | boolean | default false | Penanda transaksi revisi |
 | `parent_transaction_id` | bigint | nullable, self FK | Referensi transaksi asal jika ini revisi |
-| `approval_status_id` | tinyint | default 1, FK | Relasi ke `approval_statuses.id` |
+| `approval_status_id` | bigint | default 1, FK | Relasi ke `approval_statuses.id` |
 | `approved_by` | bigint | nullable, FK | User Admin yang menyetujui |
 | `user_id` | bigint | not null, FK | User pembuat transaksi |
-| `spk_id` | bigint | not null, FK | Relasi ke `spk_calculations.id` |
+| `spk_id` | bigint | nullable | Relasi opsional ke `spk_calculations.id` pada fase integrasi SPK |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
 
 Catatan desain:
 
-- Kolom `spk_id` saat ini bertipe `not null`, sehingga perlu dipastikan apakah semua transaksi memang harus terkait SPK.
+- Pada Milestone 1, `spk_id` dibuat nullable agar transaksi manual gudang tidak terblokir oleh modul SPK yang belum selesai.
 - Revisi transaksi tidak menghapus transaksi asal, tetapi menaut ke `parent_transaction_id`.
 
 ### 4.3 `stock_transaction_details`
@@ -406,10 +412,10 @@ Fungsi: Menyimpan histori aktivitas penting pengguna dan sistem.
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID log |
 | `user_id` | bigint | nullable, FK | User pelaku, null jika oleh sistem |
-| `action_type` | varchar(20) | not null | Jenis aksi: CREATE, UPDATE, DELETE, REVISION_APPROVED, LOGIN |
-| `table_name` | varchar(50) | not null | Nama tabel target perubahan |
+| `action_type` | varchar(50) | not null | Jenis aksi yang dicatat, mis. `stock_transaction_create` |
+| `table_name` | varchar(100) | not null | Nama tabel target perubahan |
 | `record_id` | bigint | not null | ID record target |
-| `message` | varchar(50) | nullable | Pesan ringkas log |
+| `message` | text | nullable | Pesan ringkas log |
 | `old_values` | json | nullable | Nilai lama sebelum perubahan |
 | `new_values` | json | nullable | Nilai baru setelah perubahan |
 | `ip_address` | varchar(45) | nullable | IP address pelaku |

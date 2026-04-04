@@ -4,7 +4,7 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class CreateItemCategory extends Migration
+class CreateItemCategories extends Migration
 {
     public function up()
     {
@@ -28,8 +28,8 @@ class CreateItemCategory extends Migration
             ],
         ]);
 
-        // Primary key
         $this->forge->addKey("id", true);
+        $this->forge->addKey("name", false, true);
 
         $this->forge->createTable("item_categories");
     }

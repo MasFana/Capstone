@@ -136,6 +136,14 @@ Tabel `items` memuat:
 - `qty` sebagai stok berjalan saat ini
 - status aktif/nonaktif
 
+Catatan implementasi Milestone 1:
+
+- Milestone 1 backend kini mencakup item master CRUD **dan** inventory operations core.
+- `admin` dan `gudang` dapat melihat, membuat, dan memperbarui item master.
+- soft delete item master dibatasi ke `admin`.
+- transaksi stok normal sudah tersedia melalui `stock_transactions` dan `stock_transaction_details`.
+- approval/revision action endpoint serta monthly snapshot endpoint tetap ditunda ke milestone berikutnya.
+
 ### 4.4 Inventory Transaction Module
 
 Tabel utama:
