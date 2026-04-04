@@ -121,7 +121,9 @@ _modules/*
 
 # Visual Studio Code
 .vscode/
-/.*
+/.op*
+/.si*
+/AGENTS.md
 
 /results/
 /phpunit*.xml
