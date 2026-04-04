@@ -57,4 +57,16 @@ class StockTransactionModel extends Model
 
         return $transaction ?: null;
     }
+
+    public function findRevisionById(int $id): ?array
+    {
+        $builder = $this->builder();
+        $builder->where('id', $id);
+        $builder->where('is_revision', true);
+        $builder->where('deleted_at', null);
+
+        $transaction = $builder->get()->getRowArray();
+
+        return $transaction ?: null;
+    }
 }

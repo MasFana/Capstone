@@ -289,7 +289,9 @@ class StockTransactionsTest extends CIUnitTestCase
         $result->assertJSONFragment(['message' => 'Stock transaction created successfully.']);
 
         $json = json_decode($result->getJSON(), true);
-        $this->assertSame(1, $json['data']['approval_status_id']);
+        $approvalStatusModel = new ApprovalStatusModel();
+        $approvedStatusId    = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
+        $this->assertSame($approvedStatusId, $json['data']['approval_status_id']);
         $this->assertFalse($json['data']['is_revision']);
 
         $itemAfter = $itemModel->find(1);
@@ -1065,5 +1067,1253 @@ class StockTransactionsTest extends CIUnitTestCase
 
         $result->assertStatus(400);
         $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    // Wave 2: Submit revision tests
+    public function testSubmitRevisionWithoutTokenReturnsUnauthorized(): void
+    {
+        $this->post('api/v1/stock-transactions/1/submit-revision')->assertStatus(401);
+    }
+
+    public function testSubmitRevisionAsDapurReturnsForbidden(): void
+    {
+        $token = $this->login('dapur');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/1/submit-revision', [
+                'transaction_date' => '2026-04-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(403);
+    }
+
+    public function testSubmitRevisionForMissingParentReturnsNotFound(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/9999/submit-revision', [
+                'transaction_date' => '2026-04-28',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(404);
+        $result->assertJSONFragment(['message' => 'Parent transaction not found.']);
+    }
+
+    public function testSubmitRevisionRejectsForbiddenFields(): void
+    {
+        $adminToken = $this->login('admin');
+
+        // Create parent transaction
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-04-29',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json      = json_decode($createResult->getJSON(), true);
+        $parentId  = $json['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-04-30',
+                'user_id'          => 999,
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testSubmitRevisionRejectsUnknownTopLevelField(): void
+    {
+        $gudangToken = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-01',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-02',
+                'unknown_field'    => 'value',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testSubmitRevisionRejectsUnknownDetailField(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-04',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15, 'extra' => 'field'],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testSubmitRevisionRejectsEmptyDetails(): void
+    {
+        $gudangToken = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-05',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-06',
+                'details'          => [],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testValidSubmitRevisionCreatesRevisionRecord(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent transaction
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-07',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-08',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+        $result->assertJSONFragment(['message' => 'Revision submitted successfully.']);
+
+        $revisionJson = json_decode($result->getJSON(), true);
+        $this->assertTrue($revisionJson['data']['is_revision']);
+        $this->assertSame($parentId, $revisionJson['data']['parent_transaction_id']);
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $pendingStatusId     = $approvalStatusModel->getIdByName('PENDING');
+        $this->assertSame($pendingStatusId, $revisionJson['data']['approval_status_id']);
+    }
+
+    public function testValidSubmitRevisionDoesNotMutateQty(): void
+    {
+        $gudangToken = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(1);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        // Create parent transaction (this will mutate qty)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-09',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 100],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(1);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+        $this->assertSame($qtyBefore + 100, $qtyAfterParent);
+
+        // Submit revision (this should NOT mutate qty)
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-10',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 200],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $itemAfterRevision = $itemModel->find(1);
+        $qtyAfterRevision  = (float) $itemAfterRevision['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterRevision);
+    }
+
+    public function testValidSubmitRevisionWritesAuditLog(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-11',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $auditModel  = new AuditLogModel();
+        $countBefore = $auditModel->countAllResults();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-12',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $countAfter = $auditModel->countAllResults();
+        $this->assertSame($countBefore + 1, $countAfter);
+
+        $latestAudit = $auditModel->orderBy('id', 'DESC')->first();
+        $this->assertSame('stock_transaction_revision_submit', $latestAudit['action_type']);
+
+        $newValues = json_decode((string) $latestAudit['new_values'], true);
+        $this->assertIsArray($newValues);
+        $this->assertTrue($newValues['is_revision']);
+        $this->assertSame($parentId, $newValues['parent_transaction_id']);
+    }
+
+    public function testSubmitRevisionRejectsRevisionAsParent(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-12',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-13',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionId = json_decode($revisionResult->getJSON(), true)['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/submit-revision', [
+                'transaction_date' => '2026-05-14',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 20],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Revision transactions cannot be revised again.', $json['errors']['id']);
+    }
+
+    // Wave 3: Approve revision tests
+    public function testApproveRevisionAsGudangReturnsForbidden(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/1/approve', []);
+
+        $result->assertStatus(403);
+    }
+
+    public function testApproveRevisionForMissingRevisionReturnsNotFound(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/9999/approve', []);
+
+        $result->assertStatus(404);
+        $result->assertJSONFragment(['message' => 'Revision not found.']);
+    }
+
+    public function testApproveNonRevisionTransactionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create normal transaction
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-13',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json = json_decode($createResult->getJSON(), true);
+        $id   = $json['data']['id'];
+
+        // Try to approve it
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $id . '/approve', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testApproveAlreadyApprovedRevisionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-14',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-15',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Approve once
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        // Try to approve again
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testApproveAlreadyRejectedRevisionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-16',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-17',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Reject it first (we'll need reject endpoint for this, so this test will initially fail)
+        // For now, manually update status
+        $db = \Config\Database::connect();
+        $approvalStatusModel = new ApprovalStatusModel();
+        $rejectedStatusId    = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_REJECTED);
+        $db->table('stock_transactions')->where('id', $revisionId)->update(['approval_status_id' => $rejectedStatusId]);
+
+        // Try to approve rejected revision
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testValidApproveRevisionReturnsSuccess(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-18',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-19',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 20],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Approve
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', []);
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'Revision approved successfully.']);
+
+        $approveJson = json_decode($result->getJSON(), true);
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $approvedStatusId    = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
+        $this->assertSame($approvedStatusId, $approveJson['data']['approval_status_id']);
+        $this->assertIsInt($approveJson['data']['approved_by']);
+    }
+
+    public function testApproveRevisionMutatesQtyForInType(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(1);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        // Create parent (will mutate qty +50)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-20',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 50],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(1);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+        $this->assertSame($qtyBefore + 50, $qtyAfterParent);
+
+        // Submit revision (+75, does NOT mutate yet)
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-21',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 75],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        $itemAfterRevisionSubmit = $itemModel->find(1);
+        $qtyAfterRevisionSubmit  = (float) $itemAfterRevisionSubmit['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterRevisionSubmit);
+
+        // Approve revision (should mutate +75)
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        $itemAfterApprove = $itemModel->find(1);
+        $qtyAfterApprove  = (float) $itemAfterApprove['qty'];
+        $this->assertSame($qtyAfterParent + 75, $qtyAfterApprove);
+    }
+
+    public function testApproveRevisionMutatesQtyForOutType(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $outType   = $typeModel->where('name', 'OUT')->first();
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(1);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        // Create parent OUT (-30)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $outType['id'],
+                'transaction_date' => '2026-05-22',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 30],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(1);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+        $this->assertSame($qtyBefore - 30, $qtyAfterParent);
+
+        // Submit revision (-40, does NOT mutate yet)
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-23',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 40],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Approve revision (should mutate -40)
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        $itemAfterApprove = $itemModel->find(1);
+        $qtyAfterApprove  = (float) $itemAfterApprove['qty'];
+        $this->assertSame($qtyAfterParent - 40, $qtyAfterApprove);
+    }
+
+    public function testApproveRevisionMutatesQtyForReturnInType(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel  = new TransactionTypeModel();
+        $returnType = $typeModel->where('name', 'RETURN_IN')->first();
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(2);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        // Create parent RETURN_IN (+25)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $returnType['id'],
+                'transaction_date' => '2026-05-24',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 25],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(2);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+        $this->assertSame($qtyBefore + 25, $qtyAfterParent);
+
+        // Submit revision (+35)
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-25',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 35],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Approve revision
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        $itemAfterApprove = $itemModel->find(2);
+        $qtyAfterApprove  = (float) $itemAfterApprove['qty'];
+        $this->assertSame($qtyAfterParent + 35, $qtyAfterApprove);
+    }
+
+    public function testApproveRevisionWritesAuditLog(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-26',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        $auditModel  = new AuditLogModel();
+        $countBefore = $auditModel->countAllResults();
+
+        // Approve
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        $countAfter = $auditModel->countAllResults();
+        $this->assertSame($countBefore + 1, $countAfter);
+
+        $latestAudit = $auditModel->orderBy('id', 'DESC')->first();
+        $this->assertSame('stock_transaction_revision_approve', $latestAudit['action_type']);
+
+        $oldValues = json_decode((string) $latestAudit['old_values'], true);
+        $newValues = json_decode((string) $latestAudit['new_values'], true);
+        $this->assertIsArray($oldValues);
+        $this->assertIsArray($newValues);
+        $this->assertSame($oldValues['id'], $newValues['id']);
+        $this->assertNotSame($oldValues['approval_status_id'], $newValues['approval_status_id']);
+        $this->assertNull($oldValues['approved_by']);
+        $this->assertNotNull($newValues['approved_by']);
+    }
+
+    public function testApproveRevisionWithInvalidStatusReturnsExplicitError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-28',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionId = json_decode($revisionResult->getJSON(), true)['data']['id'];
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $unexpectedStatusId  = $approvalStatusModel->insert(['name' => 'ARCHIVED'], true);
+
+        $db = \Config\Database::connect();
+        $db->table('stock_transactions')->where('id', $revisionId)->update(['approval_status_id' => $unexpectedStatusId]);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', []);
+
+        $result->assertStatus(400);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Revision has an invalid approval state.', $json['errors']['id']);
+    }
+
+    public function testApproveRevisionWithInsufficientStockLeavesQtyAndStatusUnchanged(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $outType   = $typeModel->where('name', 'OUT')->first();
+
+        $itemModel = new ItemModel();
+
+        // Create parent OUT (-10)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $outType['id'],
+                'transaction_date' => '2026-05-28',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(1);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+
+        // Submit revision requesting more than available stock
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-29',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => $qtyAfterParent + 1],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Try to approve (should fail)
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+
+        // Qty should be unchanged
+        $itemAfterFailedApprove = $itemModel->find(1);
+        $qtyAfterFailedApprove  = (float) $itemAfterFailedApprove['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterFailedApprove);
+
+        // Revision should still be PENDING
+        $transactionModel  = new \App\Models\StockTransactionModel();
+        $revisionAfterFail = $transactionModel->find($revisionId);
+        $approvalStatusModel = new ApprovalStatusModel();
+        $pendingStatusId     = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_PENDING);
+        $this->assertSame($pendingStatusId, (int) $revisionAfterFail['approval_status_id']);
+    }
+
+    // Wave 4: Reject revision tests
+    public function testRejectRevisionAsGudangReturnsForbidden(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/1/reject', []);
+
+        $result->assertStatus(403);
+    }
+
+    public function testRejectRevisionForMissingRevisionReturnsNotFound(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/9999/reject', []);
+
+        $result->assertStatus(404);
+        $result->assertJSONFragment(['message' => 'Revision not found.']);
+    }
+
+    public function testRejectNonRevisionTransactionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create normal transaction
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-30',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json = json_decode($createResult->getJSON(), true);
+        $id   = $json['data']['id'];
+
+        // Try to reject it
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $id . '/reject', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testRejectAlreadyApprovedRevisionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-31',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-01',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Approve it
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        // Try to reject approved revision
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testRejectAlreadyRejectedRevisionReturnsError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-06-02',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Reject once
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', [])
+            ->assertStatus(200);
+
+        // Try to reject again
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', []);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testValidRejectRevisionReturnsSuccess(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-06-04',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-05',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 20],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        // Reject
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', []);
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'Revision rejected successfully.']);
+
+        $rejectJson = json_decode($result->getJSON(), true);
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $rejectedStatusId    = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_REJECTED);
+        $this->assertSame($rejectedStatusId, $rejectJson['data']['approval_status_id']);
+        $this->assertIsInt($rejectJson['data']['approved_by']);
+    }
+
+    public function testRejectRevisionDoesNotMutateQty(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(1);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        // Create parent (will mutate qty +30)
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-06-06',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 30],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        $itemAfterParent = $itemModel->find(1);
+        $qtyAfterParent  = (float) $itemAfterParent['qty'];
+        $this->assertSame($qtyBefore + 30, $qtyAfterParent);
+
+        // Submit revision (+50, does NOT mutate yet)
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-07',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 50],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        $itemAfterRevisionSubmit = $itemModel->find(1);
+        $qtyAfterRevisionSubmit  = (float) $itemAfterRevisionSubmit['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterRevisionSubmit);
+
+        // Reject revision (should NOT mutate)
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', [])
+            ->assertStatus(200);
+
+        $itemAfterReject = $itemModel->find(1);
+        $qtyAfterReject  = (float) $itemAfterReject['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterReject);
+    }
+
+    public function testRejectRevisionWritesAuditLog(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Create parent
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-06-08',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $json     = json_decode($createResult->getJSON(), true);
+        $parentId = $json['data']['id'];
+
+        // Submit revision
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-09',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionJson = json_decode($revisionResult->getJSON(), true);
+        $revisionId   = $revisionJson['data']['id'];
+
+        $auditModel  = new AuditLogModel();
+        $countBefore = $auditModel->countAllResults();
+
+        // Reject
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', [])
+            ->assertStatus(200);
+
+        $countAfter = $auditModel->countAllResults();
+        $this->assertSame($countBefore + 1, $countAfter);
+
+        $latestAudit = $auditModel->orderBy('id', 'DESC')->first();
+        $this->assertSame('stock_transaction_revision_reject', $latestAudit['action_type']);
+
+        $oldValues = json_decode((string) $latestAudit['old_values'], true);
+        $newValues = json_decode((string) $latestAudit['new_values'], true);
+        $this->assertIsArray($oldValues);
+        $this->assertIsArray($newValues);
+        $this->assertSame($oldValues['id'], $newValues['id']);
+        $this->assertNotSame($oldValues['approval_status_id'], $newValues['approval_status_id']);
+        $this->assertNull($oldValues['approved_by']);
+        $this->assertNotNull($newValues['approved_by']);
+    }
+
+    public function testRejectRevisionWithInvalidStatusReturnsExplicitError(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-06-10',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-11',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $revisionId = json_decode($revisionResult->getJSON(), true)['data']['id'];
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $unexpectedStatusId  = $approvalStatusModel->insert(['name' => 'ARCHIVED'], true);
+
+        $db = \Config\Database::connect();
+        $db->table('stock_transactions')->where('id', $revisionId)->update(['approval_status_id' => $unexpectedStatusId]);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/reject', []);
+
+        $result->assertStatus(400);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Revision has an invalid approval state.', $json['errors']['id']);
     }
 }

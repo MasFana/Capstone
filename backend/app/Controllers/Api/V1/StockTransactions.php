@@ -152,6 +152,121 @@ class StockTransactions extends BaseController
             ]);
     }
 
+    public function submitRevision(int $id): ResponseInterface
+    {
+        $data = $this->request->getJSON(true) ?? [];
+        $user = auth()->user();
+
+        if ($user === null) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthorized.',
+                ]);
+        }
+
+        $userId    = $user->id;
+        $ipAddress = $this->request->getIPAddress();
+
+        $result = $this->transactionService->submitRevision($id, $data, $userId, $ipAddress);
+
+        if (! $result['success']) {
+            $statusCode = isset($result['errors']) && $result['errors'] === [] && $result['message'] === 'Parent transaction not found.'
+                ? 404
+                : 400;
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(201)
+            ->setJSON([
+                'message' => $result['message'],
+                'data'    => $result['data'],
+            ]);
+    }
+
+    public function approve(int $id): ResponseInterface
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthorized.',
+                ]);
+        }
+
+        $userId    = $user->id;
+        $ipAddress = $this->request->getIPAddress();
+
+        $result = $this->transactionService->approveRevision($id, $userId, $ipAddress);
+
+        if (! $result['success']) {
+            $statusCode = isset($result['errors']) && $result['errors'] === [] && $result['message'] === 'Revision not found.'
+                ? 404
+                : 400;
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => $result['message'],
+                'data'    => $result['data'],
+            ]);
+    }
+
+    public function reject(int $id): ResponseInterface
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthorized.',
+                ]);
+        }
+
+        $userId    = $user->id;
+        $ipAddress = $this->request->getIPAddress();
+
+        $result = $this->transactionService->rejectRevision($id, $userId, $ipAddress);
+
+        if (! $result['success']) {
+            $statusCode = isset($result['errors']) && $result['errors'] === [] && $result['message'] === 'Revision not found.'
+                ? 404
+                : 400;
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => $result['message'],
+                'data'    => $result['data'],
+            ]);
+    }
+
     private function buildPaginationLinks(array $result): array
     {
         $queryParams = $this->request->getGet();

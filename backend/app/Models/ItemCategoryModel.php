@@ -6,6 +6,9 @@ use CodeIgniter\Model;
 
 class ItemCategoryModel extends Model
 {
+    public const NAME_BASAH = 'BASAH';
+    public const NAME_KERING = 'KERING';
+
     protected $table         = 'item_categories';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['name'];

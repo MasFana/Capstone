@@ -273,6 +273,9 @@ Catatan desain:
 
 - Pada Milestone 1, `spk_id` dibuat nullable agar transaksi manual gudang tidak terblokir oleh modul SPK yang belum selesai.
 - Revisi transaksi tidak menghapus transaksi asal, tetapi menaut ke `parent_transaction_id`.
+- Revisi yang baru disubmit disimpan dengan status `PENDING` dan tidak langsung mengubah `items.qty`.
+- `approved_by` diisi saat admin melakukan approve atau reject terhadap revisi.
+- Mutasi stok dari revisi hanya diterapkan ketika status revisi berubah menjadi `APPROVED`.
 
 ### 4.3 `stock_transaction_details`
 

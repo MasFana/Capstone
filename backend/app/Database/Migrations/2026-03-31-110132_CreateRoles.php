@@ -28,8 +28,8 @@ class CreateRole extends Migration
             ],
         ]);
 
-        // Primary key
         $this->forge->addKey("id", true);
+        $this->forge->addKey("name", false, true);
 
         $this->forge->createTable("roles");
     }

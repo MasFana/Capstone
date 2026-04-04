@@ -324,8 +324,9 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 2. `parent_transaction_id` menunjuk transaksi asal.
 3. `approval_status_id` berubah ke `PENDING`.
 4. admin meninjau.
-5. Jika disetujui, `approval_status_id` menjadi `APPROVED` dan `approved_by` diisi.
-6. Jika ditolak, status menjadi `REJECTED`.
+5. Selama masih `PENDING`, revisi belum mengubah `items.qty`.
+6. Jika disetujui, `approval_status_id` menjadi `APPROVED`, `approved_by` diisi, dan mutasi qty revisi diterapkan.
+7. Jika ditolak, status menjadi `REJECTED` tanpa perubahan qty.
 
 ### 8.5 Menu Scheduling and Consumption Base
 

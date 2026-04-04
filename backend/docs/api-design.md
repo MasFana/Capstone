@@ -662,13 +662,23 @@ Rules:
 
 ### 8.2 Workflow Actions
 
-Endpoint berikut masih merupakan workflow lanjutan dan **belum diimplementasikan pada Milestone 1**.
+Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone 1.
 
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/v1/stock-transactions/{id}/submit-revision` | Submit revision against parent transaction |
 | POST | `/api/v1/stock-transactions/{id}/approve` | Approve revision transaction |
 | POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction |
+
+#### Revision workflow rules
+
+- submit revision dapat dilakukan oleh `admin` dan `gudang`;
+- approve/reject revision hanya dapat dilakukan oleh `admin`;
+- submit revision membuat child transaction dengan `is_revision = true` dan `approval_status_id = PENDING`;
+- submit revision **tidak** mengubah `items.qty`;
+- `items.qty` baru berubah ketika revision di-approve;
+- reject revision tidak mengubah `items.qty`;
+- parent transaction tetap dipertahankan sebagai histori asal.
 
 ### 8.3 Monthly Snapshot Endpoints
 
@@ -805,7 +815,6 @@ Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3
 
 ```json
 {
-  "parent_transaction_id": 10,
   "transaction_date": "2026-04-02",
   "details": [
     {
@@ -815,6 +824,8 @@ Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3
   ]
 }
 ```
+
+> Catatan: `parent_transaction_id` diambil dari path parameter endpoint `/api/v1/stock-transactions/{id}/submit-revision`, bukan dari body request.
 
 #### Response
 
@@ -830,7 +841,55 @@ Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3
 }
 ```
 
-### 13.4 Generate SPK
+Submit revision hanya membuat child revision pending dan tidak langsung mengubah stok.
+
+### 13.4 Approve Revision
+
+#### Request
+
+```json
+{}
+```
+
+#### Response
+
+```json
+{
+  "message": "Revision approved successfully.",
+  "data": {
+    "id": 11,
+    "approval_status_id": 1,
+    "approved_by": 1
+  }
+}
+```
+
+Saat approve berhasil, sistem menerapkan mutasi qty dari detail revision ke `items.qty` secara atomik.
+
+### 13.5 Reject Revision
+
+#### Request
+
+```json
+{}
+```
+
+#### Response
+
+```json
+{
+  "message": "Revision rejected successfully.",
+  "data": {
+    "id": 11,
+    "approval_status_id": 3,
+    "approved_by": 1
+  }
+}
+```
+
+Reject revision hanya mengubah status approval dan tidak mengubah stok.
+
+### 13.6 Generate SPK
 
 #### Request
 
