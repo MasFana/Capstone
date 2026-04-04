@@ -19,4 +19,18 @@ class ItemCategoryModel extends Model
     {
         return $this->find($id) !== null;
     }
+
+    /**
+     * Get item category ID by name with case-insensitive and trimmed matching.
+     *
+     * @param string $name Category name to search for
+     * @return int|null Category ID if found, null otherwise
+     */
+    public function getIdByName(string $name): ?int
+    {
+        $trimmedName = trim($name);
+        $result = $this->where('LOWER(name)', strtolower($trimmedName))->first();
+
+        return $result !== null ? (int) $result['id'] : null;
+    }
 }

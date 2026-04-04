@@ -17,6 +17,20 @@ class RoleModel extends Model
         return $this->where('name', $name)->first();
     }
 
+    /**
+     * Get role ID by name with case-insensitive and trimmed matching.
+     *
+     * @param string $name Role name to search for
+     * @return int|null Role ID if found, null otherwise
+     */
+    public function getIdByName(string $name): ?int
+    {
+        $trimmedName = trim($name);
+        $result = $this->where('LOWER(name)', strtolower($trimmedName))->first();
+
+        return $result !== null ? (int) $result['id'] : null;
+    }
+
     public function getAll(): array
     {
         return $this->orderBy('name', 'ASC')->findAll();

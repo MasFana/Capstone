@@ -605,4 +605,191 @@ class UsersTest extends CIUnitTestCase
         $showJson = json_decode($showResult->getJSON(), true);
         $this->assertSame('changed-email@example.com', $showJson['data']['email']);
     }
+
+    // Dual lookup tests: role_name support
+    public function testCreateUserWithRoleNameSucceeds(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_name' => 'gudang',
+                'name'     => 'Name Lookup User',
+                'username' => 'namelookupuser',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(201);
+        $result->assertJSONFragment(['message' => 'User created successfully.']);
+        
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('namelookupuser', $json['data']['username']);
+        $this->assertSame('gudang', $json['data']['role']['name']);
+    }
+
+    public function testCreateUserWithTrimmedRoleNameSucceeds(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_name' => '  dapur  ',
+                'name'     => 'Trimmed Name User',
+                'username' => 'trimmed',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('dapur', $json['data']['role']['name']);
+    }
+
+    public function testCreateUserWithCaseInsensitiveRoleNameSucceeds(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_name' => 'GUDANG',
+                'name'     => 'Case Insensitive User',
+                'username' => 'caseinsensitive',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('gudang', $json['data']['role']['name']);
+    }
+
+    public function testCreateUserWithBothRoleIdAndRoleNameFails(): void
+    {
+        $token = $this->loginAsAdmin();
+        $roleModel = new RoleModel();
+        $gudangRole = $roleModel->findByName('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_id'   => $gudangRole['id'],
+                'role_name' => 'admin',
+                'name'     => 'Conflict User',
+                'username' => 'conflict',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_id', $json['errors']);
+        $this->assertArrayHasKey('role_name', $json['errors']);
+    }
+
+    public function testCreateUserWithInvalidRoleNameFails(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_name' => 'nonexistent',
+                'name'     => 'Invalid Role User',
+                'username' => 'invalidrole',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_name', $json['errors']);
+    }
+
+    public function testCreateUserWithInvalidRoleIdFails(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_id'  => 99999,
+                'name'     => 'Invalid Role Id User',
+                'username' => 'invalidroleid',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_id', $json['errors']);
+    }
+
+    public function testUpdateUserWithRoleNameSucceeds(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/users/2', [
+                'role_name' => 'admin',
+            ]);
+
+        $result->assertStatus(200);
+        
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('admin', $json['data']['role']['name']);
+    }
+
+    public function testUpdateUserWithBothRoleIdAndRoleNameFails(): void
+    {
+        $token = $this->loginAsAdmin();
+        $roleModel = new RoleModel();
+        $adminRole = $roleModel->findByName('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/users/2', [
+                'role_id'   => $adminRole['id'],
+                'role_name' => 'gudang',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_id', $json['errors']);
+        $this->assertArrayHasKey('role_name', $json['errors']);
+    }
+
+    public function testUpdateUserWithInvalidRoleNameFails(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/users/2', [
+                'role_name' => 'invalidrole',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_name', $json['errors']);
+    }
+
+    public function testUpdateUserWithInvalidRoleIdFails(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/users/2', [
+                'role_id' => 99999,
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_id', $json['errors']);
+    }
 }

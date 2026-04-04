@@ -417,4 +417,162 @@ class ItemsTest extends CIUnitTestCase
         $result->assertStatus(400);
         $result->assertJSONFragment(['message' => 'Validation failed.']);
     }
+
+    // Dual lookup tests: item_category_name support
+    public function testCreateItemWithItemCategoryNameSucceeds(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/items', [
+                'name'               => 'Minyak Goreng',
+                'item_category_name' => 'PENGEMAS',
+                'unit_base'          => 'ml',
+                'unit_convert'       => 'liter',
+                'conversion_base'    => 1000,
+                'is_active'          => true,
+            ]);
+
+        $result->assertStatus(201);
+        $result->assertJSONFragment(['message' => 'Item created successfully.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Minyak Goreng', $json['data']['name']);
+        $this->assertSame('PENGEMAS', $json['data']['category']['name']);
+    }
+
+    public function testCreateItemWithTrimmedItemCategoryNameSucceeds(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/items', [
+                'name'               => 'Telur',
+                'item_category_name' => '  BASAH  ',
+                'unit_base'          => 'butir',
+                'unit_convert'       => 'pack',
+                'conversion_base'    => 10,
+            ]);
+
+        $result->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('BASAH', $json['data']['category']['name']);
+    }
+
+    public function testCreateItemWithCaseInsensitiveItemCategoryNameSucceeds(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/items', [
+                'name'               => 'Gula',
+                'item_category_name' => 'kering',
+                'unit_base'          => 'gram',
+                'unit_convert'       => 'kg',
+                'conversion_base'    => 1000,
+            ]);
+
+        $result->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('KERING', $json['data']['category']['name']);
+    }
+
+    public function testCreateItemWithBothItemCategoryIdAndItemCategoryNameFails(): void
+    {
+        $token         = $this->login('admin');
+        $categoryModel = new ItemCategoryModel();
+        $category      = $categoryModel->where('name', 'KERING')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/items', [
+                'name'               => 'Conflict Item',
+                'item_category_id'   => $category['id'],
+                'item_category_name' => 'BASAH',
+                'unit_base'          => 'gram',
+                'unit_convert'       => 'kg',
+                'conversion_base'    => 1000,
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('item_category_id', $json['errors']);
+        $this->assertArrayHasKey('item_category_name', $json['errors']);
+    }
+
+    public function testCreateItemWithInvalidItemCategoryNameFails(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/items', [
+                'name'               => 'Invalid Category Item',
+                'item_category_name' => 'NONEXISTENT',
+                'unit_base'          => 'gram',
+                'unit_convert'       => 'kg',
+                'conversion_base'    => 1000,
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('item_category_name', $json['errors']);
+    }
+
+    public function testUpdateItemWithItemCategoryNameSucceeds(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/items/1', [
+                'item_category_name' => 'BASAH',
+            ]);
+
+        $result->assertStatus(200);
+        
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('BASAH', $json['data']['category']['name']);
+    }
+
+    public function testUpdateItemWithBothItemCategoryIdAndItemCategoryNameFails(): void
+    {
+        $token         = $this->login('gudang');
+        $categoryModel = new ItemCategoryModel();
+        $category      = $categoryModel->where('name', 'BASAH')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/items/1', [
+                'item_category_id'   => $category['id'],
+                'item_category_name' => 'KERING',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('item_category_id', $json['errors']);
+        $this->assertArrayHasKey('item_category_name', $json['errors']);
+    }
+
+    public function testUpdateItemWithInvalidItemCategoryNameFails(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/items/1', [
+                'item_category_name' => 'INVALIDCATEGORY',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('item_category_name', $json['errors']);
+    }
 }

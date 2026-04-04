@@ -31,6 +31,12 @@ Sistem difokuskan pada:
 6. Revisi transaksi mengikuti approval workflow menggunakan `approval_statuses`, `is_revision`, dan `parent_transaction_id`.
 7. Audit log adalah bagian wajib dari desain.
 
+Catatan implemented baseline saat ini:
+
+- endpoint user/item/stock transaction yang sudah aktif kini mendukung sebagian input lookup by id atau by name;
+- field yang sudah didukung adalah `role_id`/`role_name`, `item_category_id`/`item_category_name`, dan `type_id`/`type_name`;
+- lookup nama pada implemented baseline sekarang bersifat trimmed dan case-insensitive.
+
 ## 4. Planned Modules
 
 ### 4.1 Lookup & Reference
@@ -73,6 +79,11 @@ Sistem difokuskan pada:
 - `spk_recommendations`
 
 ## 5. Planned Workflow Coverage
+
+Catatan:
+
+- Bagian ini adalah coverage target rencana desain, bukan pernyataan bahwa semua workflow di bawah sudah selesai diimplementasikan.
+- Sebagian workflow user management dan stock operations memang sudah berjalan pada backend saat ini, tetapi bagian ini tetap dipertahankan sebagai planning coverage summary lintas fase.
 
 ### 5.1 User Management
 

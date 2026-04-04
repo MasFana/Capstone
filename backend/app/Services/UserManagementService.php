@@ -39,13 +39,27 @@ class UserManagementService
 
     public function createUser(array $data): array
     {
+        // Resolve role_name to role_id if provided
+        if (isset($data['role_name']) && !isset($data['role_id'])) {
+            $roleId = $this->roleModel->getIdByName($data['role_name']);
+            if ($roleId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['role_name' => 'The selected role is invalid.'],
+                ];
+            }
+            $data['role_id'] = $roleId;
+        }
+
         $role = $this->roleModel->find($data['role_id']);
         $roleName = is_array($role) && isset($role['name']) && is_string($role['name']) ? $role['name'] : null;
 
         if ($roleName === null || !$this->isAllowedRole($roleName)) {
             return [
                 'success' => false,
-                'message' => 'Invalid role.',
+                'message' => 'Validation failed.',
+                'errors'  => ['role_id' => 'The selected role is invalid.'],
             ];
         }
 
@@ -95,6 +109,19 @@ class UserManagementService
             ];
         }
 
+        // Resolve role_name to role_id if provided
+        if (isset($data['role_name']) && !isset($data['role_id'])) {
+            $roleId = $this->roleModel->getIdByName($data['role_name']);
+            if ($roleId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['role_name' => 'The selected role is invalid.'],
+                ];
+            }
+            $data['role_id'] = $roleId;
+        }
+
         if (isset($data['role_id'])) {
             $role = $this->roleModel->find($data['role_id']);
             $roleName = is_array($role) && isset($role['name']) && is_string($role['name']) ? $role['name'] : null;
@@ -102,7 +129,8 @@ class UserManagementService
             if ($roleName === null || !$this->isAllowedRole($roleName)) {
                 return [
                     'success' => false,
-                    'message' => 'Invalid role.',
+                    'message' => 'Validation failed.',
+                    'errors'  => ['role_id' => 'The selected role is invalid.'],
                 ];
             }
         }

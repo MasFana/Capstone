@@ -70,14 +70,46 @@ class Items extends BaseController
                 ]);
         }
 
+        // Check for conflicting item_category_id and item_category_name
+        if (isset($data['item_category_id']) && isset($data['item_category_name'])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'item_category_id' => 'Cannot specify both item_category_id and item_category_name.',
+                        'item_category_name' => 'Cannot specify both item_category_id and item_category_name.',
+                    ],
+                ]);
+        }
+
+        // Require at least one category field
+        if (!isset($data['item_category_id']) && !isset($data['item_category_name'])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'item_category_id' => 'Either item_category_id or item_category_name is required.',
+                    ],
+                ]);
+        }
+
         $rules = [
             'name'             => 'required|max_length[100]',
-            'item_category_id' => 'required|is_natural_no_zero',
             'unit_base'        => 'required|max_length[20]',
             'unit_convert'     => 'required|max_length[20]',
             'conversion_base'  => 'required|is_natural_no_zero',
             'is_active'        => 'permit_empty',
         ];
+
+        if (isset($data['item_category_id'])) {
+            $rules['item_category_id'] = 'required|is_natural_no_zero';
+        }
+
+        if (isset($data['item_category_name'])) {
+            $rules['item_category_name'] = 'required|max_length[50]';
+        }
 
         if (! $this->validateData($data, $rules)) {
             return $this->response
@@ -121,6 +153,19 @@ class Items extends BaseController
                 ]);
         }
 
+        // Check for conflicting item_category_id and item_category_name
+        if (isset($data['item_category_id']) && isset($data['item_category_name'])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'item_category_id' => 'Cannot specify both item_category_id and item_category_name.',
+                        'item_category_name' => 'Cannot specify both item_category_id and item_category_name.',
+                    ],
+                ]);
+        }
+
         $validationData = [
             ...$data,
             'id' => $id,
@@ -129,12 +174,19 @@ class Items extends BaseController
         $rules = [
             'id'               => 'required|is_natural_no_zero',
             'name'             => 'permit_empty|max_length[100]|is_unique[items.name,id,{id}]',
-            'item_category_id' => 'permit_empty|is_natural_no_zero',
             'unit_base'        => 'permit_empty|max_length[20]',
             'unit_convert'     => 'permit_empty|max_length[20]',
             'conversion_base'  => 'permit_empty|is_natural_no_zero',
             'is_active'        => 'permit_empty',
         ];
+
+        if (isset($data['item_category_id'])) {
+            $rules['item_category_id'] = 'permit_empty|is_natural_no_zero';
+        }
+
+        if (isset($data['item_category_name'])) {
+            $rules['item_category_name'] = 'permit_empty|max_length[50]';
+        }
 
         if (! $this->validateData($validationData, $rules)) {
             return $this->response

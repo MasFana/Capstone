@@ -25,6 +25,7 @@ class StockTransactionService
 
     private const ALLOWED_TOP_LEVEL_FIELDS = [
         'type_id',
+        'type_name',
         'transaction_date',
         'spk_id',
         'details',
@@ -97,11 +98,45 @@ class StockTransactionService
             ];
         }
 
-        if (! isset($data['type_id']) || ! is_numeric($data['type_id'])) {
+        // Check for conflicting type_id and type_name
+        if (isset($data['type_id']) && isset($data['type_name'])) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => ['type_id' => 'The type_id field is required and must be numeric.'],
+                'errors'  => [
+                    'type_id' => 'Cannot specify both type_id and type_name.',
+                    'type_name' => 'Cannot specify both type_id and type_name.',
+                ],
+            ];
+        }
+
+        // Require at least one type field
+        if (!isset($data['type_id']) && !isset($data['type_name'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['type_id' => 'Either type_id or type_name is required.'],
+            ];
+        }
+
+        // Resolve type_name to type_id if provided
+        if (isset($data['type_name']) && !isset($data['type_id'])) {
+            $typeId = $this->typeModel->getIdByName($data['type_name']);
+            if ($typeId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['type_name' => 'The selected transaction type is invalid.'],
+                ];
+            }
+            $data['type_id'] = $typeId;
+        }
+
+        if (! is_numeric($data['type_id'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['type_id' => 'The type_id field must be numeric.'],
             ];
         }
 

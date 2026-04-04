@@ -84,6 +84,19 @@ class ItemManagementService
             ];
         }
 
+        // Resolve item_category_name to item_category_id if provided
+        if (isset($data['item_category_name']) && !isset($data['item_category_id'])) {
+            $categoryId = $this->itemCategoryModel->getIdByName($data['item_category_name']);
+            if ($categoryId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['item_category_name' => 'The selected item category is invalid.'],
+                ];
+            }
+            $data['item_category_id'] = $categoryId;
+        }
+
         if (! $this->itemCategoryModel->exists((int) $data['item_category_id'])) {
             return [
                 'success' => false,
@@ -155,6 +168,19 @@ class ItemManagementService
                 'message' => 'Validation failed.',
                 'errors'  => $forbiddenErrors,
             ];
+        }
+
+        // Resolve item_category_name to item_category_id if provided
+        if (isset($data['item_category_name']) && !isset($data['item_category_id'])) {
+            $categoryId = $this->itemCategoryModel->getIdByName($data['item_category_name']);
+            if ($categoryId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['item_category_name' => 'The selected item category is invalid.'],
+                ];
+            }
+            $data['item_category_id'] = $categoryId;
         }
 
         if (isset($data['item_category_id']) && ! $this->itemCategoryModel->exists((int) $data['item_category_id'])) {

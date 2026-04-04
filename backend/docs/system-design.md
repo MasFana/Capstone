@@ -118,6 +118,7 @@ Aturan utama:
 - `users.deleted_at` dipakai untuk soft delete
 - `users.is_active` dipakai untuk aktivasi/nonaktivasi akun
 - `role_id` menentukan kewenangan utama pengguna
+- endpoint user yang sudah diimplementasikan menerima `role_id` atau `role_name`, dengan lookup nama yang trimmed dan case-insensitive
 
 ### 4.3 Master Inventory Module
 
@@ -142,7 +143,12 @@ Catatan implementasi Milestone 1:
 - `admin` dan `gudang` dapat melihat, membuat, dan memperbarui item master.
 - soft delete item master dibatasi ke `admin`.
 - transaksi stok normal sudah tersedia melalui `stock_transactions` dan `stock_transaction_details`.
-- approval/revision action endpoint serta monthly snapshot endpoint tetap ditunda ke milestone berikutnya.
+
+Catatan implementasi lanjutan:
+
+- endpoint submit/approve/reject revisi transaksi stok kini sudah tersedia.
+- create/update item kini menerima `item_category_id` atau `item_category_name`, dengan lookup nama yang trimmed dan case-insensitive.
+- monthly snapshot, menu, daily patient, SPK, audit reporting, dan export endpoints masih berupa target desain dan belum tersedia sebagai route aktif.
 
 ### 4.4 Inventory Transaction Module
 
@@ -160,6 +166,7 @@ Sinyal desain dari schema ini:
 - `stock_transaction_details` adalah detail item per transaksi
 - `monthly_stock_snapshots` menyimpan saldo awal/periode bulanan
 - `is_revision`, `parent_transaction_id`, `approval_status_id`, dan `approved_by` menunjukkan bahwa approval flow adalah bagian inti domain
+- create stock transaction yang sudah berjalan menerima `type_id` atau `type_name`, dengan lookup nama yang trimmed dan case-insensitive sebelum validasi tipe transaksi didorong ke domain service
 
 ### 4.5 Menu & Nutrition Module
 
@@ -297,6 +304,12 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 
 ## 8. Workflow Design
 
+Catatan status implementasi:
+
+- Bagian workflow di bawah ini menjelaskan target domain workflow sistem secara keseluruhan.
+- Route yang benar-benar aktif saat ini masih terbatas pada auth, roles, user management, item master, transaksi stok, dan workflow revisi transaksi stok.
+- Workflow menu, daily patient, SPK, dashboard, audit reporting, dan export tetap merupakan target desain sampai route dan modulnya benar-benar diimplementasikan.
+
 ### 8.1 Barang Masuk
 
 1. User gudang membuat `stock_transactions` dengan `type_id=IN`.
@@ -344,6 +357,12 @@ Invariant penting yang harus dijaga walaupun sebagian aturan belum sepenuhnya di
 5. Jika hasil telah divalidasi, `is_finish` ditandai selesai.
 
 ## 9. Role-Based Access Matrix
+
+Catatan status implementasi:
+
+- Matriks berikut adalah matriks desain target sistem.
+- Tidak semua capability pada tabel ini sudah tersedia sebagai endpoint aktif saat ini.
+- Untuk status endpoint yang benar-benar sudah berjalan, gunakan `docs/api-design.md` sebagai referensi utama.
 
 | Feature / Action | admin | dapur | gudang |
 |---|---|---|---|

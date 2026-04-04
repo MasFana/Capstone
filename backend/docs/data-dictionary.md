@@ -57,6 +57,12 @@ Fungsi: Menyimpan status approval transaksi.
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 
+Catatan implementasi lookup saat ini:
+
+- endpoint write yang menerima `role_name`, `item_category_name`, dan `type_name` melakukan lookup ke tabel referensi terkait dengan pencocokan trimmed dan case-insensitive;
+- contract tersebut saat ini berlaku untuk create/update user, create/update item, dan create stock transaction;
+- lookup detail transaksi stok masih tetap menggunakan `item_id`, bukan `item` by name.
+
 ## 3. Master Data & Users
 
 ### 3.1 `roles`
@@ -230,6 +236,7 @@ Perilaku Phase 1 item master API:
 - `name` diperlakukan unik secara global pada item master.
 - `qty` wajib dianggap read-only pada endpoint item master.
 - `item_category_id` harus merujuk ke kategori barang yang sudah ada.
+- `item_category_name` dapat dipakai sebagai alternatif input API dan akan di-resolve ke `item_category_id`.
 
 ## 4. Inventory & Stock Logic
 
@@ -261,7 +268,7 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | `transaction_date` | date | not null | Tanggal transaksi |
 | `is_revision` | boolean | default false | Penanda transaksi revisi |
 | `parent_transaction_id` | bigint | nullable, self FK | Referensi transaksi asal jika ini revisi |
-| `approval_status_id` | bigint | default 1, FK | Relasi ke `approval_statuses.id` |
+| `approval_status_id` | bigint | not null, FK | Relasi ke `approval_statuses.id` |
 | `approved_by` | bigint | nullable, FK | User Admin yang menyetujui |
 | `user_id` | bigint | not null, FK | User pembuat transaksi |
 | `spk_id` | bigint | nullable | Relasi opsional ke `spk_calculations.id` pada fase integrasi SPK |
@@ -269,10 +276,16 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
 
+Catatan implementasi API saat ini:
+
+- create stock transaction menerima `type_id` atau `type_name`;
+- `type_name` di-resolve ke `transaction_types.id` sebelum validasi tipe transaksi yang diizinkan dijalankan.
+
 Catatan desain:
 
 - Pada Milestone 1, `spk_id` dibuat nullable agar transaksi manual gudang tidak terblokir oleh modul SPK yang belum selesai.
 - Revisi transaksi tidak menghapus transaksi asal, tetapi menaut ke `parent_transaction_id`.
+- Untuk transaksi normal, aplikasi menetapkan status approval awal dengan lookup nama `APPROVED` di service layer, bukan mengandalkan DB default literal.
 - Revisi yang baru disubmit disimpan dengan status `PENDING` dan tidak langsung mengubah `items.qty`.
 - `approved_by` diisi saat admin melakukan approve atau reject terhadap revisi.
 - Mutasi stok dari revisi hanya diterapkan ketika status revisi berubah menjadi `APPROVED`.

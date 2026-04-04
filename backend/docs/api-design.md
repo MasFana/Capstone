@@ -4,6 +4,17 @@
 
 Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL** yang sudah diselaraskan dengan DB diagram terbaru.
 
+Dokumen ini sekarang dipisahkan menjadi dua status yang jelas:
+
+- **Implemented** = endpoint yang benar-benar sudah ada di `app/Config/Routes.php` dan sudah didukung kode backend saat ini.
+- **Planned** = endpoint yang masih merupakan target desain dan belum tersedia sebagai route aktif.
+
+Source of truth untuk endpoint yang sudah berjalan adalah:
+
+- `app/Config/Routes.php`
+- controller di `app/Controllers/Api/V1/`
+- feature tests di `tests/feature/Api/V1/`
+
 ## 2. API Principles
 
 - semua endpoint menggunakan prefix `/api/v1`;
@@ -105,16 +116,20 @@ Protected endpoints require:
 Authorization: Bearer <access_token>
 ```
 
-## 5. Lookup Endpoints
+## 5. Implemented API Surface
+
+Bagian ini hanya berisi endpoint yang saat ini benar-benar tersedia sebagai route aktif.
+
+### 5.1 Authentication & Access Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/item-categories` | List item categories |
-| GET | `/api/v1/transaction-types` | List transaction types |
-| GET | `/api/v1/meal-times` | List meal times |
-| GET | `/api/v1/approval-statuses` | List approval statuses |
+| POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
+| POST | `/api/v1/auth/logout` | Logout current Bearer token |
+| GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
+| GET | `/api/v1/roles` | List roles, restricted to `admin` via role filter |
 
-## 6. User Management Endpoints
+### 5.2 User Management Endpoints
 
 All user management endpoints are restricted to users with the `admin` role.
 
@@ -129,7 +144,7 @@ All user management endpoints are restricted to users with the `admin` role.
 | PATCH | `/api/v1/users/{id}/password` | Change user password (revokes all tokens) |
 | DELETE | `/api/v1/users/{id}` | Soft delete user (revokes all tokens) |
 
-### 6.1 List Users
+#### 5.2.1 List Users
 
 #### Response
 
@@ -154,7 +169,13 @@ All user management endpoints are restricted to users with the `admin` role.
 }
 ```
 
-### 6.2 Create User
+#### 5.2.2 Create User
+
+Lookup contract:
+
+- client may send either `role_id` or `role_name`;
+- `role_name` matching is trimmed and case-insensitive;
+- sending both `role_id` and `role_name` in the same request returns `400` validation errors.
 
 #### Request
 
@@ -191,7 +212,13 @@ All user management endpoints are restricted to users with the `admin` role.
 }
 ```
 
-### 6.3 Update User
+#### 5.2.3 Update User
+
+Lookup contract:
+
+- update supports either `role_id` or `role_name` when changing the assigned role;
+- `role_name` matching is trimmed and case-insensitive;
+- sending both `role_id` and `role_name` in the same request returns `400` validation errors.
 
 #### Request
 
@@ -225,7 +252,7 @@ All user management endpoints are restricted to users with the `admin` role.
 }
 ```
 
-### 6.4 Deactivate User
+#### 5.2.4 Deactivate User
 
 Deactivated users cannot log in. Both `is_active` and `active` fields are set to `false`.
 
@@ -244,7 +271,7 @@ Soft-deleted users are treated as not found for all update, activate, deactivate
 }
 ```
 
-### 6.5 Change Password
+#### 5.2.5 Change Password
 
 Changing a user's password revokes all their access tokens. The user must log in again with the new password. Password updates use the Shield user entity flow so credential identity data stays synchronized.
 
@@ -264,7 +291,7 @@ Changing a user's password revokes all their access tokens. The user must log in
 }
 ```
 
-### 6.6 Delete User
+#### 5.2.6 Delete User
 
 Soft deletes the user and revokes all their access tokens. The user cannot log in and will not appear in user lists.
 
@@ -276,7 +303,7 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 }
 ```
 
-## 7. Item Endpoints
+### 5.3 Item Endpoints
 
 Phase 1 item management covers item master CRUD only. `qty` is read-only in this module and stock-related behavior stays in inventory transaction flows.
 
@@ -288,13 +315,13 @@ Phase 1 item management covers item master CRUD only. `qty` is read-only in this
 | PUT | `/api/v1/items/{id}` | Partial update item |
 | DELETE | `/api/v1/items/{id}` | Soft delete item |
 
-### 7.1 Access Rules
+#### 5.3.1 Access Rules
 
 - `admin` and `gudang` can list, create, view, and update items.
 - `admin` only can soft delete items.
 - `dapur` has no access to item master management.
 
-### 7.2 List Items
+#### 5.3.2 List Items
 
 Supported query parameters:
 
@@ -348,16 +375,23 @@ Rules:
 }
 ```
 
-### 7.3 Create Item
+#### 5.3.3 Create Item
 
 Writable fields:
 
 - `name`
 - `item_category_id`
+- `item_category_name`
 - `unit_base`
 - `unit_convert`
 - `conversion_base`
 - `is_active`
+
+Lookup contract:
+
+- client may send either `item_category_id` or `item_category_name`;
+- `item_category_name` matching is trimmed and case-insensitive;
+- sending both `item_category_id` and `item_category_name` in the same request returns `400` validation errors.
 
 Forbidden write fields:
 
@@ -404,7 +438,7 @@ Forbidden write fields:
 }
 ```
 
-### 7.4 Get Item Detail
+#### 5.3.4 Get Item Detail
 
 #### Response
 
@@ -429,9 +463,15 @@ Forbidden write fields:
 }
 ```
 
-### 7.5 Update Item
+#### 5.3.5 Update Item
 
 `PUT /api/v1/items/{id}`` uses partial-update semantics in Phase 1. Only fields present in the request are validated and updated.
+
+Lookup contract:
+
+- update supports either `item_category_id` or `item_category_name` when changing category;
+- `item_category_name` matching is trimmed and case-insensitive;
+- sending both `item_category_id` and `item_category_name` in the same request returns `400` validation errors.
 
 #### Request
 
@@ -466,7 +506,7 @@ Forbidden write fields:
 }
 ```
 
-### 7.6 Delete Item
+#### 5.3.6 Delete Item
 
 #### Response
 
@@ -476,22 +516,23 @@ Forbidden write fields:
 }
 ```
 
-### 7.7 Validation Notes
+#### 5.3.7 Validation Notes
 
 - `qty` cannot be created or updated directly through the item master endpoints.
 - `item_category_id` must reference an existing category.
+- `item_category_name` may be used instead of `item_category_id` and resolves to the same lookup table.
 - `name` must be globally unique.
 - Missing or soft-deleted items return `404`.
 
-### 7.8 Deferred to Later Phase
+#### 5.3.8 Deferred From Item Module
 
 - `GET /api/v1/items/{id}/stock-summary`
 - stock usage locking rules
 - stock transaction integration
 
-## 8. Inventory Transaction Endpoints
+### 5.4 Inventory Transaction Endpoints
 
-### 8.1 Transactions
+#### 5.4.1 Transactions
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -500,12 +541,12 @@ Forbidden write fields:
 | GET | `/api/v1/stock-transactions/{id}` | Get stock transaction header only |
 | GET | `/api/v1/stock-transactions/{id}/details` | Get stock transaction item lines only |
 
-### 8.1.1 Access Rules
+#### 5.4.2 Access Rules
 
 - `admin` dan `gudang` dapat mengakses endpoint transaksi stok Milestone 1.
 - `dapur` tidak memiliki akses ke endpoint transaksi stok.
 
-### 8.1.2 List Stock Transactions
+#### 5.4.3 List Stock Transactions
 
 Supported query parameters:
 
@@ -553,14 +594,21 @@ Rules:
 }
 ```
 
-### 8.1.3 Create Stock Transaction
+#### 5.4.4 Create Stock Transaction
 
 Allowed request fields:
 
 - `type_id`
+- `type_name`
 - `transaction_date`
 - `spk_id`
 - `details`
+
+Lookup contract:
+
+- client may send either `type_id` or `type_name`;
+- `type_name` matching is trimmed and case-insensitive;
+- sending both `type_id` and `type_name` in the same request returns `400` validation errors.
 
 Allowed detail fields:
 
@@ -581,7 +629,7 @@ Forbidden client-controlled fields:
 Rules:
 
 - `user_id` diambil dari authenticated Bearer token context;
-- transaksi normal Milestone 1 selalu dibuat dengan `approval_status_id = 1` dan `is_revision = false`;
+- transaksi normal dibuat dengan status approval bernama `APPROVED` dan `is_revision = false`;
 - `spk_id` bersifat opsional / nullable;
 - item yang sama tidak boleh muncul dua kali dalam satu request `details`;
 - transaksi `OUT` ditolak jika akan membuat `items.qty` menjadi negatif;
@@ -617,7 +665,9 @@ Rules:
 }
 ```
 
-### 8.1.4 Get Stock Transaction Header
+> Catatan: contoh `approval_status_id` di dokumen ini mengikuti seeded development baseline saat ini. Runtime code menetapkan status berdasarkan lookup nama `APPROVED`, bukan literal angka yang di-hardcode.
+
+#### 5.4.5 Get Stock Transaction Header
 
 `GET /api/v1/stock-transactions/{id}` hanya mengembalikan resource header transaksi, bukan item lines.
 
@@ -641,7 +691,7 @@ Rules:
 }
 ```
 
-### 8.1.5 Get Stock Transaction Details
+#### 5.4.6 Get Stock Transaction Details
 
 `GET /api/v1/stock-transactions/{id}/details` hanya mengembalikan item lines transaksi.
 
@@ -660,7 +710,7 @@ Rules:
 }
 ```
 
-### 8.2 Workflow Actions
+#### 5.4.7 Revision Workflow Actions
 
 Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone 1.
 
@@ -680,18 +730,35 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 - reject revision tidak mengubah `items.qty`;
 - parent transaction tetap dipertahankan sebagai histori asal.
 
-### 8.3 Monthly Snapshot Endpoints
+## 6. Planned API Surface
 
-Endpoint berikut **belum diimplementasikan pada Milestone 1**.
+Bagian ini berisi endpoint yang masih merupakan target desain dan **belum tersedia sebagai route aktif**.
+
+### 6.1 Planned Lookup Endpoints
+
+Endpoint berikut saat ini **belum tersedia** di `app/Config/Routes.php`, walaupun tabel lookup-nya sudah ada di schema:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/item-categories` | List item categories |
+| GET | `/api/v1/transaction-types` | List transaction types |
+| GET | `/api/v1/meal-times` | List meal times |
+| GET | `/api/v1/approval-statuses` | List approval statuses |
+
+### 6.2 Monthly Snapshot Endpoints
+
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/v1/monthly-stock-snapshots` | List monthly stock snapshots |
 | POST | `/api/v1/monthly-stock-snapshots` | Create monthly stock snapshot |
 
-## 9. Menu & Nutrition Endpoints
+### 6.3 Menu & Nutrition Endpoints
 
-### 9.1 Menus
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
+
+#### 6.3.1 Menus
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -700,7 +767,7 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | GET | `/api/v1/menus/{id}` | Get menu detail |
 | PUT | `/api/v1/menus/{id}` | Update menu |
 
-### 9.2 Menu Schedules
+#### 6.3.2 Menu Schedules
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -709,7 +776,7 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | GET | `/api/v1/menu-schedules/{id}` | Get schedule detail |
 | PUT | `/api/v1/menu-schedules/{id}` | Update schedule |
 
-### 9.3 Dishes
+#### 6.3.3 Dishes
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -718,7 +785,7 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | GET | `/api/v1/dishes/{id}` | Get dish detail |
 | PUT | `/api/v1/dishes/{id}` | Update dish |
 
-### 9.4 Menu Dishes
+#### 6.3.4 Menu Dishes
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -726,7 +793,7 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | POST | `/api/v1/menu-dishes` | Assign dish to menu and meal time |
 | DELETE | `/api/v1/menu-dishes/{id}` | Remove assignment |
 
-### 9.5 Dish Compositions
+#### 6.3.5 Dish Compositions
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -735,7 +802,9 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | PUT | `/api/v1/dish-compositions/{id}` | Update composition |
 | DELETE | `/api/v1/dish-compositions/{id}` | Delete composition |
 
-## 10. Daily Patient Endpoints
+### 6.4 Daily Patient Endpoints
+
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -743,7 +812,9 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | POST | `/api/v1/daily-patients` | Create daily patient input |
 | GET | `/api/v1/daily-patients/{id}` | Get daily patient detail |
 
-## 11. SPK Endpoints
+### 6.5 SPK Endpoints
+
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -753,7 +824,9 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | POST | `/api/v1/spk-calculations/{id}/finish` | Mark SPK as finished/validated |
 | GET | `/api/v1/spk-calculations/{id}/recommendations` | Get SPK recommendations |
 
-## 12. Audit & Reporting Endpoints
+### 6.6 Audit & Reporting Endpoints
+
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -764,9 +837,9 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 | GET | `/api/v1/reports/spk-history` | SPK history report |
 | POST | `/api/v1/reports/export-pdf` | Export report as PDF |
 
-## 13. Example Request/Response Contracts
+## 7. Example Request/Response Contracts
 
-### 13.1 Create Item
+### 7.1 Create Item
 
 #### Request
 
@@ -805,11 +878,11 @@ Endpoint berikut **belum diimplementasikan pada Milestone 1**.
 }
 ```
 
-### 13.2 Create Stock Transaction
+### 7.2 Create Stock Transaction
 
-Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3 Create Stock Transaction** di atas.
+Kontrak request/response untuk create stock transaction mengikuti bagian **5.4.4 Create Stock Transaction** di atas.
 
-### 13.3 Submit Revision
+### 7.3 Submit Revision
 
 #### Request
 
@@ -843,7 +916,7 @@ Kontrak request/response untuk create stock transaction mengikuti bagian **8.1.3
 
 Submit revision hanya membuat child revision pending dan tidak langsung mengubah stok.
 
-### 13.4 Approve Revision
+### 7.4 Approve Revision
 
 #### Request
 
@@ -866,7 +939,7 @@ Submit revision hanya membuat child revision pending dan tidak langsung mengubah
 
 Saat approve berhasil, sistem menerapkan mutasi qty dari detail revision ke `items.qty` secara atomik.
 
-### 13.5 Reject Revision
+### 7.5 Reject Revision
 
 #### Request
 
@@ -889,7 +962,9 @@ Saat approve berhasil, sistem menerapkan mutasi qty dari detail revision ke `ite
 
 Reject revision hanya mengubah status approval dan tidak mengubah stok.
 
-### 13.6 Generate SPK
+### 7.6 Generate SPK
+
+Contoh berikut masih bersifat planned karena endpoint SPK belum tersedia sebagai route aktif.
 
 #### Request
 
@@ -917,7 +992,7 @@ Reject revision hanya mengubah status approval dan tidak mengubah stok.
 }
 ```
 
-## 14. CodeIgniter 4 Notes
+## 8. CodeIgniter 4 Notes
 
 - gunakan plural resources dan route grouping di `/api/v1`;
 - tabel dengan `deleted_at` cocok dengan soft delete convention CI4;

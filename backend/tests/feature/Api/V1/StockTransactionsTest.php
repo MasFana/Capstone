@@ -2316,4 +2316,140 @@ class StockTransactionsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         $this->assertSame('Revision has an invalid approval state.', $json['errors']['id']);
     }
+
+    // Dual lookup tests: type_name support
+
+    public function testCreateTransactionWithTypeNameSucceeds(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new \App\Models\TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-07-01',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 100],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('id', $json['data']);
+
+        // Verify the transaction was created with the correct type
+        $transactionModel = new \App\Models\StockTransactionModel();
+        $transaction      = $transactionModel->find($json['data']['id']);
+        $this->assertSame($inType['id'], $transaction['type_id']);
+    }
+
+    public function testCreateTransactionWithTrimmedTypeNameSucceeds(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new \App\Models\TransactionTypeModel();
+        $outType   = $typeModel->where('name', 'OUT')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => '  OUT  ',
+                'transaction_date' => '2026-07-02',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 50],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('id', $json['data']);
+
+        // Verify the transaction was created with the correct type
+        $transactionModel = new \App\Models\StockTransactionModel();
+        $transaction      = $transactionModel->find($json['data']['id']);
+        $this->assertSame($outType['id'], $transaction['type_id']);
+    }
+
+    public function testCreateTransactionWithCaseInsensitiveTypeNameSucceeds(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel  = new \App\Models\TransactionTypeModel();
+        $returnType = $typeModel->where('name', 'RETURN_IN')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'return_in',
+                'transaction_date' => '2026-07-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 20],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('id', $json['data']);
+
+        // Verify the transaction was created with the correct type
+        $transactionModel = new \App\Models\StockTransactionModel();
+        $transaction      = $transactionModel->find($json['data']['id']);
+        $this->assertSame($returnType['id'], $transaction['type_id']);
+    }
+
+    public function testCreateTransactionWithBothTypeIdAndTypeNameFails(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new \App\Models\TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-07-04',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertStringContainsString('type_id', $json['errors']['type_id']);
+        $this->assertStringContainsString('type_name', $json['errors']['type_id']);
+    }
+
+    public function testCreateTransactionWithInvalidTypeNameFails(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'INVALID_TYPE',
+                'transaction_date' => '2026-07-05',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('type_name', $json['errors']);
+    }
 }

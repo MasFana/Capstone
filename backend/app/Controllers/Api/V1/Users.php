@@ -49,13 +49,34 @@ class Users extends BaseController
     {
         $data = $this->request->getJSON(true);
 
+        // Check for conflicting role_id and role_name
+        if (isset($data['role_id']) && isset($data['role_name'])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'role_id' => 'Cannot specify both role_id and role_name.',
+                        'role_name' => 'Cannot specify both role_id and role_name.',
+                    ],
+                ]);
+        }
+
         $rules = [
-            'role_id'  => 'required|is_natural_no_zero',
             'name'     => 'required|max_length[255]',
             'username' => 'required|max_length[100]|is_unique[users.username]',
             'password' => 'required|min_length[8]',
             'email'    => 'permit_empty|valid_email|max_length[255]',
         ];
+
+        if (isset($data['role_id'])) {
+            $rules['role_id'] = 'required|is_natural_no_zero';
+        } elseif (isset($data['role_name'])) {
+            $rules['role_name'] = 'required|max_length[50]';
+        } else {
+            // Neither provided - add role_id rule so validation will report it as missing
+            $rules['role_id'] = 'required|is_natural_no_zero';
+        }
 
         if (!$this->validateData($data ?? [], $rules)) {
             return $this->response
@@ -92,6 +113,20 @@ class Users extends BaseController
     public function update(int $id): ResponseInterface
     {
         $data = $this->request->getJSON(true) ?? [];
+
+        // Check for conflicting role_id and role_name
+        if (isset($data['role_id']) && isset($data['role_name'])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'role_id' => 'Cannot specify both role_id and role_name.',
+                        'role_name' => 'Cannot specify both role_id and role_name.',
+                    ],
+                ]);
+        }
+
         $validationData = [
             ...$data,
             'id' => $id,
@@ -99,10 +134,17 @@ class Users extends BaseController
 
         $rules = [
             'id'       => 'required|is_natural_no_zero',
-            'role_id'  => 'permit_empty|is_natural_no_zero',
             'name'     => 'permit_empty|max_length[255]',
             'email'    => 'permit_empty|valid_email|max_length[255]',
         ];
+
+        if (isset($data['role_id'])) {
+            $rules['role_id'] = 'permit_empty|is_natural_no_zero';
+        }
+
+        if (isset($data['role_name'])) {
+            $rules['role_name'] = 'permit_empty|max_length[50]';
+        }
 
         if (array_key_exists('username', $data)) {
             $rules['username'] = 'required|max_length[100]|is_unique[users.username,id,{id}]';
@@ -120,7 +162,15 @@ class Users extends BaseController
         $result = $this->userService->updateUser($id, $data);
 
         if (!$result['success']) {
-            $statusCode = $result['message'] === 'User not found.' ? 404 : 422;
+            // Determine status code
+            if ($result['message'] === 'User not found.') {
+                $statusCode = 404;
+            } elseif (isset($result['errors'])) {
+                $statusCode = 400; // Validation errors
+            } else {
+                $statusCode = 422; // Other processing errors
+            }
+            
             $response = ['message' => $result['message']];
             
             if (isset($result['errors'])) {
