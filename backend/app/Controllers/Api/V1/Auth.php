@@ -105,4 +105,49 @@ class Auth extends BaseController
                 'message' => 'Logout successful.',
             ]);
     }
+
+    public function changePassword(): ResponseInterface
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthenticated.',
+                ]);
+        }
+
+        $data = $this->request->getJSON(true);
+
+        $rules = [
+            'current_password' => 'required',
+            'password'         => 'required|min_length[8]',
+        ];
+
+        if (!$this->validateData($data ?? [], $rules)) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => $this->validator->getErrors(),
+                ]);
+        }
+
+        $result = $this->authService->changePassword($user, $data['current_password'], $data['password']);
+
+        if (!$result['success']) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => $result['message'],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => $result['message'],
+            ]);
+    }
 }

@@ -34,6 +34,7 @@ class StockTransactionService
     private const ALLOWED_DETAIL_FIELDS = [
         'item_id',
         'qty',
+        'input_unit',
     ];
 
     private const ALLOWED_REVISION_TOP_LEVEL_FIELDS = [
@@ -232,6 +233,14 @@ class StockTransactionService
                 ];
             }
 
+            if (isset($detail['input_unit']) && ! in_array($detail['input_unit'], ['base', 'convert'], true)) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ["details.{$index}.input_unit" => 'The input_unit field must be "base" or "convert".'],
+                ];
+            }
+
             $itemId = (int) $detail['item_id'];
             if (in_array($itemId, $itemIds, true)) {
                 return [
@@ -257,9 +266,13 @@ class StockTransactionService
             foreach ($data['details'] as $index => $detail) {
                 $item         = $this->itemModel->find((int) $detail['item_id']);
                 $currentQty   = (float) $item['qty'];
+                $inputUnit    = $detail['input_unit'] ?? 'base';
                 $requestedQty = (float) $detail['qty'];
+                $normalizedQty = $inputUnit === 'convert'
+                    ? $requestedQty * (float) $item['conversion_base']
+                    : $requestedQty;
 
-                if ($currentQty < $requestedQty) {
+                if ($currentQty < $normalizedQty) {
                     return [
                         'success' => false,
                         'message' => 'Validation failed.',
@@ -267,7 +280,7 @@ class StockTransactionService
                             "details.{$index}.qty" => sprintf(
                                 'Insufficient stock. Available: %s, Requested: %s',
                                 number_format($currentQty, 2, '.', ''),
-                                number_format($requestedQty, 2, '.', '')
+                                number_format($normalizedQty, 2, '.', '')
                             ),
                         ],
                     ];
@@ -301,10 +314,19 @@ class StockTransactionService
         }
 
         foreach ($data['details'] as $detail) {
+            $inputUnit     = $detail['input_unit'] ?? 'base';
+            $inputQty      = (float) $detail['qty'];
+            $item          = $this->itemModel->find((int) $detail['item_id']);
+            $normalizedQty = $inputUnit === 'convert'
+                ? $inputQty * (float) $item['conversion_base']
+                : $inputQty;
+
             $detailData = [
                 'transaction_id' => $transactionId,
                 'item_id'        => (int) $detail['item_id'],
-                'qty'            => (float) $detail['qty'],
+                'qty'            => $normalizedQty,
+                'input_qty'      => $inputQty,
+                'input_unit'     => $inputUnit,
             ];
 
             if ($this->detailModel->insert($detailData) === false) {
@@ -317,7 +339,7 @@ class StockTransactionService
                 ];
             }
 
-            $changeQty = (float) $detail['qty'];
+            $changeQty = $normalizedQty;
             $itemId    = (int) $detail['item_id'];
             $escapedQty = $this->db->escape(number_format($changeQty, 2, '.', ''));
 
@@ -547,6 +569,14 @@ class StockTransactionService
                 ];
             }
 
+            if (isset($detail['input_unit']) && ! in_array($detail['input_unit'], ['base', 'convert'], true)) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ["details.{$index}.input_unit" => 'The input_unit field must be "base" or "convert".'],
+                ];
+            }
+
             $itemId = (int) $detail['item_id'];
             if (in_array($itemId, $itemIds, true)) {
                 return [
@@ -606,10 +636,19 @@ class StockTransactionService
 
         // Insert detail rows
         foreach ($data['details'] as $detail) {
+            $inputUnit     = $detail['input_unit'] ?? 'base';
+            $inputQty      = (float) $detail['qty'];
+            $item          = $this->itemModel->find((int) $detail['item_id']);
+            $normalizedQty = $inputUnit === 'convert'
+                ? $inputQty * (float) $item['conversion_base']
+                : $inputQty;
+
             $detailData = [
                 'transaction_id' => $revisionId,
                 'item_id'        => (int) $detail['item_id'],
-                'qty'            => (float) $detail['qty'],
+                'qty'            => $normalizedQty,
+                'input_qty'      => $inputQty,
+                'input_unit'     => $inputUnit,
             ];
 
             if ($this->detailModel->insert($detailData) === false) {

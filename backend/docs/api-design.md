@@ -127,9 +127,150 @@ Bagian ini hanya berisi endpoint yang saat ini benar-benar tersedia sebagai rout
 | POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
 | POST | `/api/v1/auth/logout` | Logout current Bearer token |
 | GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
+| PATCH | `/api/v1/auth/password` | Self-service password change (requires valid token and current password, revokes all tokens) |
 | GET | `/api/v1/roles` | List roles, restricted to `admin` via role filter |
 
-### 5.2 User Management Endpoints
+#### 5.1.1 Self-Service Password Change
+
+Authenticated users can change their own password. This endpoint requires the user's current password for verification and a new password. All access tokens are revoked after a successful password change.
+
+**Access:** Requires valid Bearer token (any authenticated user)
+
+##### Request
+
+```json
+{
+  "current_password": "password123",
+  "password": "newpassword123"
+}
+```
+
+##### Response (Success)
+
+```json
+{
+  "message": "Password changed successfully. All access tokens have been revoked."
+}
+```
+
+##### Response (Wrong Current Password)
+
+```json
+{
+  "message": "Current password is incorrect."
+}
+```
+
+##### Response (Validation Failure)
+
+```json
+{
+  "message": "Validation failed.",
+  "errors": {
+    "current_password": "The current_password field is required.",
+    "password": "The password field must be at least 8 characters in length."
+  }
+}
+```
+
+### 5.2 Inventory Lookup Endpoints
+
+These endpoints provide reference data for creating and filtering inventory operations. All lookup endpoints are restricted to users with `admin` or `gudang` roles.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/item-categories` | List all item categories |
+| GET | `/api/v1/transaction-types` | List all transaction types |
+| GET | `/api/v1/approval-statuses` | List all approval statuses |
+
+#### 5.2.1 Item Categories
+
+**Access:** `admin`, `gudang`
+
+##### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "BASAH",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "KERING",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    }
+  ]
+}
+```
+
+#### 5.2.2 Transaction Types
+
+**Access:** `admin`, `gudang`
+
+##### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "IN",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "OUT",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 3,
+      "name": "RETURN_IN",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    }
+  ]
+}
+```
+
+#### 5.2.3 Approval Statuses
+
+**Access:** `admin`, `gudang`
+
+##### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "APPROVED",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "PENDING",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 3,
+      "name": "REJECTED",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    }
+  ]
+}
+```
+
+### 5.3 User Management Endpoints
 
 All user management endpoints are restricted to users with the `admin` role.
 
@@ -144,7 +285,7 @@ All user management endpoints are restricted to users with the `admin` role.
 | PATCH | `/api/v1/users/{id}/password` | Change user password (revokes all tokens) |
 | DELETE | `/api/v1/users/{id}` | Soft delete user (revokes all tokens) |
 
-#### 5.2.1 List Users
+#### 5.3.1 List Users
 
 #### Response
 
@@ -169,7 +310,7 @@ All user management endpoints are restricted to users with the `admin` role.
 }
 ```
 
-#### 5.2.2 Create User
+#### 5.3.2 Create User
 
 Lookup contract:
 
@@ -212,7 +353,7 @@ Lookup contract:
 }
 ```
 
-#### 5.2.3 Update User
+#### 5.3.3 Update User
 
 Lookup contract:
 
@@ -252,7 +393,7 @@ Lookup contract:
 }
 ```
 
-#### 5.2.4 Deactivate User
+#### 5.3.4 Deactivate User
 
 Deactivated users cannot log in. Both `is_active` and `active` fields are set to `false`.
 
@@ -271,9 +412,9 @@ Soft-deleted users are treated as not found for all update, activate, deactivate
 }
 ```
 
-#### 5.2.5 Change Password
+#### 5.3.5 Admin Change Password
 
-Changing a user's password revokes all their access tokens. The user must log in again with the new password. Password updates use the Shield user entity flow so credential identity data stays synchronized.
+This endpoint is for administrators to change another user's password. Changing a user's password revokes all their access tokens. The user must log in again with the new password. Password updates use the Shield user entity flow so credential identity data stays synchronized.
 
 #### Request
 
@@ -291,7 +432,7 @@ Changing a user's password revokes all their access tokens. The user must log in
 }
 ```
 
-#### 5.2.6 Delete User
+#### 5.3.6 Delete User
 
 Soft deletes the user and revokes all their access tokens. The user cannot log in and will not appear in user lists.
 
@@ -303,7 +444,7 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 }
 ```
 
-### 5.3 Item Endpoints
+### 5.4 Item Endpoints
 
 Phase 1 item management covers item master CRUD only. `qty` is read-only in this module and stock-related behavior stays in inventory transaction flows.
 
@@ -315,13 +456,13 @@ Phase 1 item management covers item master CRUD only. `qty` is read-only in this
 | PUT | `/api/v1/items/{id}` | Partial update item |
 | DELETE | `/api/v1/items/{id}` | Soft delete item |
 
-#### 5.3.1 Access Rules
+#### 5.4.1 Access Rules
 
 - `admin` and `gudang` can list, create, view, and update items.
 - `admin` only can soft delete items.
 - `dapur` has no access to item master management.
 
-#### 5.3.2 List Items
+#### 5.4.2 List Items
 
 Supported query parameters:
 
@@ -375,7 +516,7 @@ Rules:
 }
 ```
 
-#### 5.3.3 Create Item
+#### 5.4.3 Create Item
 
 Writable fields:
 
@@ -438,7 +579,7 @@ Forbidden write fields:
 }
 ```
 
-#### 5.3.4 Get Item Detail
+#### 5.4.4 Get Item Detail
 
 #### Response
 
@@ -463,7 +604,7 @@ Forbidden write fields:
 }
 ```
 
-#### 5.3.5 Update Item
+#### 5.4.5 Update Item
 
 `PUT /api/v1/items/{id}`` uses partial-update semantics in Phase 1. Only fields present in the request are validated and updated.
 
@@ -506,7 +647,7 @@ Lookup contract:
 }
 ```
 
-#### 5.3.6 Delete Item
+#### 5.4.6 Delete Item
 
 #### Response
 
@@ -516,7 +657,7 @@ Lookup contract:
 }
 ```
 
-#### 5.3.7 Validation Notes
+#### 5.4.7 Validation Notes
 
 - `qty` cannot be created or updated directly through the item master endpoints.
 - `item_category_id` must reference an existing category.
@@ -524,15 +665,15 @@ Lookup contract:
 - `name` must be globally unique.
 - Missing or soft-deleted items return `404`.
 
-#### 5.3.8 Deferred From Item Module
+#### 5.4.8 Deferred From Item Module
 
 - `GET /api/v1/items/{id}/stock-summary`
 - stock usage locking rules
 - stock transaction integration
 
-### 5.4 Inventory Transaction Endpoints
+### 5.5 Inventory Transaction Endpoints
 
-#### 5.4.1 Transactions
+#### 5.5.1 Transactions
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -541,12 +682,12 @@ Lookup contract:
 | GET | `/api/v1/stock-transactions/{id}` | Get stock transaction header only |
 | GET | `/api/v1/stock-transactions/{id}/details` | Get stock transaction item lines only |
 
-#### 5.4.2 Access Rules
+#### 5.5.2 Access Rules
 
 - `admin` dan `gudang` dapat mengakses endpoint transaksi stok Milestone 1.
 - `dapur` tidak memiliki akses ke endpoint transaksi stok.
 
-#### 5.4.3 List Stock Transactions
+#### 5.5.3 List Stock Transactions
 
 Supported query parameters:
 
@@ -594,7 +735,7 @@ Rules:
 }
 ```
 
-#### 5.4.4 Create Stock Transaction
+#### 5.5.4 Create Stock Transaction
 
 Allowed request fields:
 
@@ -614,6 +755,16 @@ Allowed detail fields:
 
 - `item_id`
 - `qty`
+- `input_unit` _(optional)_
+
+**Unit conversion contract for detail rows:**
+
+- `input_unit` is optional. Omitting it defaults to `"base"`.
+- Allowed values: `"base"` or `"convert"`. Any other value returns `400`.
+- `input_unit = "base"`: stored `qty` = request `qty` (no conversion).
+- `input_unit = "convert"`: stored `qty` = request `qty` × `items.conversion_base`.
+- `input_qty` (original request qty before normalization) is always persisted but is **not** a client-writable field.
+- `stock_transaction_details.qty` always stores normalized base-unit qty.
 
 Forbidden client-controlled fields:
 
@@ -650,6 +801,30 @@ Rules:
 }
 ```
 
+Legacy request (no `input_unit`) — backward-compatible, qty stored as-is:
+
+```json
+{
+  "type_name": "IN",
+  "transaction_date": "2026-04-02",
+  "details": [
+    { "item_id": 1, "qty": 5000 }
+  ]
+}
+```
+
+Request with unit conversion — `qty` is in convert units (e.g. kg), stored as base units (g):
+
+```json
+{
+  "type_name": "IN",
+  "transaction_date": "2026-04-02",
+  "details": [
+    { "item_id": 1, "qty": 5, "input_unit": "convert" }
+  ]
+}
+```
+
 > Catatan: `user_id` diambil dari authenticated session/token context, bukan dikirim bebas oleh client.
 
 #### Response
@@ -667,7 +842,7 @@ Rules:
 
 > Catatan: contoh `approval_status_id` di dokumen ini mengikuti seeded development baseline saat ini. Runtime code menetapkan status berdasarkan lookup nama `APPROVED`, bukan literal angka yang di-hardcode.
 
-#### 5.4.5 Get Stock Transaction Header
+#### 5.5.5 Get Stock Transaction Header
 
 `GET /api/v1/stock-transactions/{id}` hanya mengembalikan resource header transaksi, bukan item lines.
 
@@ -691,7 +866,7 @@ Rules:
 }
 ```
 
-#### 5.4.6 Get Stock Transaction Details
+#### 5.5.6 Get Stock Transaction Details
 
 `GET /api/v1/stock-transactions/{id}/details` hanya mengembalikan item lines transaksi.
 
@@ -704,13 +879,19 @@ Rules:
       "id": 1,
       "transaction_id": 10,
       "item_id": 1,
-      "qty": "5000.00"
+      "qty": "5000.00",
+      "input_qty": "5.00",
+      "input_unit": "convert"
     }
   ]
 }
 ```
 
-#### 5.4.7 Revision Workflow Actions
+- `qty` — normalized base-unit quantity that was stored and used for stock mutation.
+- `input_qty` — original quantity as submitted in the request.
+- `input_unit` — `"base"` (default) or `"convert"` as submitted/defaulted.
+
+#### 5.5.7 Revision Workflow Actions
 
 Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone 1.
 
@@ -740,10 +921,7 @@ Endpoint berikut saat ini **belum tersedia** di `app/Config/Routes.php`, walaupu
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/item-categories` | List item categories |
-| GET | `/api/v1/transaction-types` | List transaction types |
 | GET | `/api/v1/meal-times` | List meal times |
-| GET | `/api/v1/approval-statuses` | List approval statuses |
 
 ### 6.2 Monthly Snapshot Endpoints
 
@@ -880,9 +1058,16 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 ### 7.2 Create Stock Transaction
 
-Kontrak request/response untuk create stock transaction mengikuti bagian **5.4.4 Create Stock Transaction** di atas.
+Kontrak request/response untuk create stock transaction mengikuti bagian **5.5.4 Create Stock Transaction** di atas.
 
 ### 7.3 Submit Revision
+
+Kontrak detail row untuk submit revision sama dengan create stock transaction:
+
+- client tetap mengirim `qty`;
+- client boleh menambahkan `input_unit` opsional dengan nilai `base` atau `convert`;
+- jika `input_unit` dihilangkan, runtime memperlakukan request sebagai `base`;
+- detail yang disimpan tetap menormalisasi `qty` ke satuan dasar dan mencatat `input_qty`/`input_unit` untuk audit.
 
 #### Request
 
@@ -893,6 +1078,21 @@ Kontrak request/response untuk create stock transaction mengikuti bagian **5.4.4
     {
       "item_id": 1,
       "qty": 4500
+    }
+  ]
+}
+```
+
+Request dengan konversi satuan:
+
+```json
+{
+  "transaction_date": "2026-04-02",
+  "details": [
+    {
+      "item_id": 1,
+      "qty": 4,
+      "input_unit": "convert"
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { XOR } from "./common";
 
 export type TransactionTypeName = "IN" | "OUT" | "RETURN_IN";
+export type StockTransactionInputUnit = "base" | "convert";
 
 export interface StockTransaction {
   id: number;
@@ -21,11 +22,14 @@ export interface StockTransactionDetail {
   transaction_id: number;
   item_id: number;
   qty: string;
+  input_qty: string;
+  input_unit: StockTransactionInputUnit;
 }
 
 export interface StockTransactionDetailInput {
   item_id: number;
   qty: number;
+  input_unit?: StockTransactionInputUnit;
 }
 
 type TransactionTypeIdentifier = XOR<{ type_id: number }, { type_name: TransactionTypeName | string }>;

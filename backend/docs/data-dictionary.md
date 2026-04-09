@@ -299,7 +299,17 @@ Fungsi: Detail item untuk setiap transaksi stok.
 | `id` | bigint | PK, increment | ID detail transaksi |
 | `transaction_id` | bigint | not null, FK | Relasi ke `stock_transactions.id` |
 | `item_id` | bigint | not null, FK | Relasi ke `items.id` |
-| `qty` | decimal(12,2) | not null | Jumlah item pada transaksi |
+| `qty` | decimal(12,2) | not null | Jumlah item dalam satuan dasar (base unit) setelah normalisasi |
+| `input_qty` | decimal(12,2) | nullable | Jumlah asli yang dikirimkan oleh client sebelum konversi |
+| `input_unit` | varchar(10) | nullable | Satuan input dari client: `"base"` (default) atau `"convert"` |
+
+Catatan konversi satuan:
+
+- `input_unit = "base"` → `qty` = `input_qty` (tidak ada konversi).
+- `input_unit = "convert"` → `qty` = `input_qty` × `items.conversion_base`.
+- `qty` selalu disimpan dalam satuan dasar (`unit_base`) dan digunakan untuk mutasi stok.
+- `input_qty` disimpan untuk transparansi / audit dan diturunkan dari `qty` request sebelum normalisasi; client tidak mengirim field ini secara langsung.
+- `input_unit` boleh dikirim client sebagai field opsional dengan nilai `base` atau `convert`; jika dihilangkan, service akan menetapkan nilai default `base`.
 
 Constraint utama:
 

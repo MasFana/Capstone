@@ -10,6 +10,7 @@ class TestSeeder extends Seeder
     {
         $this->call('RoleSeeder');
         $this->call('UserSeeder');
+        $this->call('ItemCategorySeeder');
         $this->call('TransactionTypeSeeder');
         $this->call('ApprovalStatusSeeder');
         $this->call('MealTimeSeeder');

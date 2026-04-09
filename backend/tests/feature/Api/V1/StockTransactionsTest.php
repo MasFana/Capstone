@@ -2452,4 +2452,280 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('errors', $json);
         $this->assertArrayHasKey('type_name', $json['errors']);
     }
+
+    // -------------------------------------------------------------------------
+    // Unit-conversion tests
+    // -------------------------------------------------------------------------
+
+    /**
+     * Test 1 — Legacy create with qty only (no input_unit).
+     * Backward-compatible: stored qty == request qty, input_unit defaults to "base".
+     */
+    public function testCreateTransactionLegacyQtyOnlyStoresCorrectly(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-01',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 500],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $json = json_decode($result->getJSON(), true);
+        $transactionId = $json['data']['id'];
+
+        $db     = Database::connect();
+        $detail = $db->table('stock_transaction_details')
+            ->where('transaction_id', $transactionId)
+            ->get()->getRowArray();
+
+        $this->assertNotNull($detail);
+        // stored qty must equal the request qty (base default)
+        $this->assertEquals(500.0, (float) $detail['qty']);
+        $this->assertEquals(500.0, (float) $detail['input_qty']);
+        $this->assertSame('base', $detail['input_unit']);
+    }
+
+    /**
+     * Test 2 — Create with input_unit=convert.
+     * Stored qty must be request qty * conversion_base (1000).
+     */
+    public function testCreateTransactionWithInputUnitConvertNormalizesQty(): void
+    {
+        $token = $this->login('gudang');
+
+        // Send 2 kg → should store 2000 grams
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-02',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 2, 'input_unit' => 'convert'],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $json = json_decode($result->getJSON(), true);
+        $transactionId = $json['data']['id'];
+
+        $db     = Database::connect();
+        $detail = $db->table('stock_transaction_details')
+            ->where('transaction_id', $transactionId)
+            ->get()->getRowArray();
+
+        $this->assertNotNull($detail);
+        $this->assertEquals(2000.0, (float) $detail['qty']);
+        $this->assertEquals(2.0, (float) $detail['input_qty']);
+        $this->assertSame('convert', $detail['input_unit']);
+    }
+
+    /**
+     * Test 3 — Detail responses include input_qty, input_unit, and normalized qty.
+     */
+    public function testTransactionDetailsResponseIncludesInputFields(): void
+    {
+        $token = $this->login('gudang');
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 3, 'input_unit' => 'convert'],
+                ],
+            ]);
+
+        $create->assertStatus(201);
+        $transactionId = json_decode($create->getJSON(), true)['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get("api/v1/stock-transactions/{$transactionId}/details");
+
+        $result->assertStatus(200);
+
+        $json    = json_decode($result->getJSON(), true);
+        $details = $json['data'] ?? [];
+        $this->assertNotEmpty($details);
+
+        $first = $details[0];
+        $this->assertArrayHasKey('qty', $first);
+        $this->assertArrayHasKey('input_qty', $first);
+        $this->assertArrayHasKey('input_unit', $first);
+
+        $this->assertEquals(3000.0, (float) $first['qty']);
+        $this->assertEquals(3.0, (float) $first['input_qty']);
+        $this->assertSame('convert', $first['input_unit']);
+    }
+
+    /**
+     * Test 4 — Revision submit with input_unit=convert stores normalized qty.
+     */
+    public function testSubmitRevisionWithInputUnitConvertNormalizesQty(): void
+    {
+        $token = $this->login('gudang');
+
+        // Create a parent transaction first (IN, approved)
+        $create = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-04',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 1000],
+                ],
+            ]);
+
+        $create->assertStatus(201);
+        $parentId = json_decode($create->getJSON(), true)['data']['id'];
+
+        // Submit revision with input_unit=convert (1 kg = 1000 g)
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post("api/v1/stock-transactions/{$parentId}/submit-revision", [
+                'transaction_date' => '2026-08-05',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 1, 'input_unit' => 'convert'],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $revisionId = json_decode($result->getJSON(), true)['data']['id'];
+
+        $db     = Database::connect();
+        $detail = $db->table('stock_transaction_details')
+            ->where('transaction_id', $revisionId)
+            ->get()->getRowArray();
+
+        $this->assertNotNull($detail);
+        $this->assertEquals(1000.0, (float) $detail['qty']);
+        $this->assertEquals(1.0, (float) $detail['input_qty']);
+        $this->assertSame('convert', $detail['input_unit']);
+    }
+
+    public function testSubmitRevisionLegacyQtyOnlyDefaultsInputUnitToBase(): void
+    {
+        $token = $this->login('gudang');
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-04',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 1000],
+                ],
+            ]);
+
+        $create->assertStatus(201);
+        $parentId = json_decode($create->getJSON(), true)['data']['id'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post("api/v1/stock-transactions/{$parentId}/submit-revision", [
+                'transaction_date' => '2026-08-05',
+                'details'          => [
+                    ['item_id' => 2, 'qty' => 750],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $revisionId = json_decode($result->getJSON(), true)['data']['id'];
+
+        $db     = Database::connect();
+        $detail = $db->table('stock_transaction_details')
+            ->where('transaction_id', $revisionId)
+            ->get()->getRowArray();
+
+        $this->assertNotNull($detail);
+        $this->assertEquals(750.0, (float) $detail['qty']);
+        $this->assertEquals(750.0, (float) $detail['input_qty']);
+        $this->assertSame('base', $detail['input_unit']);
+    }
+
+    /**
+     * Test 5 — Approve revision mutates stock using normalized qty (not input_qty).
+     */
+    public function testApproveRevisionUsesNormalizedQtyForStockMutation(): void
+    {
+        $token      = $this->login('gudang');
+        $adminToken = $this->login('admin');
+        $itemModel  = new ItemModel();
+
+        // Beras starts at 5000 g
+        $before = (float) $itemModel->find(1)['qty'];
+
+        // Create a parent IN transaction
+        $create = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-06',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 100],
+                ],
+            ]);
+
+        $create->assertStatus(201);
+        $parentId = json_decode($create->getJSON(), true)['data']['id'];
+
+        // Submit revision with input_unit=convert (4 kg → 4000 g)
+        $revision = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post("api/v1/stock-transactions/{$parentId}/submit-revision", [
+                'transaction_date' => '2026-08-07',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 4, 'input_unit' => 'convert'],
+                ],
+            ]);
+
+        $revision->assertStatus(201);
+        $revisionId = json_decode($revision->getJSON(), true)['data']['id'];
+
+        // Approve the revision
+        $approve = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post("api/v1/stock-transactions/{$revisionId}/approve");
+
+        $approve->assertStatus(200);
+
+        // Stock should have increased by 4000 g (normalized) not 4
+        $after = (float) $itemModel->find(1)['qty'];
+        // before + 100 (create) + 4000 (approve revision)
+        $this->assertEquals($before + 100.0 + 4000.0, $after);
+    }
+
+    /**
+     * Test 6 — Invalid input_unit value is rejected with 400.
+     */
+    public function testCreateTransactionWithInvalidInputUnitFails(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'IN',
+                'transaction_date' => '2026-08-08',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 5, 'input_unit' => 'kilos'],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('details.0.input_unit', $json['errors']);
+    }
 }

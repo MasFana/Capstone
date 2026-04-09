@@ -86,6 +86,9 @@ Contoh:
 - `App\Controllers\Api\V1\StockTransactions`
 - `App\Controllers\Api\V1\Users`
 - `App\Controllers\Api\V1\Roles`
+- `App\Controllers\Api\V1\ItemCategories`
+- `App\Controllers\Api\V1\TransactionTypes`
+- `App\Controllers\Api\V1\ApprovalStatuses`
 
 #### Services
 
@@ -131,12 +134,12 @@ Model saat ini terutama menangani persistence dan query helper, misalnya:
 
 | Module | Current Status | Notes |
 |---|---|---|
-| Auth | Implemented | Login, me, logout sudah aktif |
+| Auth | Implemented | Login, me, logout, dan self-service change password sudah aktif |
 | Roles | Implemented | `GET /api/v1/roles` aktif |
 | Users | Implemented | CRUD + activate/deactivate/password flow aktif |
 | Items | Implemented | CRUD aktif, `qty` tidak boleh diubah langsung |
 | Stock Transactions | Implemented | Create/list/show/details/revision/approve/reject aktif |
-| Item Categories / Lookup APIs | Partial | model lookup ada, endpoint publik belum lengkap |
+| Item Categories / Lookup APIs | Partial | `item-categories`, `transaction-types`, dan `approval-statuses` aktif; `meal-times` masih belum punya endpoint publik |
 | Dashboard | Planned | belum ada route aktif |
 | Menu & Nutrition | Planned | belum ada route aktif |
 | Daily Patients | Planned | belum ada route aktif |
@@ -164,6 +167,9 @@ classDiagram
             <<Route Config>>
             +/api/v1/auth/*
             +/api/v1/roles
+            +/api/v1/item-categories
+            +/api/v1/transaction-types
+            +/api/v1/approval-statuses
             +/api/v1/users/*
             +/api/v1/items/*
             +/api/v1/stock-transactions/*
@@ -191,6 +197,22 @@ classDiagram
             +login()
             +me()
             +logout()
+            +changePassword()
+        }
+
+        class ItemCategoriesController {
+            <<Controller>>
+            +index()
+        }
+
+        class TransactionTypesController {
+            <<Controller>>
+            +index()
+        }
+
+        class ApprovalStatusesController {
+            <<Controller>>
+            +index()
         }
 
         class RolesController {
@@ -237,6 +259,7 @@ classDiagram
             +attemptLogin(username, password)
             +getCurrentUser(user)
             +logout(user)
+            +changePassword(user, currentPassword, newPassword)
         }
 
         class UserManagementService {
@@ -565,11 +588,8 @@ Lanjutkan pola yang sudah sehat saat ini:
 
 Urutan pengembangan yang paling nyambung dengan flow project saat ini:
 
-1. **Lookup endpoints**
-   - `item-categories`
-   - `transaction-types`
+1. **Lookup endpoint completion**
    - `meal-times`
-   - `approval-statuses`
 2. **Menu & nutrition module**
    - menus
    - menu schedules

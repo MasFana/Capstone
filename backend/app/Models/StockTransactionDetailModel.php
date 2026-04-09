@@ -12,6 +12,8 @@ class StockTransactionDetailModel extends Model
         'transaction_id',
         'item_id',
         'qty',
+        'input_qty',
+        'input_unit',
     ];
     protected $useTimestamps = false;
     protected $returnType    = 'array';

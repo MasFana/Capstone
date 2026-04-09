@@ -302,7 +302,6 @@ class AuthTest extends CIUnitTestCase
             );
         }
 
-        // Verify the existing Shield tables still exist
         $existingTables = [
             $authConfig->tables['identities'],
             $authConfig->tables['logins'],
@@ -321,5 +320,196 @@ class AuthTest extends CIUnitTestCase
         $this->assertNotNull($user);
         $this->assertSame([], $groupModel->getForUser($user));
         $this->assertSame([], $user->getGroups());
+    }
+
+    public function testSelfServicePasswordChangeSuccess(): void
+    {
+        $loginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $loginJson = json_decode($loginResult->getJSON(), true);
+        $oldToken = $loginJson['access_token'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $oldToken])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'password123',
+                'password'         => 'newpassword123',
+            ]);
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'Password changed successfully. All access tokens have been revoked.']);
+
+        $meResult = $this->withHeaders(['Authorization' => 'Bearer ' . $oldToken])
+            ->get('api/v1/auth/me');
+
+        $meResult->assertStatus(401);
+
+        $newLoginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'newpassword123',
+            ]);
+
+        $newLoginResult->assertStatus(200);
+        $newLoginJson = json_decode($newLoginResult->getJSON(), true);
+        $this->assertArrayHasKey('access_token', $newLoginJson);
+
+        $oldPasswordResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $oldPasswordResult->assertStatus(401);
+    }
+
+    public function testSelfServicePasswordChangeRevokesAllExistingTokens(): void
+    {
+        $firstLoginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $firstLoginJson = json_decode($firstLoginResult->getJSON(), true);
+        $firstToken = $firstLoginJson['access_token'];
+
+        $secondLoginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $secondLoginJson = json_decode($secondLoginResult->getJSON(), true);
+        $secondToken = $secondLoginJson['access_token'];
+
+        $changeResult = $this->withHeaders(['Authorization' => 'Bearer ' . $secondToken])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'password123',
+                'password'         => 'anothernewpassword',
+            ]);
+
+        $changeResult->assertStatus(200);
+
+        $firstTokenResult = $this->withHeaders(['Authorization' => 'Bearer ' . $firstToken])
+            ->get('api/v1/auth/me');
+        $firstTokenResult->assertStatus(401);
+
+        $secondTokenResult = $this->withHeaders(['Authorization' => 'Bearer ' . $secondToken])
+            ->get('api/v1/auth/me');
+        $secondTokenResult->assertStatus(401);
+    }
+
+    public function testSelfServicePasswordChangeWrongCurrentPassword(): void
+    {
+        $loginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $loginJson = json_decode($loginResult->getJSON(), true);
+        $token = $loginJson['access_token'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'wrongpassword',
+                'password'         => 'newpassword123',
+            ]);
+
+        $result->assertStatus(401);
+        $result->assertJSONFragment(['message' => 'Current password is incorrect.']);
+
+        $meResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/auth/me');
+
+        $meResult->assertStatus(200);
+    }
+
+    public function testSelfServicePasswordChangeMissingCurrentPassword(): void
+    {
+        $loginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $loginJson = json_decode($loginResult->getJSON(), true);
+        $token = $loginJson['access_token'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'password' => 'newpassword123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('current_password', $json['errors']);
+    }
+
+    public function testSelfServicePasswordChangeMissingNewPassword(): void
+    {
+        $loginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $loginJson = json_decode($loginResult->getJSON(), true);
+        $token = $loginJson['access_token'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'password123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('password', $json['errors']);
+    }
+
+    public function testSelfServicePasswordChangeNewPasswordTooShort(): void
+    {
+        $loginResult = $this->withBodyFormat('json')
+            ->post('api/v1/auth/login', [
+                'username' => 'activeuser',
+                'password' => 'password123',
+            ]);
+
+        $loginJson = json_decode($loginResult->getJSON(), true);
+        $token = $loginJson['access_token'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'password123',
+                'password'         => 'short',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('password', $json['errors']);
+    }
+
+    public function testSelfServicePasswordChangeWithoutAuth(): void
+    {
+        $result = $this->withBodyFormat('json')
+            ->patch('api/v1/auth/password', [
+                'current_password' => 'password123',
+                'password'         => 'newpassword123',
+            ]);
+
+        $result->assertStatus(401);
     }
 }

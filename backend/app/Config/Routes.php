@@ -25,7 +25,23 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "auth/password",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "roles",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "item-categories",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "transaction-types",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "approval-statuses",
             static fn() => service("response")->setStatusCode(204),
         );
 
@@ -40,11 +56,16 @@ $routes->group(
         $routes->group("", ["filter" => "tokens"], static function ($routes) {
             $routes->get("auth/me", "Auth::me");
             $routes->post("auth/logout", "Auth::logout");
+            $routes->patch("auth/password", "Auth::changePassword");
 
             $routes->group(
                 "",
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
+                    $routes->get("item-categories", "ItemCategories::index");
+                    $routes->get("transaction-types", "TransactionTypes::index");
+                    $routes->get("approval-statuses", "ApprovalStatuses::index");
+
                     $routes->get("items", "Items::index");
                     $routes->options(
                         "items",

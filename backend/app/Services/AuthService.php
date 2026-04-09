@@ -82,6 +82,41 @@ class AuthService
         return $this->formatUserResponse($user);
     }
 
+    public function changePassword(User $user, string $currentPassword, string $newPassword): array
+    {
+        $authenticator = auth("session")->getAuthenticator();
+        $credentials = [
+            "username" => $user->username,
+            "password" => $currentPassword,
+        ];
+
+        $result = $authenticator->check($credentials);
+
+        if (!$result->isOK()) {
+            return [
+                "success" => false,
+                "message" => "Current password is incorrect.",
+            ];
+        }
+
+        $user->fill(['password' => $newPassword]);
+        $updated = $this->userProvider->save($user);
+
+        if (!$updated) {
+            return [
+                "success" => false,
+                "message" => "Failed to update password.",
+            ];
+        }
+
+        $this->userProvider->revokeAllUserTokens((int) $user->id);
+
+        return [
+            "success" => true,
+            "message" => "Password changed successfully. All access tokens have been revoked.",
+        ];
+    }
+
     protected function isUserAllowedToLogin(User $user): bool
     {
         $userData = $this->userProvider
