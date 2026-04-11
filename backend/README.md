@@ -4,6 +4,17 @@ This backend uses **CodeIgniter 4**, **MySQL/MariaDB**, and **CodeIgniter Shield
 
 Use this guide to set up the backend locally, start the database, run migrations and seeders, and start the API server.
 
+## Docs Router
+
+- **Canonical for:** local backend setup and daily run commands.
+- **Not canonical for:** runtime API behavior, schema rules, or planned-module design.
+- **Read next for runtime/API work:** `docs/project-flow-alignment.md`, `docs/api-design.md`, `docs/data-dictionary.md`, `docs/system-design.md`.
+
+For current API/module status after setup, see:
+
+- `docs/api-design.md` for the active API contract
+- `docs/project-flow-alignment.md` for the compact module/API/flow/access alignment matrix
+
 ## Requirements
 
 - PHP **8.2+**

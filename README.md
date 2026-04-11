@@ -1,6 +1,6 @@
 # Capstone
 
-This repository currently contains a ready-to-run backend and an empty `frontend/` directory for future frontend work.
+This repository currently contains a ready-to-run backend and a `frontend/` package that now ships a TypeScript SDK for the implemented backend API.
 
 ## Backend
 
@@ -19,9 +19,13 @@ The backend guide includes:
 
 ## Frontend
 
-The `frontend/` directory exists but is currently empty, so there is no frontend setup flow documented yet.
+The `frontend/` directory now contains a TypeScript SDK for the implemented `/api/v1` backend surface.
 
-Once the frontend is added, this README can be expanded with frontend installation and run instructions.
+Use these docs depending on what you need:
+
+- [Frontend SDK guide](./frontend/README.md)
+- [Backend API design](./backend/docs/api-design.md)
+- [Project flow alignment matrix](./backend/docs/project-flow-alignment.md)
 
 ## Additional backend docs
 
