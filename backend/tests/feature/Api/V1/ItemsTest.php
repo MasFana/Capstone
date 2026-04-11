@@ -451,6 +451,155 @@ class ItemsTest extends CIUnitTestCase
 
         $result->assertStatus(400);
         $result->assertJSONFragment(['message' => 'Validation failed.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('restore_id', $json['errors']);
+        $this->assertSame('1', $json['errors']['restore_id']);
+    }
+
+    public function testAdminCanRestoreDeletedItem(): void
+    {
+        $token = $this->login('admin');
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/items/1')
+            ->assertStatus(200);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'Item restored successfully.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertSame('Beras', $json['data']['name']);
+
+        // Verify it appears in list again
+        $list = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/items/1');
+        $list->assertStatus(200);
+    }
+
+    public function testRestoreAlreadyActiveItemReturns200(): void
+    {
+        $token = $this->login('admin');
+
+        // Item 1 (Beras) is not deleted — restoring it is idempotent
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'Item restored successfully.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Beras', $json['data']['name']);
+    }
+
+    public function testRestoreItemFailsIfCategoryWasSoftDeleted(): void
+    {
+        $token = $this->login('admin');
+        $itemModel = new ItemModel();
+        $categoryModel = new ItemCategoryModel();
+
+        $item = $itemModel->find(1);
+        $this->assertNotNull($item);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/items/1')
+            ->assertStatus(200);
+
+        $categoryModel->delete((int) $item['item_category_id']);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('item_category_id', $json['errors']);
+    }
+
+    public function testRestoreItemFailsIfBaseUnitWasSoftDeleted(): void
+    {
+        $token = $this->login('admin');
+        $itemModel = new ItemModel();
+        $itemUnitModel = new ItemUnitModel();
+
+        $item = $itemModel->find(1);
+        $this->assertNotNull($item);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/items/1')
+            ->assertStatus(200);
+
+        $itemUnitModel->delete((int) $item['item_unit_base_id']);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('unit_base', $json['errors']);
+    }
+
+    public function testRestoreItemFailsIfConvertUnitWasSoftDeleted(): void
+    {
+        $token = $this->login('admin');
+        $itemModel = new ItemModel();
+        $itemUnitModel = new ItemUnitModel();
+
+        $item = $itemModel->find(1);
+        $this->assertNotNull($item);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/items/1')
+            ->assertStatus(200);
+
+        $itemUnitModel->delete((int) $item['item_unit_convert_id']);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('unit_convert', $json['errors']);
+    }
+
+    public function testRestoreNonExistentItemReturns404(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/9999/restore');
+
+        $result->assertStatus(404);
+    }
+
+    public function testGudangCannotRestoreItem(): void
+    {
+        $token = $this->login('admin');
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/items/1')
+            ->assertStatus(200);
+
+        $gudangToken = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/items/1/restore');
+
+        $result->assertStatus(403);
     }
 
     // Dual lookup tests: item_category_name support

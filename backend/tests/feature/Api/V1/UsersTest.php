@@ -67,6 +67,18 @@ class UsersTest extends CIUnitTestCase
         ]);
         $spkUser->fill(['password' => 'password123']);
         $userProvider->insert($spkUser, true);
+
+        $gudangRole = $roleModel->findByName('gudang');
+        $gudangUser = new User([
+            'role_id'   => $gudangRole['id'],
+            'name'      => 'Gudang User',
+            'username'  => 'gudanguser',
+            'email'     => 'gudang@example.com',
+            'is_active' => true,
+            'active'    => true,
+        ]);
+        $gudangUser->fill(['password' => 'password123']);
+        $userProvider->insert($gudangUser, true);
     }
 
     protected function loginAsAdmin(): string
@@ -81,11 +93,11 @@ class UsersTest extends CIUnitTestCase
         return $json['access_token'];
     }
 
-    protected function loginAsNonAdmin(): string
+    protected function loginAsNonAdmin(string $username = 'spkuser'): string
     {
         $result = $this->withBodyFormat('json')
             ->post('api/v1/auth/login', [
-                'username' => 'spkuser',
+                'username' => $username,
                 'password' => 'password123',
             ]);
         
@@ -604,6 +616,107 @@ class UsersTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('errors', $json);
         $this->assertArrayHasKey('username', $json['errors']);
+        $this->assertArrayHasKey('restore_id', $json['errors']);
+        $this->assertSame('2', $json['errors']['restore_id']);
+    }
+
+    public function testAdminCanRestoreDeletedUser(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/users/2')
+            ->assertStatus(200);
+
+        // Verify deleted
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/users/2')
+            ->assertStatus(404);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/users/2/restore');
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'User restored successfully.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertSame('spkuser', $json['data']['username']);
+
+        // Verify accessible again
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/users/2')
+            ->assertStatus(200);
+    }
+
+    public function testRestoreAlreadyActiveUserReturns200(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        // User 2 (spkuser) is not deleted — restoring is idempotent
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/users/2/restore');
+
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['message' => 'User restored successfully.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('spkuser', $json['data']['username']);
+    }
+
+    public function testRestoreUserFailsIfRoleWasSoftDeleted(): void
+    {
+        $token = $this->loginAsAdmin();
+        $roleModel = new RoleModel();
+        $userProvider = new AppUserProvider();
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/users/2')
+            ->assertStatus(200);
+
+        $deletedUser = $userProvider->findByIdIncludingDeleted(2);
+        $this->assertNotNull($deletedUser);
+
+        $roleModel->delete((int) $deletedUser->role_id);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/users/2/restore');
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('role_id', $json['errors']);
+    }
+
+    public function testRestoreNonExistentUserReturns404(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/users/9999/restore');
+
+        $result->assertStatus(404);
+    }
+
+    public function testNonAdminCannotRestoreDeletedUser(): void
+    {
+        $adminToken = $this->loginAsAdmin();
+        $nonAdminToken = $this->loginAsNonAdmin('gudanguser');
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->delete('api/v1/users/2')
+            ->assertStatus(200);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $nonAdminToken])
+            ->withBodyFormat('json')
+            ->call('PATCH', 'api/v1/users/2/restore');
+
+        $result->assertStatus(403);
+        $result->assertJSONFragment(['message' => 'Insufficient permissions.']);
     }
 
     public function testDeleteUserRevokesTokens(): void

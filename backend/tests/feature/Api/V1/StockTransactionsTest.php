@@ -10,6 +10,7 @@ use App\Models\ItemModel;
 use App\Models\ItemUnitModel;
 use App\Models\RoleModel;
 use App\Models\TransactionTypeModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Database\Exceptions\DataException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
@@ -2878,5 +2879,79 @@ class StockTransactionsTest extends CIUnitTestCase
 
         $result->assertStatus(400);
         $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    // Regression: stock transactions must not be deletable via any route
+    public function testDeleteStockTransactionAsAdminReturns404(): void
+    {
+        $token = $this->login('admin');
+
+        // Create a transaction first
+        $transactionId = $this->createTransaction('admin');
+
+        // DELETE route does not exist — router should return 404
+        try {
+            $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->delete('api/v1/stock-transactions/' . $transactionId);
+            $this->fail('Expected missing DELETE route to throw PageNotFoundException.');
+        } catch (PageNotFoundException $exception) {
+            $this->assertStringContainsString('DELETE: api/v1/stock-transactions/' . $transactionId, $exception->getMessage());
+        }
+
+        // Verify the transaction still exists (show returns 200 or the transaction data)
+        $show = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions/' . $transactionId);
+
+        $show->assertStatus(200);
+    }
+
+    public function testDeleteStockTransactionAsGudangReturns404(): void
+    {
+        $token = $this->login('gudang');
+
+        $transactionId = $this->createTransaction('gudang');
+
+        try {
+            $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->delete('api/v1/stock-transactions/' . $transactionId);
+            $this->fail('Expected missing DELETE route to throw PageNotFoundException.');
+        } catch (PageNotFoundException $exception) {
+            $this->assertStringContainsString('DELETE: api/v1/stock-transactions/' . $transactionId, $exception->getMessage());
+        }
+
+        // Verify the transaction still exists via admin
+        $adminToken = $this->login('admin');
+        $show = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->get('api/v1/stock-transactions/' . $transactionId);
+
+        $show->assertStatus(200);
+    }
+
+    /**
+     * Helper: create a minimal stock transaction and return its ID.
+     */
+    private function createTransaction(string $username): int
+    {
+        $token = $this->login($username);
+
+        $itemModel = new ItemModel();
+        $items     = $itemModel->findAll();
+        $item      = $items[0];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'  => 'IN',
+                'transaction_date' => '2026-04-30',
+                'details'    => [
+                    [
+                        'item_id'  => $item['id'],
+                        'qty'      => 10,
+                    ],
+                ],
+            ]);
+
+        $json = json_decode($result->getJSON(), true);
+        return (int) $json['data']['id'];
     }
 }
