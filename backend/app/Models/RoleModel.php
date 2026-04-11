@@ -8,9 +8,11 @@ class RoleModel extends Model
 {
     protected $table         = 'roles';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name'];
-    protected $useTimestamps = true;
-    protected $returnType    = 'array';
+    protected $allowedFields  = ['name'];
+    protected $useTimestamps  = true;
+    protected $useSoftDeletes = true;
+    protected $deletedField   = 'deleted_at';
+    protected $returnType     = 'array';
 
     public function findByName(string $name): ?array
     {
@@ -39,5 +41,17 @@ class RoleModel extends Model
     public function getAllRoles(): array
     {
         return $this->getAll();
+    }
+
+    public function nameExists(string $name, ?int $exceptId = null, bool $includeDeleted = true): bool
+    {
+        $builder = $includeDeleted ? $this->withDeleted() : $this;
+        $builder = $builder->where('LOWER(name)', strtolower(trim($name)));
+
+        if ($exceptId !== null) {
+            $builder = $builder->where('id !=', $exceptId);
+        }
+
+        return $builder->first() !== null;
     }
 }

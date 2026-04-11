@@ -114,8 +114,8 @@ export class StockTransactionsResource {
   }
 }
 
-function buildStockTransactionsQuery(query: ListStockTransactionsQuery): Record<string, number> {
-  const result: Record<string, number> = {};
+function buildStockTransactionsQuery(query: ListStockTransactionsQuery): Record<string, string | number> {
+  const result: Record<string, string | number> = {};
 
   if (query.page !== undefined) {
     result.page = query.page;
@@ -124,6 +124,19 @@ function buildStockTransactionsQuery(query: ListStockTransactionsQuery): Record<
   if (query.perPage !== undefined) {
     result.perPage = query.perPage;
   }
+
+  if (query.q !== undefined) result.q = query.q;
+  if (query.search !== undefined) result.search = query.search;
+  if (query.sortBy !== undefined) result.sortBy = query.sortBy;
+  if (query.sortDir !== undefined) result.sortDir = query.sortDir;
+  if (query.type_id !== undefined) result.type_id = query.type_id;
+  if (query.status_id !== undefined) result.status_id = query.status_id;
+  if (query.transaction_date_from !== undefined) result.transaction_date_from = query.transaction_date_from;
+  if (query.transaction_date_to !== undefined) result.transaction_date_to = query.transaction_date_to;
+  if (query.created_at_from !== undefined) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== undefined) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== undefined) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== undefined) result.updated_at_to = query.updated_at_to;
 
   return result;
 }

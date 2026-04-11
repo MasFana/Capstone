@@ -1,10 +1,12 @@
 import type { ApiClient } from "../client";
 import type {
   ApiDataResponse,
+  ApiListResponse,
   ApiMessageDataResponse,
   ApiMessageResponse,
   ChangePasswordRequest,
   CreateUserRequest,
+  ListUsersQuery,
   UpdateUserRequest,
   User
 } from "../types";
@@ -21,10 +23,11 @@ export class UsersResource {
    * HTTP: `GET /api/v1/users`
    * Access: `admin` only
    */
-  public list(): Promise<ApiDataResponse<User[]>> {
-    return this.client.request<ApiDataResponse<User[]>>({
+  public list(query?: ListUsersQuery): Promise<ApiListResponse<User>> {
+    return this.client.request<ApiListResponse<User>>({
       method: "GET",
-      path: "/users"
+      path: "/users",
+      ...(query ? { query: buildUsersQuery(query) } : {})
     });
   }
 
@@ -121,4 +124,23 @@ export class UsersResource {
       path: `/users/${id}`
     });
   }
+}
+
+function buildUsersQuery(query: ListUsersQuery): Record<string, string | number | boolean> {
+  const result: Record<string, string | number | boolean> = {};
+
+  if (query.page !== undefined) result.page = query.page;
+  if (query.perPage !== undefined) result.perPage = query.perPage;
+  if (query.q !== undefined) result.q = query.q;
+  if (query.search !== undefined) result.search = query.search;
+  if (query.sortBy !== undefined) result.sortBy = query.sortBy;
+  if (query.sortDir !== undefined) result.sortDir = query.sortDir;
+  if (query.role_id !== undefined) result.role_id = query.role_id;
+  if (query.is_active !== undefined) result.is_active = query.is_active;
+  if (query.created_at_from !== undefined) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== undefined) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== undefined) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== undefined) result.updated_at_to = query.updated_at_to;
+
+  return result;
 }

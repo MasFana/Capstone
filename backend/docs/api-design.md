@@ -74,7 +74,7 @@ Source of truth untuk endpoint yang sudah berjalan adalah:
 | POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
 | POST | `/api/v1/auth/logout` | Logout current Bearer token |
 | GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
-| GET | `/api/v1/roles` | List roles, restricted to `admin` via role filter |
+| GET | `/api/v1/roles` | List roles (paginated), restricted to `admin` via role filter |
 
 ### 4.1 Login Contract
 
@@ -128,7 +128,7 @@ Bagian ini hanya berisi endpoint yang saat ini benar-benar tersedia sebagai rout
 | POST | `/api/v1/auth/logout` | Logout current Bearer token |
 | GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
 | PATCH | `/api/v1/auth/password` | Self-service password change (requires valid token and current password, revokes all tokens) |
-| GET | `/api/v1/roles` | List roles, restricted to `admin` via role filter |
+| GET | `/api/v1/roles` | List roles (paginated), restricted to `admin` via role filter |
 
 #### 5.1.1 Self-Service Password Change
 
@@ -175,13 +175,36 @@ Authenticated users can change their own password. This endpoint requires the us
 
 ### 5.2 Inventory Lookup Endpoints
 
-These endpoints provide reference data for creating and filtering inventory operations. All lookup endpoints are restricted to users with `admin` or `gudang` roles.
+These endpoints provide reference data for creating and filtering inventory operations. All lookup list endpoints are restricted to users with `admin` or `gudang` roles. Write operations on `item-units` and `item-categories` are restricted to `admin` only.
+
+All lookup list endpoints support pagination and return the standard `data/meta/links` envelope. Soft-deleted rows are excluded from all list and show responses.
+
+Supported query parameters for all lookup list endpoints:
+
+- `page` — page number (positive integer, default `1`)
+- `perPage` — results per page (integer 1–100, default `10`)
+- `q` / `search` — partial name match (case-insensitive); `q` takes priority if both are sent
+- `sortBy`, `sortDir` — allowlisted sorting fields per resource
+- `created_at_from`, `created_at_to` — created-at date/datetime range
+- `updated_at_from`, `updated_at_to` — updated-at date/datetime range
+- Unknown query parameters return `400` validation errors.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/item-categories` | List all item categories |
-| GET | `/api/v1/transaction-types` | List all transaction types |
-| GET | `/api/v1/approval-statuses` | List all approval statuses |
+| GET | `/api/v1/item-categories` | List item categories (paginated) |
+| GET | `/api/v1/item-categories/{id}` | Get item category detail |
+| POST | `/api/v1/item-categories` | Create item category |
+| PUT | `/api/v1/item-categories/{id}` | Update item category |
+| DELETE | `/api/v1/item-categories/{id}` | Soft delete item category |
+| PATCH | `/api/v1/item-categories/{id}/restore` | Restore soft-deleted item category |
+| GET | `/api/v1/transaction-types` | List transaction types (paginated) |
+| GET | `/api/v1/approval-statuses` | List approval statuses (paginated) |
+| GET | `/api/v1/item-units` | List item units (paginated) |
+| GET | `/api/v1/item-units/{id}` | Get item unit detail |
+| POST | `/api/v1/item-units` | Create item unit |
+| PUT | `/api/v1/item-units/{id}` | Update item unit |
+| DELETE | `/api/v1/item-units/{id}` | Soft delete item unit |
+| PATCH | `/api/v1/item-units/{id}/restore` | Restore soft-deleted item unit |
 
 #### 5.2.1 Item Categories
 
@@ -204,7 +227,20 @@ These endpoints provide reference data for creating and filtering inventory oper
       "created_at": "2026-04-02 10:00:00",
       "updated_at": "2026-04-02 10:00:00"
     }
-  ]
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 3,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/item-categories?page=1&perPage=10",
+    "first": "/api/v1/item-categories?page=1&perPage=10",
+    "last": "/api/v1/item-categories?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
 }
 ```
 
@@ -235,7 +271,20 @@ These endpoints provide reference data for creating and filtering inventory oper
       "created_at": "2026-04-02 10:00:00",
       "updated_at": "2026-04-02 10:00:00"
     }
-  ]
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 3,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/transaction-types?page=1&perPage=10",
+    "first": "/api/v1/transaction-types?page=1&perPage=10",
+    "last": "/api/v1/transaction-types?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
 }
 ```
 
@@ -266,9 +315,126 @@ These endpoints provide reference data for creating and filtering inventory oper
       "created_at": "2026-04-02 10:00:00",
       "updated_at": "2026-04-02 10:00:00"
     }
-  ]
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 3,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/approval-statuses?page=1&perPage=10",
+    "first": "/api/v1/approval-statuses?page=1&perPage=10",
+    "last": "/api/v1/approval-statuses?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
 }
 ```
+
+#### 5.2.4 Item Units
+
+**List / Show access:** `admin`, `gudang`
+**Create / Update / Delete access:** `admin` only
+
+`item_units` is a soft-deletable lookup table used as FK backing for item units. Soft-deleted item units are excluded from list and show responses, cannot be assigned to items, and delete is blocked while active items still reference the unit.
+
+##### List Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "GRAM",
+      "created_at": "2026-04-10 08:00:00",
+      "updated_at": "2026-04-10 08:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 6,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/item-units?page=1&perPage=10",
+    "first": "/api/v1/item-units?page=1&perPage=10",
+    "last": "/api/v1/item-units?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+##### Show Response
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "GRAM",
+    "created_at": "2026-04-10 08:00:00",
+    "updated_at": "2026-04-10 08:00:00"
+  }
+}
+```
+
+##### Create Request
+
+```json
+{
+  "name": "gram"
+}
+```
+
+Name is automatically UPPER-cased on save. Case-insensitive duplicate detection applies (e.g. `gram` and `GRAM` are considered the same name).
+
+##### Create Response (`201`)
+
+```json
+{
+  "message": "Item unit created successfully.",
+  "data": {
+    "id": 7,
+    "name": "GRAM",
+    "created_at": "2026-04-10 08:00:00",
+    "updated_at": "2026-04-10 08:00:00"
+  }
+}
+```
+
+##### Update Request
+
+```json
+{
+  "name": "kilogram"
+}
+```
+
+##### Update Response
+
+```json
+{
+  "message": "Item unit updated successfully.",
+  "data": {
+    "id": 2,
+    "name": "KILOGRAM",
+    "created_at": "2026-04-10 08:00:00",
+    "updated_at": "2026-04-10 09:00:00"
+  }
+}
+```
+
+##### Delete Response
+
+```json
+{
+  "message": "Item unit deleted successfully."
+}
+```
+
+Item units are soft-deleted only. The row remains in the database with `deleted_at` set. `item_units.name` is unique only among active rows; if a matching deleted row exists, create returns `400` and the client must call the restore endpoint instead of recreating the name.
 
 ### 5.3 User Management Endpoints
 
@@ -286,6 +452,17 @@ All user management endpoints are restricted to users with the `admin` role.
 | DELETE | `/api/v1/users/{id}` | Soft delete user (revokes all tokens) |
 
 #### 5.3.1 List Users
+
+Supported query parameters:
+
+- `page`, `perPage`
+- `q` / `search` — partial name, username, or email match
+- `sortBy`, `sortDir`
+- `role_id` — filter by role ID
+- `is_active` — filter by active status (`true` / `false` / `1` / `0`)
+- `created_at_from`, `created_at_to`
+- `updated_at_from`, `updated_at_to`
+- Unknown query parameters return `400` validation errors.
 
 #### Response
 
@@ -306,7 +483,20 @@ All user management endpoints are restricted to users with the `admin` role.
         "name": "admin"
       }
     }
-  ]
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 3,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "/api/v1/users?page=1&perPage=10",
+    "first": "/api/v1/users?page=1&perPage=10",
+    "last": "/api/v1/users?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
 }
 ```
 
@@ -466,16 +656,19 @@ Phase 1 item management covers item master CRUD only. `qty` is read-only in this
 
 Supported query parameters:
 
-- `page`
-- `perPage`
-- `item_category_id`
-- `is_active`
-- `q`
+- `page`, `perPage`
+- `item_category_id` — filter by category ID
+- `is_active` — filter by active status (`true` / `false` / `1` / `0`)
+- `q` / `search` — partial name match; `q` takes priority if both sent
+- `sortBy` — column to sort by (allowed values: `name`, `created_at`, `updated_at`; default `name`)
+- `sortDir` — sort direction: `ASC` or `DESC` (default `ASC`)
+- `created_at_from`, `created_at_to` — date range filter on `created_at`
+- `updated_at_from`, `updated_at_to` — date range filter on `updated_at`
 
 Rules:
 
 - unknown query parameters return `400` validation errors;
-- default order is category ascending, then item name ascending, then item id ascending;
+- default order is `name ASC`;
 - soft-deleted items are excluded.
 
 #### Response
@@ -489,6 +682,8 @@ Rules:
       "name": "Beras",
       "unit_base": "gram",
       "unit_convert": "kg",
+      "item_unit_base_id": 1,
+      "item_unit_convert_id": 2,
       "conversion_base": 1000,
       "qty": "1500.00",
       "is_active": true,
@@ -497,6 +692,14 @@ Rules:
       "category": {
         "id": 2,
         "name": "KERING"
+      },
+      "item_unit_base": {
+        "id": 1,
+        "name": "gram"
+      },
+      "item_unit_convert": {
+        "id": 2,
+        "name": "kg"
       }
     }
   ],
@@ -534,6 +737,13 @@ Lookup contract:
 - `item_category_name` matching is trimmed and case-insensitive;
 - sending both `item_category_id` and `item_category_name` in the same request returns `400` validation errors.
 
+Unit resolution contract:
+
+- `unit_base` and `unit_convert` are string values that are resolved to FK-backed `item_units` rows;
+- resolution is case-insensitive;
+- if the provided unit name cannot be matched to an active (non-deleted) item unit row, the request returns `400` with a `unit_base` or `unit_convert` error;
+- the string values are still stored in `items.unit_base` / `items.unit_convert` for backward compatibility alongside the FK columns `item_unit_base_id` / `item_unit_convert_id`.
+
 Forbidden write fields:
 
 - `qty`
@@ -566,6 +776,8 @@ Forbidden write fields:
     "name": "Minyak",
     "unit_base": "ml",
     "unit_convert": "liter",
+    "item_unit_base_id": 3,
+    "item_unit_convert_id": 4,
     "conversion_base": 1000,
     "qty": "0.00",
     "is_active": true,
@@ -574,6 +786,14 @@ Forbidden write fields:
     "category": {
       "id": 3,
       "name": "PENGEMAS"
+    },
+    "item_unit_base": {
+      "id": 3,
+      "name": "ml"
+    },
+    "item_unit_convert": {
+      "id": 4,
+      "name": "liter"
     }
   }
 }
@@ -591,6 +811,8 @@ Forbidden write fields:
     "name": "Beras",
     "unit_base": "gram",
     "unit_convert": "kg",
+    "item_unit_base_id": 1,
+    "item_unit_convert_id": 2,
     "conversion_base": 1000,
     "qty": "1500.00",
     "is_active": true,
@@ -599,6 +821,14 @@ Forbidden write fields:
     "category": {
       "id": 2,
       "name": "KERING"
+    },
+    "item_unit_base": {
+      "id": 1,
+      "name": "gram"
+    },
+    "item_unit_convert": {
+      "id": 2,
+      "name": "kg"
     }
   }
 }
@@ -613,6 +843,11 @@ Lookup contract:
 - update supports either `item_category_id` or `item_category_name` when changing category;
 - `item_category_name` matching is trimmed and case-insensitive;
 - sending both `item_category_id` and `item_category_name` in the same request returns `400` validation errors.
+
+Unit resolution contract:
+
+- if `unit_base` or `unit_convert` is present in the request, each is resolved to an active item unit row (same rules as create);
+- if the unit name cannot be resolved to an active item unit, the request returns `400`.
 
 #### Request
 
@@ -634,6 +869,8 @@ Lookup contract:
     "name": "Beras Premium",
     "unit_base": "gram",
     "unit_convert": "kg",
+    "item_unit_base_id": 1,
+    "item_unit_convert_id": 2,
     "conversion_base": 1000,
     "qty": "1500.00",
     "is_active": false,
@@ -642,6 +879,14 @@ Lookup contract:
     "category": {
       "id": 2,
       "name": "KERING"
+    },
+    "item_unit_base": {
+      "id": 1,
+      "name": "gram"
+    },
+    "item_unit_convert": {
+      "id": 2,
+      "name": "kg"
     }
   }
 }
@@ -662,7 +907,9 @@ Lookup contract:
 - `qty` cannot be created or updated directly through the item master endpoints.
 - `item_category_id` must reference an existing category.
 - `item_category_name` may be used instead of `item_category_id` and resolves to the same lookup table.
-- `name` must be globally unique.
+- `unit_base` and `unit_convert` must resolve to existing, active (non-deleted) `item_units` rows; soft-deleted item units are rejected with a `400` error.
+- `name` must be unique among active rows.
+- if a deleted row already owns the same normalized name, create returns `400` with a restore-focused validation error and `restore_id`.
 - Missing or soft-deleted items return `404`.
 
 #### 5.4.8 Deferred From Item Module
@@ -691,13 +938,20 @@ Lookup contract:
 
 Supported query parameters:
 
-- `page`
-- `perPage`
+- `page`, `perPage`
+- `q` / `search` — partial match on `spk_id`; `q` takes priority if both sent
+- `sortBy` — column to sort by (allowed: `id`, `transaction_date`, `type_id`, `approval_status_id`, `created_at`, `updated_at`; default `transaction_date`)
+- `sortDir` — sort direction: `ASC` or `DESC` (default `DESC`)
+- `type_id` — filter by transaction type ID
+- `status_id` — filter by approval status ID
+- `transaction_date_from`, `transaction_date_to` — date range filter on `transaction_date`
+- `created_at_from`, `created_at_to` — date range filter on `created_at`
+- `updated_at_from`, `updated_at_to` — date range filter on `updated_at`
 
 Rules:
 
 - unknown query parameters return `400` validation errors;
-- default order is `transaction_date` descending, then transaction id descending;
+- default order is `transaction_date DESC`, then transaction `id DESC`;
 - soft-deleted transactions are excluded.
 
 #### Response
@@ -1043,6 +1297,8 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
     "name": "Beras",
     "unit_base": "gram",
     "unit_convert": "kg",
+    "satuan_base_id": 1,
+    "satuan_convert_id": 2,
     "conversion_base": 1000,
     "qty": "0.00",
     "is_active": true,
@@ -1051,6 +1307,14 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
     "category": {
       "id": 2,
       "name": "KERING"
+    },
+    "satuan_base": {
+      "id": 1,
+      "name": "GRAM"
+    },
+    "satuan_convert": {
+      "id": 2,
+      "name": "KG"
     }
   }
 }

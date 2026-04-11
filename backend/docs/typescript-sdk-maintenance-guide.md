@@ -55,7 +55,7 @@ When a new backend feature is added, discover its SDK impact using this checklis
 
 - API base path: `/api/v1`
 - Auth header: `Authorization: Bearer <token>`
-- Implemented resources: `auth`, `roles`, `items`, `stock-transactions`, `users`
+- Implemented resources: `auth`, `roles`, `item-categories`, `transaction-types`, `approval-statuses`, `item-units`, `items`, `stock-transactions`, `users`
 - List envelope: `{ data, meta, links }`
 - Single-resource envelope: `{ data }`
 - Mutation success envelope: `{ message, data }` or `{ message }`
@@ -77,6 +77,23 @@ Use these access notes when documenting SDK methods or deciding whether a fronte
 ### Roles
 
 - `GET /roles` — `admin` only
+
+### Lookup resources
+
+- `GET /item-categories` — `admin`, `gudang`
+- `GET /item-categories/{id}` — `admin`, `gudang`
+- `POST /item-categories` — `admin` only
+- `PUT /item-categories/{id}` — `admin` only
+- `DELETE /item-categories/{id}` — `admin` only
+- `PATCH /item-categories/{id}/restore` — `admin` only
+- `GET /transaction-types` — `admin`, `gudang`
+- `GET /approval-statuses` — `admin`, `gudang`
+- `GET /item-units` — `admin`, `gudang`
+- `GET /item-units/{id}` — `admin`, `gudang`
+- `POST /item-units` — `admin` only
+- `PUT /item-units/{id}` — `admin` only
+- `DELETE /item-units/{id}` — `admin` only
+- `PATCH /item-units/{id}/restore` — `admin` only
 
 ### Users
 
@@ -116,10 +133,14 @@ frontend/src/sdk/
   errors.ts
   index.ts
   resources/
+    approvalStatuses.ts
     auth.ts
+    itemCategories.ts
     items.ts
+    itemUnits.ts
     roles.ts
     stockTransactions.ts
+    transactionTypes.ts
     users.ts
   tests/
   types/
@@ -127,6 +148,7 @@ frontend/src/sdk/
     common.ts
     index.ts
     items.ts
+    lookups.ts
     roles.ts
     stockTransactions.ts
     users.ts
@@ -192,6 +214,29 @@ Keep the SDK return types aligned to backend contracts:
 ### Roles
 
 - `GET /roles`
+
+### Lookup resources
+
+- `GET /item-categories`
+- `GET /item-categories/{id}`
+- `POST /item-categories`
+- `PUT /item-categories/{id}`
+- `DELETE /item-categories/{id}`
+- `PATCH /item-categories/{id}/restore`
+- `GET /transaction-types`
+- `GET /approval-statuses`
+- `GET /item-units`
+- `GET /item-units/{id}`
+- `POST /item-units`
+- `PUT /item-units/{id}`
+- `DELETE /item-units/{id}`
+- `PATCH /item-units/{id}/restore`
+
+Uniqueness policy notes:
+
+- `users.username`, `roles.name`, `transaction_types.name`, and `approval_statuses.name` remain globally unique even after soft delete.
+- `item_categories.name` and `item_units.name` are unique only among active rows.
+- If a create request matches a deleted item category or item unit, the API returns `400` with a restore-focused validation error and `restore_id`; SDK/UI should call restore explicitly instead of retrying create.
 
 ### Items
 

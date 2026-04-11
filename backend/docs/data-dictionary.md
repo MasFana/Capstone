@@ -15,18 +15,19 @@ Tujuan dokumen ini adalah:
 
 ### 2.1 `item_categories`
 
-Fungsi: Menyimpan kategori barang sebagai lookup tetap.
+Fungsi: Menyimpan kategori barang sebagai lookup tetap. Mendukung soft delete.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID kategori barang |
-| `name` | varchar(50) | not null, unique | Nama kategori: BASAH, KERING, PENGEMAS |
+| `name` | varchar(50) | not null | Nama kategori: BASAH, KERING, PENGEMAS |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
+| `deleted_at` | timestamp | nullable | Soft delete marker |
 
 ### 2.2 `transaction_types`
 
-Fungsi: Menyimpan tipe transaksi stok.
+Fungsi: Menyimpan tipe transaksi stok. Mendukung soft delete.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
@@ -34,6 +35,7 @@ Fungsi: Menyimpan tipe transaksi stok.
 | `name` | varchar(50) | not null, unique | Nilai bisnis: IN, OUT, RETURN_IN |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
+| `deleted_at` | timestamp | nullable | Soft delete marker |
 
 ### 2.3 `meal_times`
 
@@ -48,7 +50,7 @@ Fungsi: Menyimpan waktu makan standar.
 
 ### 2.4 `approval_statuses`
 
-Fungsi: Menyimpan status approval transaksi.
+Fungsi: Menyimpan status approval transaksi. Mendukung soft delete.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
@@ -56,6 +58,27 @@ Fungsi: Menyimpan status approval transaksi.
 | `name` | varchar(50) | not null, unique | APPROVED, PENDING, REJECTED |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
+| `deleted_at` | timestamp | nullable | Soft delete marker |
+
+### 2.5 `item_units`
+
+Fungsi: Menyimpan satuan pengukuran barang (item unit lookup) yang dapat direferensikan oleh `items`. Mendukung soft delete. Soft-deleted item units tidak dapat diassign ke item baru.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| `id` | bigint | PK, increment | ID item unit |
+| `name` | varchar(50) | not null | Nama satuan item (mis. gram, kg, ml, liter) |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+| `updated_at` | timestamp | nullable | Waktu diperbarui |
+| `deleted_at` | timestamp | nullable | Soft delete marker |
+
+Catatan implementasi:
+
+- `item_units` digunakan sebagai FK backing untuk `items.item_unit_base_id` dan `items.item_unit_convert_id`.
+- Nama satuan di-resolve secara case-insensitive dari string `unit_base`/`unit_convert` yang dikirim client ke record `item_units` yang aktif.
+- Soft-deleted item units tetap ada di database dan tetap dapat direferensikan oleh item historis melalui FK, tetapi tidak dapat diassign ke item baru.
+- `item_units.name` harus unik hanya di antara row aktif (non-deleted), dengan pencocokan trimmed dan case-insensitive.
+- Jika nama yang sama hanya ada pada row yang sudah soft-deleted, create akan ditolak dan admin harus memanggil restore endpoint untuk mengaktifkan kembali row lama.
 
 Catatan implementasi lookup saat ini:
 
@@ -67,7 +90,7 @@ Catatan implementasi lookup saat ini:
 
 ### 3.1 `roles`
 
-Fungsi: Menyimpan role utama pengguna.
+Fungsi: Menyimpan role utama pengguna. Mendukung soft delete.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
@@ -75,6 +98,7 @@ Fungsi: Menyimpan role utama pengguna.
 | `name` | varchar(50) | not null, unique | admin, dapur, gudang |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
+| `deleted_at` | timestamp | nullable | Soft delete marker |
 
 Supported roles:
 - **admin**: Full system access, can manage users, roles, and all resources
@@ -108,6 +132,7 @@ Fungsi: Menyimpan akun pengguna sistem.
 - **Deactivation**: Setting `is_active` and `active` to `false` blocks user from logging in. Existing tokens remain valid until revoked separately.
 - **Password Change**: Changing a user's password automatically revokes ALL their access tokens via `auth_identities` table. User must log in again with the new password, and the password update must go through the Shield user entity/save flow.
 - **Soft Delete**: Soft-deleting a user (`deleted_at` set) automatically revokes ALL their access tokens. Deleted users do not appear in user listings and cannot log in.
+- **Username Uniqueness**: Username remains globally unique even after soft delete; deleted usernames cannot be reused.
 - **Deleted User Mutations**: Soft-deleted users are treated as absent resources for update, activate, deactivate, password-change, and delete operations.
 - **Token Revocation**: Tokens are revoked by removing entries from `auth_identities` table where `type = 'access_token'` and `user_id` matches the target user.
 - **Role Assignment**: Users can only be assigned one of the three supported roles: admin, dapur, or gudang. Role changes are tracked via `updated_at`.
@@ -222,8 +247,10 @@ Fungsi: Menyimpan master barang dan saldo stok berjalan.
 | `id` | bigint | PK, increment | ID item |
 | `name` | varchar(100) | not null | Nama barang |
 | `item_category_id` | bigint | not null, FK | Relasi ke `item_categories.id` |
-| `unit_base` | varchar(20) | not null | Satuan terkecil / dapur |
-| `unit_convert` | varchar(20) | not null | Satuan besar / gudang |
+| `unit_base` | varchar(20) | not null | Satuan terkecil / dapur (string, disimpan untuk backward compatibility) |
+| `unit_convert` | varchar(20) | not null | Satuan besar / gudang (string, disimpan untuk backward compatibility) |
+| `item_unit_base_id` | bigint | nullable, FK | Relasi FK ke `item_units.id` untuk satuan dasar |
+| `item_unit_convert_id` | bigint | nullable, FK | Relasi FK ke `item_units.id` untuk satuan konversi |
 | `conversion_base` | int | not null | Nilai konversi dari satuan gudang ke satuan dasar |
 | `is_active` | boolean | default true | Status aktif item |
 | `qty` | decimal(12,2) | default 0 | Stok berjalan saat ini dalam satuan dasar |
@@ -237,6 +264,9 @@ Perilaku Phase 1 item master API:
 - `qty` wajib dianggap read-only pada endpoint item master.
 - `item_category_id` harus merujuk ke kategori barang yang sudah ada.
 - `item_category_name` dapat dipakai sebagai alternatif input API dan akan di-resolve ke `item_category_id`.
+- `unit_base` dan `unit_convert` dikirim client sebagai string dan di-resolve ke row `item_units` yang aktif oleh service layer; FK `item_unit_base_id` / `item_unit_convert_id` diisi dari hasil resolusi tersebut.
+- String `unit_base`/`unit_convert` tetap disimpan di kolom teks untuk backward compatibility dan muncul di response API.
+- `item_unit_base_id` dan `item_unit_convert_id` bersifat nullable untuk mengakomodasi data historis dan periode transisi.
 
 ## 4. Inventory & Stock Logic
 
@@ -457,6 +487,8 @@ Index utama:
 ### 8.1 Lookup Relations
 
 - `items.item_category_id -> item_categories.id`
+- `items.item_unit_base_id -> item_units.id`
+- `items.item_unit_convert_id -> item_units.id`
 - `stock_transactions.type_id -> transaction_types.id`
 - `stock_transactions.approval_status_id -> approval_statuses.id`
 - `menu_dishes.meal_time_id -> meal_times.id`
@@ -500,6 +532,9 @@ Index utama:
 4. Perubahan `dish_compositions` setelah menu aktif perlu kebijakan histori agar SPK lama tetap konsisten.
 5. `spk_recommendations` tidak boleh berdiri sendiri tanpa `spk_calculations`.
 6. Audit log harus dicatat untuk aksi penting dan approval workflow.
+7. Soft delete pada tabel lookup (`roles`, `item_categories`, `transaction_types`, `approval_statuses`, `item_units`) tidak menghapus row secara fisik; row yang sudah soft-deleted tetap dapat direferensikan oleh data historis melalui FK, tetapi tidak muncul pada endpoint list/show aktif dan tidak dapat diassign ke resource baru.
+8. `item_categories.name` dan `item_units.name` unik hanya di antara row aktif. Jika nama yang sama sudah ada pada row yang di-soft-delete, row tersebut harus di-restore, bukan dibuat ulang.
+9. `items.item_unit_base_id` dan `items.item_unit_convert_id` bersifat nullable untuk akomodasi data historis dan periode transisi; nilai string di `unit_base`/`unit_convert` tetap ada sebagai fallback backward compatibility.
 
 ## 10. Open Questions
 

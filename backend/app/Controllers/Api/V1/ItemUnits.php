@@ -3,16 +3,14 @@
 namespace App\Controllers\Api\V1;
 
 use App\Controllers\BaseController;
-use App\Models\ItemCategoryModel;
 use App\Models\ItemModel;
+use App\Models\ItemUnitModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
-class ItemCategories extends BaseController
+class ItemUnits extends BaseController
 {
-    private ItemCategoryModel $itemCategoryModel;
+    private ItemUnitModel $itemUnitModel;
     private ItemModel $itemModel;
-
-    private const SORTABLE_COLUMNS = ['id', 'name', 'created_at', 'updated_at'];
 
     private const ALLOWED_PARAMS = [
         'page',
@@ -29,8 +27,8 @@ class ItemCategories extends BaseController
 
     public function __construct()
     {
-        $this->itemCategoryModel = new ItemCategoryModel();
-        $this->itemModel         = new ItemModel();
+        $this->itemUnitModel = new ItemUnitModel();
+        $this->itemModel     = new ItemModel();
     }
 
     public function index(): ResponseInterface
@@ -51,42 +49,44 @@ class ItemCategories extends BaseController
         $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
         $search  = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
         $requestedSortBy = (string) ($queryParams['sortBy'] ?? 'name');
-        $sortBy  = in_array($requestedSortBy, self::SORTABLE_COLUMNS, true)
+        $sortBy  = in_array($requestedSortBy, ItemUnitModel::SORTABLE_COLUMNS, true)
             ? $requestedSortBy
             : 'name';
         $sortDir = strtoupper((string) ($queryParams['sortDir'] ?? 'ASC')) === 'DESC' ? 'DESC' : 'ASC';
 
-        $builder = $this->itemCategoryModel->builder();
-        $builder->where('item_categories.deleted_at', null);
+        $builder = $this->itemUnitModel->builder();
+        $builder->where('item_units.deleted_at', null);
 
         if ($search !== '') {
-            $builder->like('item_categories.name', $search);
+            $builder->like('item_units.name', $search);
         }
 
-        $this->applyDateRange($builder, 'item_categories.created_at', $queryParams['created_at_from'] ?? null, $queryParams['created_at_to'] ?? null);
-        $this->applyDateRange($builder, 'item_categories.updated_at', $queryParams['updated_at_from'] ?? null, $queryParams['updated_at_to'] ?? null);
+        $this->applyDateRange($builder, 'item_units.created_at', $queryParams['created_at_from'] ?? null, $queryParams['created_at_to'] ?? null);
+        $this->applyDateRange($builder, 'item_units.updated_at', $queryParams['updated_at_from'] ?? null, $queryParams['updated_at_to'] ?? null);
 
-        $builder->orderBy('item_categories.' . $sortBy, $sortDir);
+        $builder->orderBy('item_units.' . $sortBy, $sortDir);
         if ($sortBy !== 'id') {
-            $builder->orderBy('item_categories.id', 'ASC');
+            $builder->orderBy('item_units.id', 'ASC');
         }
 
         $countBuilder = clone $builder;
         $total        = $countBuilder->countAllResults();
-
-        $data = $builder
+        $itemUnits    = $builder
             ->limit($perPage, ($page - 1) * $perPage)
             ->get()
             ->getResultArray();
 
-        $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 0;
-
-        $meta = ['page' => $page, 'perPage' => $perPage, 'total' => $total, 'totalPages' => $totalPages];
+        $meta = [
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'total'      => $total,
+            'totalPages' => $total > 0 ? (int) ceil($total / $perPage) : 0,
+        ];
 
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'data'  => $data,
+                'data'  => $itemUnits,
                 'meta'  => $meta,
                 'links' => $this->buildPaginationLinks($meta),
             ]);
@@ -94,17 +94,17 @@ class ItemCategories extends BaseController
 
     public function show(int $id): ResponseInterface
     {
-        $itemCategory = $this->itemCategoryModel->find($id);
+        $itemUnit = $this->itemUnitModel->find($id);
 
-        if ($itemCategory === null) {
+        if ($itemUnit === null) {
             return $this->response
                 ->setStatusCode(404)
-                ->setJSON(['message' => 'Item category not found.']);
+                ->setJSON(['message' => 'Item unit not found.']);
         }
 
         return $this->response
             ->setStatusCode(200)
-            ->setJSON(['data' => $itemCategory]);
+            ->setJSON(['data' => $itemUnit]);
     }
 
     public function create(): ResponseInterface
@@ -121,8 +121,7 @@ class ItemCategories extends BaseController
         }
 
         $name = trim((string) $data['name']);
-
-        if ($this->itemCategoryModel->nameExists($name, null, false)) {
+        if ($this->itemUnitModel->nameExists($name, null, false)) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
@@ -131,45 +130,45 @@ class ItemCategories extends BaseController
                 ]);
         }
 
-        $deletedMatch = $this->itemCategoryModel->findByNameIncludingDeleted($name);
+        $deletedMatch = $this->itemUnitModel->findByNameIncludingDeleted($name);
         if ($deletedMatch !== null && $deletedMatch['deleted_at'] !== null) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
                     'message' => 'Validation failed.',
-                    'errors'  => ['name' => 'The name belongs to a deleted item category. Restore it instead.', 'restore_id' => (string) $deletedMatch['id']],
+                    'errors'  => ['name' => 'The name belongs to a deleted item unit. Restore it instead.', 'restore_id' => (string) $deletedMatch['id']],
                 ]);
         }
 
-        $created = $this->itemCategoryModel->insert(['name' => $name], true);
+        $created = $this->itemUnitModel->insert(['name' => $name], true);
 
         if ($created === false) {
             return $this->response
                 ->setStatusCode(422)
-                ->setJSON(['message' => 'Failed to create item category.']);
+                ->setJSON(['message' => 'Failed to create item unit.']);
         }
 
         return $this->response
             ->setStatusCode(201)
             ->setJSON([
-                'message' => 'Item category created successfully.',
-                'data'    => $this->itemCategoryModel->find((int) $created),
+                'message' => 'Item unit created successfully.',
+                'data'    => $this->itemUnitModel->find((int) $created),
             ]);
     }
 
     public function update(int $id): ResponseInterface
     {
-        $itemCategory = $this->itemCategoryModel->find($id);
+        $itemUnit = $this->itemUnitModel->find($id);
 
-        if ($itemCategory === null) {
+        if ($itemUnit === null) {
             return $this->response
                 ->setStatusCode(404)
-                ->setJSON(['message' => 'Item category not found.']);
+                ->setJSON(['message' => 'Item unit not found.']);
         }
 
         $data = $this->request->getJSON(true) ?? [];
 
-        if (! $this->validateData($data, ['name' => 'permit_empty|max_length[50]'])) {
+        if (! $this->validateData(['id' => $id, ...$data], ['name' => 'permit_empty|max_length[50]'])) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
@@ -182,14 +181,13 @@ class ItemCategories extends BaseController
             return $this->response
                 ->setStatusCode(200)
                 ->setJSON([
-                    'message' => 'Item category updated successfully.',
-                    'data'    => $itemCategory,
+                    'message' => 'Item unit updated successfully.',
+                    'data'    => $itemUnit,
                 ]);
         }
 
         $name = trim((string) $data['name']);
-
-        if ($this->itemCategoryModel->nameExists($name, $id, false)) {
+        if ($this->itemUnitModel->nameExists($name, $id, false)) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
@@ -198,129 +196,131 @@ class ItemCategories extends BaseController
                 ]);
         }
 
-        $deletedMatch = $this->itemCategoryModel->findByNameIncludingDeleted($name);
+        $deletedMatch = $this->itemUnitModel->findByNameIncludingDeleted($name);
         if ($deletedMatch !== null && (int) $deletedMatch['id'] !== $id && $deletedMatch['deleted_at'] !== null) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
                     'message' => 'Validation failed.',
-                    'errors'  => ['name' => 'The name belongs to a deleted item category. Restore it instead.', 'restore_id' => (string) $deletedMatch['id']],
+                    'errors'  => ['name' => 'The name belongs to a deleted item unit. Restore it instead.', 'restore_id' => (string) $deletedMatch['id']],
                 ]);
         }
 
-        if (! $this->itemCategoryModel->update($id, ['name' => $name])) {
+        $updated = $this->itemUnitModel->update($id, ['name' => $name]);
+
+        if (! $updated) {
             return $this->response
                 ->setStatusCode(422)
-                ->setJSON(['message' => 'Failed to update item category.']);
+                ->setJSON(['message' => 'Failed to update item unit.']);
         }
 
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'message' => 'Item category updated successfully.',
-                'data'    => $this->itemCategoryModel->find($id),
+                'message' => 'Item unit updated successfully.',
+                'data'    => $this->itemUnitModel->find($id),
             ]);
     }
 
     public function delete(int $id): ResponseInterface
     {
-        $itemCategory = $this->itemCategoryModel->find($id);
+        $itemUnit = $this->itemUnitModel->find($id);
 
-        if ($itemCategory === null) {
+        if ($itemUnit === null) {
             return $this->response
                 ->setStatusCode(404)
-                ->setJSON(['message' => 'Item category not found.']);
+                ->setJSON(['message' => 'Item unit not found.']);
         }
 
-        if ($this->itemModel->countActiveItemsByCategoryId($id) > 0) {
+        if ($this->itemModel->countActiveItemsByItemUnitId($id) > 0) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
                     'message' => 'Validation failed.',
-                    'errors'  => ['item_category_id' => 'The item category is still used by active items.'],
+                    'errors'  => ['item_unit_id' => 'The item unit is still used by active items.'],
                 ]);
         }
 
-        if (! $this->itemCategoryModel->delete($id)) {
+        if (! $this->itemUnitModel->delete($id)) {
             return $this->response
                 ->setStatusCode(422)
-                ->setJSON(['message' => 'Failed to delete item category.']);
+                ->setJSON(['message' => 'Failed to delete item unit.']);
         }
 
         return $this->response
             ->setStatusCode(200)
-            ->setJSON(['message' => 'Item category deleted successfully.']);
+            ->setJSON(['message' => 'Item unit deleted successfully.']);
     }
 
     public function restore(int $id): ResponseInterface
     {
-        $itemCategory = $this->itemCategoryModel->findByIdIncludingDeleted($id);
+        $itemUnit = $this->itemUnitModel->findByIdIncludingDeleted($id);
 
-        if ($itemCategory === null) {
+        if ($itemUnit === null) {
             return $this->response
                 ->setStatusCode(404)
-                ->setJSON(['message' => 'Item category not found.']);
+                ->setJSON(['message' => 'Item unit not found.']);
         }
 
-        if ($itemCategory['deleted_at'] === null) {
+        if ($itemUnit['deleted_at'] === null) {
             return $this->response
                 ->setStatusCode(200)
                 ->setJSON([
-                    'message' => 'Item category restored successfully.',
-                    'data'    => $itemCategory,
+                    'message' => 'Item unit restored successfully.',
+                    'data'    => $itemUnit,
                 ]);
         }
 
-        if ($this->itemCategoryModel->nameExists((string) $itemCategory['name'], $id, false)) {
+        if ($this->itemUnitModel->nameExists((string) $itemUnit['name'], $id, false)) {
             return $this->response
                 ->setStatusCode(400)
                 ->setJSON([
                     'message' => 'Validation failed.',
-                    'errors'  => ['name' => 'An active item category already uses this name.'],
+                    'errors'  => ['name' => 'An active item unit already uses this name.'],
                 ]);
         }
 
-        if (! $this->itemCategoryModel->restore($id)) {
+        if (! $this->itemUnitModel->restore($id)) {
             return $this->response
                 ->setStatusCode(422)
-                ->setJSON(['message' => 'Failed to restore item category.']);
+                ->setJSON(['message' => 'Failed to restore item unit.']);
         }
 
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'message' => 'Item category restored successfully.',
-                'data'    => $this->itemCategoryModel->find($id),
+                'message' => 'Item unit restored successfully.',
+                'data'    => $this->itemUnitModel->find($id),
             ]);
     }
 
-    private function validateListParams(array $params): array
+    private function validateListParams(array $queryParams): array
     {
-        $errors = [];
+        $errors        = [];
+        $unknownParams = array_diff(array_keys($queryParams), self::ALLOWED_PARAMS);
 
-        $unknownParams = array_diff(array_keys($params), self::ALLOWED_PARAMS);
         if ($unknownParams !== []) {
             $errors['query'] = 'Unsupported query parameter(s): ' . implode(', ', $unknownParams);
         }
 
-        if (isset($params['page']) && (! ctype_digit((string) $params['page']) || (int) $params['page'] < 1)) {
+        if (isset($queryParams['page']) && (! ctype_digit((string) $queryParams['page']) || (int) $queryParams['page'] < 1)) {
             $errors['page'] = 'The page field must be a positive integer.';
         }
 
-        if (isset($params['perPage']) && (! ctype_digit((string) $params['perPage']) || (int) $params['perPage'] < 1 || (int) $params['perPage'] > 100)) {
+        if (isset($queryParams['perPage']) && (! ctype_digit((string) $queryParams['perPage']) || (int) $queryParams['perPage'] < 1 || (int) $queryParams['perPage'] > 100)) {
             $errors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
         }
 
-        if (isset($params['sortBy']) && ! in_array($params['sortBy'], self::SORTABLE_COLUMNS, true)) {
-            $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', self::SORTABLE_COLUMNS) . '.';
+        if (isset($queryParams['sortBy']) && ! in_array($queryParams['sortBy'], ItemUnitModel::SORTABLE_COLUMNS, true)) {
+            $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', ItemUnitModel::SORTABLE_COLUMNS) . '.';
         }
 
-        if (isset($params['sortDir']) && ! in_array(strtoupper((string) $params['sortDir']), ['ASC', 'DESC'], true)) {
+        if (isset($queryParams['sortDir']) && ! in_array(strtoupper((string) $queryParams['sortDir']), ['ASC', 'DESC'], true)) {
             $errors['sortDir'] = 'The sortDir field must be ASC or DESC.';
         }
 
         foreach (['created_at_from', 'created_at_to', 'updated_at_from', 'updated_at_to'] as $dateField) {
-            if (isset($params[$dateField]) && strtotime((string) $params[$dateField]) === false) {
+            if (isset($queryParams[$dateField]) && strtotime((string) $queryParams[$dateField]) === false) {
                 $errors[$dateField] = sprintf('The %s field must be a valid date/datetime string.', $dateField);
             }
         }
@@ -345,7 +345,11 @@ class ItemCategories extends BaseController
         $path        = current_url();
 
         $buildLink = function (int $page) use ($path, $queryParams, $meta): string {
-            return $path . '?' . http_build_query([...$queryParams, 'page' => $page, 'perPage' => $meta['perPage']]);
+            return $path . '?' . http_build_query([
+                ...$queryParams,
+                'page'    => $page,
+                'perPage' => $meta['perPage'],
+            ]);
         };
 
         return [

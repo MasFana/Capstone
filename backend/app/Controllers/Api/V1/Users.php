@@ -17,12 +17,23 @@ class Users extends BaseController
 
     public function index(): ResponseInterface
     {
-        $users = $this->userService->getAllUsers();
+        $result = $this->userService->getAllUsers($this->request->getGet());
+
+        if (! $result['success']) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
 
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'data' => $users,
+                'data'  => $result['data'],
+                'meta'  => $result['meta'],
+                'links' => $this->buildPaginationLinks($result['meta']),
             ]);
     }
 
@@ -281,5 +292,27 @@ class Users extends BaseController
             ->setJSON([
                 'message' => $result['message'],
             ]);
+    }
+
+    private function buildPaginationLinks(array $meta): array
+    {
+        $queryParams = $this->request->getGet();
+        $path        = current_url();
+
+        $buildLink = function (int $page) use ($path, $queryParams, $meta): string {
+            return $path . '?' . http_build_query([
+                ...$queryParams,
+                'page'    => $page,
+                'perPage' => $meta['perPage'],
+            ]);
+        };
+
+        return [
+            'self'     => $buildLink($meta['page']),
+            'first'    => $buildLink(1),
+            'last'     => $buildLink(max(1, $meta['totalPages'])),
+            'next'     => $meta['page'] < $meta['totalPages'] ? $buildLink($meta['page'] + 1) : null,
+            'previous' => $meta['page'] > 1 ? $buildLink($meta['page'] - 1) : null,
+        ];
     }
 }

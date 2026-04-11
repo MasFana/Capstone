@@ -7,6 +7,7 @@ use App\Models\AppUserProvider;
 use App\Models\AuditLogModel;
 use App\Models\ItemCategoryModel;
 use App\Models\ItemModel;
+use App\Models\ItemUnitModel;
 use App\Models\RoleModel;
 use App\Models\TransactionTypeModel;
 use CodeIgniter\Database\Exceptions\DataException;
@@ -35,6 +36,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->seedTransactionTypes();
         $this->seedApprovalStatuses();
         $this->seedItemCategories();
+        $this->seedItemUnits();
         $this->seedItems();
     }
 
@@ -105,32 +107,53 @@ class StockTransactionsTest extends CIUnitTestCase
         ]);
     }
 
+    protected function seedItemUnits(): void
+    {
+        $itemUnitModel = new ItemUnitModel();
+        $itemUnitModel->insertBatch([
+            ['name' => 'gram'],
+            ['name' => 'kg'],
+            ['name' => 'ml'],
+            ['name' => 'liter'],
+            ['name' => 'butir'],
+            ['name' => 'pack'],
+        ]);
+    }
+
     protected function seedItems(): void
     {
         $categoryModel = new ItemCategoryModel();
+        $itemUnitModel = new ItemUnitModel();
         $db            = Database::connect();
 
         $basah  = $categoryModel->where('name', 'BASAH')->first();
         $kering = $categoryModel->where('name', 'KERING')->first();
 
+        $gramId = $itemUnitModel->getIdByName('gram');
+        $kgId   = $itemUnitModel->getIdByName('kg');
+
         $db->table('items')->insertBatch([
             [
-                'item_category_id' => $kering['id'],
-                'name'             => 'Beras',
-                'unit_base'        => 'gram',
-                'unit_convert'     => 'kg',
-                'conversion_base'  => 1000,
-                'is_active'        => true,
-                'qty'              => 5000,
+                'item_category_id'  => $kering['id'],
+                'name'              => 'Beras',
+                'unit_base'         => 'gram',
+                'unit_convert'      => 'kg',
+                'item_unit_base_id'    => $gramId,
+                'item_unit_convert_id' => $kgId,
+                'conversion_base'   => 1000,
+                'is_active'         => true,
+                'qty'               => 5000,
             ],
             [
-                'item_category_id' => $basah['id'],
-                'name'             => 'Ayam',
-                'unit_base'        => 'gram',
-                'unit_convert'     => 'kg',
-                'conversion_base'  => 1000,
-                'is_active'        => true,
-                'qty'              => 3000,
+                'item_category_id'  => $basah['id'],
+                'name'              => 'Ayam',
+                'unit_base'         => 'gram',
+                'unit_convert'      => 'kg',
+                'item_unit_base_id'    => $gramId,
+                'item_unit_convert_id' => $kgId,
+                'conversion_base'   => 1000,
+                'is_active'         => true,
+                'qty'               => 3000,
             ],
         ]);
     }
@@ -2727,5 +2750,133 @@ class StockTransactionsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('errors', $json);
         $this->assertArrayHasKey('details.0.input_unit', $json['errors']);
+    }
+
+    // -------------------------------------------------------------------------
+    // List filter param tests
+    // -------------------------------------------------------------------------
+
+    public function testListTransactionsFiltersByTypeId(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+        $outType   = $typeModel->where('name', 'OUT')->first();
+
+        // Create an IN and an OUT transaction
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-09-01',
+                'details'          => [['item_id' => 1, 'qty' => 10]],
+            ])->assertStatus(201);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $outType['id'],
+                'transaction_date' => '2026-09-02',
+                'details'          => [['item_id' => 1, 'qty' => 5]],
+            ])->assertStatus(201);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?type_id=' . $inType['id']);
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        foreach ($json['data'] as $row) {
+            $this->assertSame($inType['id'], (int) $row['type_id']);
+        }
+    }
+
+    public function testListTransactionsFiltersByTransactionDateRange(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        // Three transactions: before, within, after the range
+        foreach (['2026-09-10', '2026-09-15', '2026-09-20'] as $date) {
+            $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->withBodyFormat('json')
+                ->post('api/v1/stock-transactions', [
+                    'type_id'          => $inType['id'],
+                    'transaction_date' => $date,
+                    'details'          => [['item_id' => 1, 'qty' => 5]],
+                ])->assertStatus(201);
+        }
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?transaction_date_from=2026-09-12&transaction_date_to=2026-09-18');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame('2026-09-15', $json['data'][0]['transaction_date']);
+    }
+
+    public function testListTransactionsSearchBySpkId(): void
+    {
+        $token = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-09-25',
+                'spk_id'           => 12345,
+                'details'          => [['item_id' => 1, 'qty' => 10]],
+            ])->assertStatus(201);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-09-26',
+                'spk_id'           => 99999,
+                'details'          => [['item_id' => 1, 'qty' => 10]],
+            ])->assertStatus(201);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?q=12345');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame(12345, (int) $json['data'][0]['spk_id']);
+    }
+
+    public function testListTransactionsRejectsInvalidSortBy(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?sortBy=invalid_column');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testListTransactionsRejectsInvalidSortDir(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?sortDir=SIDEWAYS');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
     }
 }

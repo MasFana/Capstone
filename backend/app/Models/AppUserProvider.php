@@ -97,6 +97,82 @@ class AppUserProvider extends ShieldUserModel
             ->findAll();
     }
 
+    public function getAllWithRolesPaginated(
+        int $page,
+        int $perPage,
+        string $search,
+        string $sortBy,
+        string $sortDir,
+        ?int $roleId,
+        ?bool $isActive,
+        ?string $createdAtFrom,
+        ?string $createdAtTo,
+        ?string $updatedAtFrom,
+        ?string $updatedAtTo,
+    ): array {
+        $validSortColumns = ['id', 'name', 'username', 'email', 'created_at', 'updated_at'];
+        $sortColumn       = in_array($sortBy, $validSortColumns, true) ? $sortBy : 'name';
+        $direction        = strtoupper($sortDir) === 'DESC' ? 'DESC' : 'ASC';
+
+        $builder = $this->db->table('users')
+            ->select('users.*, roles.name as role_name')
+            ->join('roles', 'roles.id = users.role_id', 'left')
+            ->where('users.deleted_at', null);
+
+        if ($search !== '') {
+            $builder->groupStart()
+                ->like('users.name', $search)
+                ->orLike('users.username', $search)
+                ->orLike('users.email', $search)
+                ->groupEnd();
+        }
+
+        if ($roleId !== null) {
+            $builder->where('users.role_id', $roleId);
+        }
+
+        if ($isActive !== null) {
+            $builder->where('users.is_active', (int) $isActive);
+        }
+
+        if ($createdAtFrom !== null && $createdAtFrom !== '') {
+            $builder->where('users.created_at >=', $createdAtFrom);
+        }
+
+        if ($createdAtTo !== null && $createdAtTo !== '') {
+            $builder->where('users.created_at <=', $createdAtTo);
+        }
+
+        if ($updatedAtFrom !== null && $updatedAtFrom !== '') {
+            $builder->where('users.updated_at >=', $updatedAtFrom);
+        }
+
+        if ($updatedAtTo !== null && $updatedAtTo !== '') {
+            $builder->where('users.updated_at <=', $updatedAtTo);
+        }
+
+        $builder->orderBy('users.' . $sortColumn, $direction);
+        if ($sortColumn !== 'id') {
+            $builder->orderBy('users.id', 'ASC');
+        }
+
+        $countBuilder = clone $builder;
+        $total        = $countBuilder->countAllResults();
+
+        $users = $builder
+            ->limit($perPage, ($page - 1) * $perPage)
+            ->get()
+            ->getResultArray();
+
+        return [
+            'users'      => $users,
+            'total'      => $total,
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'totalPages' => $total > 0 ? (int) ceil($total / $perPage) : 0,
+        ];
+    }
+
     public function revokeAllUserTokens(int $userId): void
     {
         $user = $this->findByIdIncludingDeleted($userId);

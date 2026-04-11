@@ -37,11 +37,31 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "item-categories/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "transaction-types",
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
             "approval-statuses",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "item-units",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "item-units/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "item-categories/(:num)/restore",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "item-units/(:num)/restore",
             static fn() => service("response")->setStatusCode(204),
         );
 
@@ -63,8 +83,12 @@ $routes->group(
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
                     $routes->get("item-categories", "ItemCategories::index");
+                    $routes->get("item-categories/(:num)", 'ItemCategories::show/$1');
                     $routes->get("transaction-types", "TransactionTypes::index");
                     $routes->get("approval-statuses", "ApprovalStatuses::index");
+
+                    $routes->get("item-units", "ItemUnits::index");
+                    $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
 
                     $routes->get("items", "Items::index");
                     $routes->options(
@@ -122,6 +146,16 @@ $routes->group(
                 $routes,
             ) {
                 $routes->get("roles", "Roles::index");
+
+                $routes->post("item-categories", "ItemCategories::create");
+                $routes->put("item-categories/(:num)", 'ItemCategories::update/$1');
+                $routes->delete("item-categories/(:num)", 'ItemCategories::delete/$1');
+                $routes->patch("item-categories/(:num)/restore", 'ItemCategories::restore/$1');
+
+                $routes->post("item-units", "ItemUnits::create");
+                $routes->put("item-units/(:num)", 'ItemUnits::update/$1');
+                $routes->delete("item-units/(:num)", 'ItemUnits::delete/$1');
+                $routes->patch("item-units/(:num)/restore", 'ItemUnits::restore/$1');
 
                 $routes->post(
                     "stock-transactions/(:num)/approve",

@@ -1,5 +1,5 @@
 import type { ApiClient } from "../client";
-import type { ApiDataResponse, ApiMessageDataResponse, ApiMessageResponse, ChangePasswordRequest, CreateUserRequest, UpdateUserRequest, User } from "../types";
+import type { ApiDataResponse, ApiListResponse, ApiMessageDataResponse, ApiMessageResponse, ChangePasswordRequest, CreateUserRequest, ListUsersQuery, UpdateUserRequest, User } from "../types";
 /**
  * User management endpoints.
  */
@@ -12,7 +12,7 @@ export declare class UsersResource {
      * HTTP: `GET /api/v1/users`
      * Access: `admin` only
      */
-    list(): Promise<ApiDataResponse<User[]>>;
+    list(query?: ListUsersQuery): Promise<ApiListResponse<User>>;
     /**
      * Returns a single user by identifier.
      *

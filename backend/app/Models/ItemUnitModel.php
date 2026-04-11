@@ -4,43 +4,36 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ItemCategoryModel extends Model
+class ItemUnitModel extends Model
 {
-    public const NAME_BASAH = 'BASAH';
-    public const NAME_KERING = 'KERING';
-
-    protected $table         = 'item_categories';
-    protected $primaryKey    = 'id';
+    protected $table          = 'item_units';
+    protected $primaryKey     = 'id';
     protected $allowedFields  = ['name'];
     protected $useTimestamps  = true;
     protected $useSoftDeletes = true;
     protected $deletedField   = 'deleted_at';
     protected $returnType     = 'array';
 
+    public const SORTABLE_COLUMNS = ['id', 'name', 'created_at', 'updated_at'];
+
     public function exists(int $id): bool
     {
         return $this->find($id) !== null;
     }
 
-    /**
-     * Get item category ID by name with case-insensitive and trimmed matching.
-     *
-     * @param string $name Category name to search for
-     * @return int|null Category ID if found, null otherwise
-     */
+    public function findByIdIncludingDeleted(int $id): ?array
+    {
+        $itemUnit = $this->withDeleted()->find($id);
+
+        return $itemUnit !== null ? $itemUnit : null;
+    }
+
     public function getIdByName(string $name): ?int
     {
         $trimmedName = trim($name);
-        $result = $this->where('LOWER(name)', strtolower($trimmedName))->first();
+        $result      = $this->where('LOWER(name)', strtolower($trimmedName))->first();
 
         return $result !== null ? (int) $result['id'] : null;
-    }
-
-    public function findByIdIncludingDeleted(int $id): ?array
-    {
-        $itemCategory = $this->withDeleted()->find($id);
-
-        return $itemCategory !== null ? $itemCategory : null;
     }
 
     public function findByNameIncludingDeleted(string $name): ?array

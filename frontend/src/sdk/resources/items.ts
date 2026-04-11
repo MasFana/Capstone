@@ -108,5 +108,33 @@ function buildItemsQuery(query: ListItemsQuery): Record<string, string | number 
     result.q = query.q;
   }
 
+  if (query.search !== undefined) {
+    result.search = query.search;
+  }
+
+  if (query.sortBy !== undefined) {
+    result.sortBy = query.sortBy;
+  }
+
+  if (query.sortDir !== undefined) {
+    result.sortDir = query.sortDir;
+  }
+
+  if (query.created_at_from !== undefined) {
+    result.created_at_from = query.created_at_from;
+  }
+
+  if (query.created_at_to !== undefined) {
+    result.created_at_to = query.created_at_to;
+  }
+
+  if (query.updated_at_from !== undefined) {
+    result.updated_at_from = query.updated_at_from;
+  }
+
+  if (query.updated_at_to !== undefined) {
+    result.updated_at_to = query.updated_at_to;
+  }
+
   return result;
 }

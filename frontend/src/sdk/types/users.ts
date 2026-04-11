@@ -31,6 +31,21 @@ export type UpdateUserRequest = OptionalUserRoleIdentifier & {
   is_active?: boolean;
 };
 
+export interface ListUsersQuery {
+  page?: number;
+  perPage?: number;
+  q?: string;
+  search?: string;
+  sortBy?: "id" | "name" | "username" | "email" | "created_at" | "updated_at";
+  sortDir?: "ASC" | "DESC";
+  role_id?: number;
+  is_active?: boolean;
+  created_at_from?: string;
+  created_at_to?: string;
+  updated_at_from?: string;
+  updated_at_to?: string;
+}
+
 export interface ChangePasswordRequest {
   password: string;
 }

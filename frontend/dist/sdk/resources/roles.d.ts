@@ -1,5 +1,5 @@
-import type { ApiDataResponse, Role } from "../types";
 import type { ApiClient } from "../client";
+import type { ApiListResponse, Role, RoleListQuery } from "../types";
 /**
  * Role lookup endpoints.
  */
@@ -12,5 +12,5 @@ export declare class RolesResource {
      * HTTP: `GET /api/v1/roles`
      * Access: `admin` only
      */
-    list(): Promise<ApiDataResponse<Role[]>>;
+    list(query?: RoleListQuery): Promise<ApiListResponse<Role>>;
 }

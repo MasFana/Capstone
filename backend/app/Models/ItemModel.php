@@ -13,6 +13,8 @@ class ItemModel extends Model
         'name',
         'unit_base',
         'unit_convert',
+        'item_unit_base_id',
+        'item_unit_convert_id',
         'conversion_base',
         'is_active',
     ];
@@ -21,15 +23,40 @@ class ItemModel extends Model
     protected $deletedField   = 'deleted_at';
     protected $returnType     = 'array';
 
+    /**
+     * Fields that can be sorted on in list operations
+     * Used by ItemListService for allowlisting sortBy parameter
+     */
+    public const SORTABLE_COLUMNS = [
+        'id',
+        'name',
+        'item_category_id',
+        'created_at',
+        'updated_at',
+    ];
+
+    /**
+     * Fields that support single-value filtering in list operations
+     * Used by ItemListService for allowlisting query filters
+     */
     public function getAllWithCategories(
         int $page,
         int $perPage,
         ?int $categoryId,
         ?bool $isActive,
         string $search,
+        string $sortBy = 'name',
+        string $sortDir = 'ASC',
+        ?string $createdAtFrom = null,
+        ?string $createdAtTo = null,
+        ?string $updatedAtFrom = null,
+        ?string $updatedAtTo = null,
     ): array {
         $builder = $this->builder();
-        $builder->select('items.*, item_categories.name AS category_name');
+        $builder->select(
+            'items.*, ' .
+            'item_categories.name AS category_name'
+        );
         $builder->join('item_categories', 'item_categories.id = items.item_category_id');
         $builder->where('items.deleted_at', null);
 
@@ -45,11 +72,32 @@ class ItemModel extends Model
             $builder->like('items.name', $search);
         }
 
-        $builder->orderBy('item_categories.name', 'ASC');
-        $builder->orderBy('items.name', 'ASC');
-        $builder->orderBy('items.id', 'ASC');
+        if ($createdAtFrom !== null && $createdAtFrom !== '') {
+            $builder->where('items.created_at >=', $createdAtFrom);
+        }
+
+        if ($createdAtTo !== null && $createdAtTo !== '') {
+            $builder->where('items.created_at <=', $createdAtTo);
+        }
+
+        if ($updatedAtFrom !== null && $updatedAtFrom !== '') {
+            $builder->where('items.updated_at >=', $updatedAtFrom);
+        }
+
+        if ($updatedAtTo !== null && $updatedAtTo !== '') {
+            $builder->where('items.updated_at <=', $updatedAtTo);
+        }
+
+        $validSort = in_array($sortBy, self::SORTABLE_COLUMNS, true) ? $sortBy : 'name';
+        $validDir  = strtoupper($sortDir) === 'DESC' ? 'DESC' : 'ASC';
+
+        $builder->orderBy('items.' . $validSort, $validDir);
+        if ($validSort !== 'id') {
+            $builder->orderBy('items.id', 'ASC');
+        }
 
         $countBuilder = clone $builder;
+        $countBuilder->select('items.id');
         $total        = $countBuilder->countAllResults();
 
         $items = $builder
@@ -69,7 +117,10 @@ class ItemModel extends Model
     public function findWithCategory(int $id): ?array
     {
         $builder = $this->builder();
-        $builder->select('items.*, item_categories.name AS category_name');
+        $builder->select(
+            'items.*, ' .
+            'item_categories.name AS category_name'
+        );
         $builder->join('item_categories', 'item_categories.id = items.item_category_id');
         $builder->where('items.id', $id);
         $builder->where('items.deleted_at', null);
@@ -88,5 +139,24 @@ class ItemModel extends Model
         }
 
         return $builder->countAllResults() > 0;
+    }
+
+    public function countActiveItemsByCategoryId(int $categoryId): int
+    {
+        return $this->builder()
+            ->where('item_category_id', $categoryId)
+            ->where('deleted_at', null)
+            ->countAllResults();
+    }
+
+    public function countActiveItemsByItemUnitId(int $itemUnitId): int
+    {
+        return $this->builder()
+            ->groupStart()
+            ->where('item_unit_base_id', $itemUnitId)
+            ->orWhere('item_unit_convert_id', $itemUnitId)
+            ->groupEnd()
+            ->where('deleted_at', null)
+            ->countAllResults();
     }
 }

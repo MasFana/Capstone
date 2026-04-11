@@ -12,9 +12,11 @@ class TransactionTypeModel extends Model
 
     protected $table         = 'transaction_types';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name'];
-    protected $useTimestamps = true;
-    protected $returnType    = 'array';
+    protected $allowedFields  = ['name'];
+    protected $useTimestamps  = true;
+    protected $useSoftDeletes = true;
+    protected $deletedField   = 'deleted_at';
+    protected $returnType     = 'array';
 
     /**
      * Get transaction type ID by name with case-insensitive and trimmed matching.
@@ -28,5 +30,17 @@ class TransactionTypeModel extends Model
         $result = $this->where('LOWER(name)', strtolower($trimmedName))->first();
 
         return $result !== null ? (int) $result['id'] : null;
+    }
+
+    public function nameExists(string $name, ?int $exceptId = null, bool $includeDeleted = true): bool
+    {
+        $builder = $includeDeleted ? $this->withDeleted() : $this;
+        $builder = $builder->where('LOWER(name)', strtolower(trim($name)));
+
+        if ($exceptId !== null) {
+            $builder = $builder->where('id !=', $exceptId);
+        }
+
+        return $builder->first() !== null;
     }
 }

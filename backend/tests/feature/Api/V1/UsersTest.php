@@ -8,6 +8,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Shield\Entities\User;
 use App\Models\AppUserProvider;
 use App\Models\RoleModel;
+use Config\Database;
 
 class UsersTest extends CIUnitTestCase
 {
@@ -120,8 +121,12 @@ class UsersTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertIsArray($json['data']);
         $this->assertGreaterThanOrEqual(2, count($json['data']));
+        $this->assertSame(1, $json['meta']['page']);
+        $this->assertGreaterThanOrEqual(2, $json['meta']['total']);
         
         foreach ($json['data'] as $user) {
             $this->assertArrayNotHasKey('password', $user);
@@ -129,6 +134,78 @@ class UsersTest extends CIUnitTestCase
             $this->assertArrayHasKey('name', $user);
             $this->assertArrayHasKey('role', $user);
         }
+    }
+
+    public function testListUsersSupportsFilteringSearchAndSortingByEmail(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_name' => 'gudang',
+                'name'      => 'Warehouse User',
+                'username'  => 'warehouseuser',
+                'email'     => 'warehouse@example.com',
+                'password'  => 'password123',
+                'is_active' => false,
+            ]);
+
+        $createResult->assertStatus(201);
+        $createJson = json_decode($createResult->getJSON(), true);
+
+        Database::connect()->table('users')
+            ->where('id', $createJson['data']['id'])
+            ->update(['email' => 'warehouse@example.com']);
+
+        $roleModel  = new RoleModel();
+        $gudangRole = $roleModel->findByName('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/users?q=warehouse&role_id=' . $gudangRole['id'] . '&is_active=0&sortBy=email&sortDir=DESC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame('warehouseuser', $json['data'][0]['username']);
+        $this->assertSame('warehouse@example.com', $json['data'][0]['email']);
+    }
+
+    public function testListUsersSupportsCreatedAndUpdatedDateRanges(): void
+    {
+        $db = Database::connect();
+
+        $db->table('users')->where('id', 1)->update([
+            'created_at' => '2026-04-01 08:00:00',
+            'updated_at' => '2026-04-01 09:00:00',
+        ]);
+        $db->table('users')->where('id', 2)->update([
+            'created_at' => '2026-04-15 08:00:00',
+            'updated_at' => '2026-04-15 09:00:00',
+        ]);
+
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/users?created_at_from=2026-04-10&created_at_to=2026-04-20&updated_at_from=2026-04-15&updated_at_to=2026-04-15 23:59:59');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame('spkuser', $json['data'][0]['username']);
+    }
+
+    public function testListUsersRejectsUnknownQueryParameter(): void
+    {
+        $token = $this->loginAsAdmin();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/users?unknown=value');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
     }
 
     public function testShowUserWithoutAuth(): void
@@ -502,6 +579,31 @@ class UsersTest extends CIUnitTestCase
             ->get('api/v1/users/2');
 
         $showResult->assertStatus(404);
+    }
+
+    public function testCannotReuseDeletedUsername(): void
+    {
+        $token = $this->loginAsAdmin();
+        $roleModel = new RoleModel();
+        $gudangRole = $roleModel->findByName('gudang');
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/users/2')
+            ->assertStatus(200);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/users', [
+                'role_id'  => $gudangRole['id'],
+                'name'     => 'Replacement User',
+                'username' => 'spkuser',
+                'password' => 'password123',
+            ]);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('errors', $json);
+        $this->assertArrayHasKey('username', $json['errors']);
     }
 
     public function testDeleteUserRevokesTokens(): void

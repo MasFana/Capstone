@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1;
 use App\Models\AppUserProvider;
 use App\Models\ItemCategoryModel;
 use App\Models\ItemModel;
+use App\Models\ItemUnitModel;
 use App\Models\RoleModel;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Database\Exceptions\DataException;
@@ -30,6 +31,7 @@ class ItemsTest extends CIUnitTestCase
         $this->seedRoles();
         $this->seedUsers();
         $this->seedItemCategories();
+        $this->seedItemUnits();
         $this->seedItems();
     }
 
@@ -80,32 +82,53 @@ class ItemsTest extends CIUnitTestCase
         ]);
     }
 
+    protected function seedItemUnits(): void
+    {
+        $itemUnitModel = new ItemUnitModel();
+        $itemUnitModel->insertBatch([
+            ['name' => 'gram'],
+            ['name' => 'kg'],
+            ['name' => 'ml'],
+            ['name' => 'liter'],
+            ['name' => 'butir'],
+            ['name' => 'pack'],
+        ]);
+    }
+
     protected function seedItems(): void
     {
         $categoryModel = new ItemCategoryModel();
+        $itemUnitModel = new ItemUnitModel();
         $db            = Database::connect();
 
         $basah  = $categoryModel->where('name', 'BASAH')->first();
         $kering = $categoryModel->where('name', 'KERING')->first();
 
+        $gramId = $itemUnitModel->getIdByName('gram');
+        $kgId   = $itemUnitModel->getIdByName('kg');
+
         $db->table('items')->insertBatch([
             [
-                'item_category_id' => $kering['id'],
-                'name'             => 'Beras',
-                'unit_base'        => 'gram',
-                'unit_convert'     => 'kg',
-                'conversion_base'  => 1000,
-                'is_active'        => true,
-                'qty'              => 1500,
+                'item_category_id'  => $kering['id'],
+                'name'              => 'Beras',
+                'unit_base'         => 'gram',
+                'unit_convert'      => 'kg',
+                'item_unit_base_id'    => $gramId,
+                'item_unit_convert_id' => $kgId,
+                'conversion_base'   => 1000,
+                'is_active'         => true,
+                'qty'               => 1500,
             ],
             [
-                'item_category_id' => $basah['id'],
-                'name'             => 'Ayam',
-                'unit_base'        => 'gram',
-                'unit_convert'     => 'kg',
-                'conversion_base'  => 1000,
-                'is_active'        => false,
-                'qty'              => 2500,
+                'item_category_id'  => $basah['id'],
+                'name'              => 'Ayam',
+                'unit_base'         => 'gram',
+                'unit_convert'      => 'kg',
+                'item_unit_base_id'    => $gramId,
+                'item_unit_convert_id' => $kgId,
+                'conversion_base'   => 1000,
+                'is_active'         => false,
+                'qty'               => 2500,
             ],
         ]);
     }
@@ -256,6 +279,12 @@ class ItemsTest extends CIUnitTestCase
         $this->assertSame('Beras', $json['data']['name']);
         $this->assertArrayHasKey('category', $json['data']);
         $this->assertArrayHasKey('qty', $json['data']);
+        $this->assertArrayHasKey('item_unit_base_id', $json['data']);
+        $this->assertArrayHasKey('item_unit_convert_id', $json['data']);
+        $this->assertArrayHasKey('item_unit_base', $json['data']);
+        $this->assertArrayHasKey('item_unit_convert', $json['data']);
+        $this->assertSame('gram', $json['data']['item_unit_base']['name']);
+        $this->assertSame('kg', $json['data']['item_unit_convert']['name']);
     }
 
     public function testShowMissingItemReturnsNotFound(): void
@@ -292,6 +321,12 @@ class ItemsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         $this->assertSame('Minyak', $json['data']['name']);
         $this->assertSame('0.00', $json['data']['qty']);
+        $this->assertArrayHasKey('item_unit_base_id', $json['data']);
+        $this->assertArrayHasKey('item_unit_convert_id', $json['data']);
+        $this->assertArrayHasKey('item_unit_base', $json['data']);
+        $this->assertArrayHasKey('item_unit_convert', $json['data']);
+        $this->assertSame('ml', $json['data']['item_unit_base']['name']);
+        $this->assertSame('liter', $json['data']['item_unit_convert']['name']);
     }
 
     public function testCreateItemRejectsQtyField(): void

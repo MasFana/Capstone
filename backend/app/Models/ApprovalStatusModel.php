@@ -12,9 +12,11 @@ class ApprovalStatusModel extends Model
 
     protected $table         = 'approval_statuses';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name'];
-    protected $useTimestamps = true;
-    protected $returnType    = 'array';
+    protected $allowedFields  = ['name'];
+    protected $useTimestamps  = true;
+    protected $useSoftDeletes = true;
+    protected $deletedField   = 'deleted_at';
+    protected $returnType     = 'array';
 
     public function findByName(string $name): ?array
     {
@@ -28,5 +30,17 @@ class ApprovalStatusModel extends Model
         $status = $this->findByName($name);
 
         return $status !== null ? (int) $status['id'] : null;
+    }
+
+    public function nameExists(string $name, ?int $exceptId = null, bool $includeDeleted = true): bool
+    {
+        $builder = $includeDeleted ? $this->withDeleted() : $this;
+        $builder = $builder->where('LOWER(name)', strtolower(trim($name)));
+
+        if ($exceptId !== null) {
+            $builder = $builder->where('id !=', $exceptId);
+        }
+
+        return $builder->first() !== null;
     }
 }

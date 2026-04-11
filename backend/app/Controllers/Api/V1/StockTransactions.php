@@ -25,7 +25,15 @@ class StockTransactions extends BaseController
     {
         $queryParams = $this->request->getGet();
 
-        $allowedParams = ['page', 'perPage'];
+        $allowedParams = [
+            'page', 'perPage',
+            'q', 'search',
+            'sortBy', 'sortDir',
+            'type_id', 'status_id',
+            'transaction_date_from', 'transaction_date_to',
+            'created_at_from', 'created_at_to',
+            'updated_at_from', 'updated_at_to',
+        ];
         $unknownParams = array_diff(array_keys($queryParams), $allowedParams);
 
         if ($unknownParams !== []) {
@@ -39,15 +47,7 @@ class StockTransactions extends BaseController
                 ]);
         }
 
-        $validationErrors = [];
-
-        if (isset($queryParams['page']) && (! ctype_digit((string) $queryParams['page']) || (int) $queryParams['page'] < 1)) {
-            $validationErrors['page'] = 'The page field must be a positive integer.';
-        }
-
-        if (isset($queryParams['perPage']) && (! ctype_digit((string) $queryParams['perPage']) || (int) $queryParams['perPage'] < 1 || (int) $queryParams['perPage'] > 100)) {
-            $validationErrors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
-        }
+        $validationErrors = $this->validateTransactionListParams($queryParams);
 
         if ($validationErrors !== []) {
             return $this->response
@@ -58,10 +58,28 @@ class StockTransactions extends BaseController
                 ]);
         }
 
-        $page    = max(1, (int) ($queryParams['page'] ?? 1));
-        $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $page     = max(1, (int) ($queryParams['page'] ?? 1));
+        $perPage  = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $search   = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
+        $sortBy   = (string) ($queryParams['sortBy'] ?? 'transaction_date');
+        $sortDir  = (string) ($queryParams['sortDir'] ?? 'DESC');
+        $typeId   = isset($queryParams['type_id']) ? (int) $queryParams['type_id'] : null;
+        $statusId = isset($queryParams['status_id']) ? (int) $queryParams['status_id'] : null;
 
-        $result = $this->transactionModel->getAllPaginated($page, $perPage);
+        $transactionDateFrom = $queryParams['transaction_date_from'] ?? null;
+        $transactionDateTo   = $queryParams['transaction_date_to'] ?? null;
+        $createdAtFrom       = $queryParams['created_at_from'] ?? null;
+        $createdAtTo         = $queryParams['created_at_to'] ?? null;
+        $updatedAtFrom       = $queryParams['updated_at_from'] ?? null;
+        $updatedAtTo         = $queryParams['updated_at_to'] ?? null;
+
+        $result = $this->transactionModel->getAllPaginatedFiltered(
+            $page, $perPage, $search, $sortBy, $sortDir,
+            $typeId, $statusId,
+            $transactionDateFrom, $transactionDateTo,
+            $createdAtFrom, $createdAtTo,
+            $updatedAtFrom, $updatedAtTo
+        );
 
         return $this->response
             ->setStatusCode(200)
@@ -287,5 +305,43 @@ class StockTransactions extends BaseController
             'next'     => $result['page'] < $result['totalPages'] ? $buildLink($result['page'] + 1) : null,
             'previous' => $result['page'] > 1 ? $buildLink($result['page'] - 1) : null,
         ];
+    }
+
+    private function validateTransactionListParams(array $params): array
+    {
+        $errors = [];
+
+        if (isset($params['page']) && (! ctype_digit((string) $params['page']) || (int) $params['page'] < 1)) {
+            $errors['page'] = 'The page field must be a positive integer.';
+        }
+
+        if (isset($params['perPage']) && (! ctype_digit((string) $params['perPage']) || (int) $params['perPage'] < 1 || (int) $params['perPage'] > 100)) {
+            $errors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
+        }
+
+        if (isset($params['type_id']) && (! ctype_digit((string) $params['type_id']) || (int) $params['type_id'] < 1)) {
+            $errors['type_id'] = 'The type_id field must be a positive integer.';
+        }
+
+        if (isset($params['status_id']) && (! ctype_digit((string) $params['status_id']) || (int) $params['status_id'] < 1)) {
+            $errors['status_id'] = 'The status_id field must be a positive integer.';
+        }
+
+        $validSortColumns = \App\Models\StockTransactionModel::SORTABLE_COLUMNS;
+        if (isset($params['sortBy']) && ! in_array($params['sortBy'], $validSortColumns, true)) {
+            $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', $validSortColumns) . '.';
+        }
+
+        if (isset($params['sortDir']) && ! in_array(strtoupper((string) $params['sortDir']), ['ASC', 'DESC'], true)) {
+            $errors['sortDir'] = 'The sortDir field must be ASC or DESC.';
+        }
+
+        foreach (['transaction_date_from', 'transaction_date_to', 'created_at_from', 'created_at_to', 'updated_at_from', 'updated_at_to'] as $dateParam) {
+            if (isset($params[$dateParam]) && strtotime($params[$dateParam]) === false) {
+                $errors[$dateParam] = sprintf('The %s field must be a valid date/datetime string.', $dateParam);
+            }
+        }
+
+        return $errors;
     }
 }

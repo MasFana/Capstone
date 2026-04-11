@@ -102,8 +102,19 @@ Tabel utama:
 - `meal_times`
 - `approval_statuses`
 - `roles`
+- `item_units`
 
 Peran modul ini adalah menyediakan vocabulary bisnis yang stabil untuk seluruh sistem. Nilai lookup ini tidak boleh diperlakukan sebagai enum liar di level aplikasi.
+
+Catatan implementasi soft delete pada lookup tables:
+
+- `roles`, `item_categories`, `transaction_types`, `approval_statuses`, dan `item_units` mendukung soft delete melalui kolom `deleted_at`.
+- Endpoint list dan show untuk semua lookup aktif secara otomatis mengecualikan row yang sudah soft-deleted.
+- Row lookup yang soft-deleted tetap dapat direferensikan oleh data historis (mis. item lama yang pernah menggunakan satuan tersebut) melalui FK, tetapi tidak dapat diassign ke resource baru.
+- Lookup-by-name (mis. `type_name`, `item_category_name`) hanya cocok dengan row yang aktif (belum soft-deleted).
+- Semua lookup list endpoint mengembalikan envelope paginated standar `data/meta/links`.
+- `item_categories.name` dan `item_units.name` unik hanya di antara row aktif; jika nama yang sama sudah ada pada row soft-deleted, admin harus restore row tersebut secara eksplisit.
+- `roles.name`, `transaction_types.name`, `approval_statuses.name`, dan `users.username` tetap unik secara permanen walaupun row sudah di-soft-delete.
 
 ### 4.2 User & Access Module
 
@@ -126,16 +137,28 @@ Tabel utama:
 
 - `items`
 - `item_categories`
+- `item_units`
 
 Tabel `items` memuat:
 
 - nama barang
 - kategori barang
-- `unit_base` sebagai satuan terkecil/dapur
-- `unit_convert` sebagai satuan besar/gudang
+- `unit_base` sebagai satuan terkecil/dapur (string, backward compat)
+- `unit_convert` sebagai satuan besar/gudang (string, backward compat)
+- `item_unit_base_id` sebagai FK ke `item_units.id` untuk satuan dasar
+- `item_unit_convert_id` sebagai FK ke `item_units.id` untuk satuan konversi
 - `conversion_base` sebagai faktor konversi
 - `qty` sebagai stok berjalan saat ini
 - status aktif/nonaktif
+
+Satuan unit resolution flow (write path):
+
+1. Client mengirim `unit_base` dan `unit_convert` sebagai string.
+2. Service layer me-resolve string tersebut ke row `item_units` yang aktif (case-insensitive match) via `ItemUnitModel::getIdByName()`.
+3. Jika tidak ada row aktif yang cocok, request ditolak dengan `400`.
+4. ID satuan yang berhasil di-resolve disimpan ke `item_unit_base_id` / `item_unit_convert_id`.
+5. String asli tetap disimpan di `unit_base` / `unit_convert` untuk backward compatibility.
+6. Response item mengembalikan baik string `unit_base`/`unit_convert` maupun objek `item_unit_base`/`item_unit_convert` dengan `id` dan `name`.
 
 Catatan implementasi Milestone 1:
 
@@ -148,6 +171,7 @@ Catatan implementasi lanjutan:
 
 - endpoint submit/approve/reject revisi transaksi stok kini sudah tersedia.
 - create/update item kini menerima `item_category_id` atau `item_category_name`, dengan lookup nama yang trimmed dan case-insensitive.
+- `unit_base`/`unit_convert` strings di-resolve ke FK-backed `item_units` rows pada setiap create/update.
 - monthly snapshot, menu, daily patient, SPK, audit reporting, dan export endpoints masih berupa target desain dan belum tersedia sebagai route aktif.
 
 ### 4.4 Inventory Transaction Module
@@ -166,7 +190,8 @@ Sinyal desain dari schema ini:
 - `stock_transaction_details` adalah detail item per transaksi
 - `monthly_stock_snapshots` menyimpan saldo awal/periode bulanan
 - `is_revision`, `parent_transaction_id`, `approval_status_id`, dan `approved_by` menunjukkan bahwa approval flow adalah bagian inti domain
-- create stock transaction yang sudah berjalan menerima `type_id` atau `type_name`, dengan lookup nama yang trimmed dan case-insensitive sebelum validasi tipe transaksi didorong ke domain service
+    - create stock transaction yang sudah berjalan menerima `type_id` atau `type_name`, dengan lookup nama yang trimmed dan case-insensitive sebelum validasi tipe transaksi didorong ke domain service
+    - list stock transactions mendukung filter `type_id`, `status_id`, `transaction_date_from/to`, `created_at_from/to`, dan search/sort params standar
 
 ### 4.5 Menu & Nutrition Module
 
@@ -416,7 +441,9 @@ Catatan status implementasi:
 - gunakan plural resource names;
 - pakai soft delete pada model yang memiliki `deleted_at`;
 - gunakan endpoint command untuk alur seperti approve/reject revision dan generate SPK;
-- pisahkan business logic ke service layer agar controller tetap tipis.
+- pisahkan business logic ke service layer agar controller tetap tipis;
+- semua endpoint collection (list) mengembalikan envelope paginated standar `{data, meta, links}` dengan `meta.page`, `meta.perPage`, `meta.total`, `meta.totalPages`;
+- ketika menggunakan `join()` pada QueryBuilder CI4, soft delete tidak otomatis diterapkan ke tabel yang di-join — tambahkan kondisi `WHERE deleted_at IS NULL` secara manual untuk tabel yang di-join.
 
 ## 12. Open Issues to Confirm During Implementation
 

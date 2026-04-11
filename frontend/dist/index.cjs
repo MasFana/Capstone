@@ -22,14 +22,18 @@ var index_exports = {};
 __export(index_exports, {
   ApiClient: () => ApiClient,
   ApiError: () => ApiError,
+  ApprovalStatusesResource: () => ApprovalStatusesResource,
   AuthResource: () => AuthResource,
   AuthenticationApiError: () => AuthenticationApiError,
   AuthorizationApiError: () => AuthorizationApiError,
   CapstoneSdk: () => CapstoneSdk,
+  ItemCategoriesResource: () => ItemCategoriesResource,
+  ItemUnitsResource: () => ItemUnitsResource,
   ItemsResource: () => ItemsResource,
   NotFoundApiError: () => NotFoundApiError,
   RolesResource: () => RolesResource,
   StockTransactionsResource: () => StockTransactionsResource,
+  TransactionTypesResource: () => TransactionTypesResource,
   UsersResource: () => UsersResource,
   ValidationApiError: () => ValidationApiError,
   createCapstoneSdk: () => createCapstoneSdk,
@@ -236,6 +240,96 @@ var AuthResource = class {
   }
 };
 
+// src/sdk/resources/approvalStatuses.ts
+var ApprovalStatusesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/approval-statuses",
+      ...query ? { query: buildLookupQuery(query) } : {}
+    });
+  }
+};
+function buildLookupQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
+// src/sdk/resources/itemCategories.ts
+var ItemCategoriesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/item-categories",
+      ...query ? { query: buildLookupQuery2(query) } : {}
+    });
+  }
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/item-categories/${id}`
+    });
+  }
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/item-categories",
+      body: payload
+    });
+  }
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/item-categories/${id}`,
+      body: payload
+    });
+  }
+  delete(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/item-categories/${id}`
+    });
+  }
+  restore(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/item-categories/${id}/restore`
+    });
+  }
+};
+function buildLookupQuery2(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
 // src/sdk/resources/items.ts
 var ItemsResource = class {
   constructor(client) {
@@ -323,6 +417,88 @@ function buildItemsQuery(query) {
   if (query.q !== void 0) {
     result.q = query.q;
   }
+  if (query.search !== void 0) {
+    result.search = query.search;
+  }
+  if (query.sortBy !== void 0) {
+    result.sortBy = query.sortBy;
+  }
+  if (query.sortDir !== void 0) {
+    result.sortDir = query.sortDir;
+  }
+  if (query.created_at_from !== void 0) {
+    result.created_at_from = query.created_at_from;
+  }
+  if (query.created_at_to !== void 0) {
+    result.created_at_to = query.created_at_to;
+  }
+  if (query.updated_at_from !== void 0) {
+    result.updated_at_from = query.updated_at_from;
+  }
+  if (query.updated_at_to !== void 0) {
+    result.updated_at_to = query.updated_at_to;
+  }
+  return result;
+}
+
+// src/sdk/resources/itemUnits.ts
+var ItemUnitsResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/item-units",
+      ...query ? { query: buildLookupQuery3(query) } : {}
+    });
+  }
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/item-units/${id}`
+    });
+  }
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/item-units",
+      body: payload
+    });
+  }
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/item-units/${id}`,
+      body: payload
+    });
+  }
+  delete(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/item-units/${id}`
+    });
+  }
+  restore(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/item-units/${id}/restore`
+    });
+  }
+};
+function buildLookupQuery3(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
   return result;
 }
 
@@ -338,13 +514,28 @@ var RolesResource = class {
    * HTTP: `GET /api/v1/roles`
    * Access: `admin` only
    */
-  list() {
+  list(query) {
     return this.client.request({
       method: "GET",
-      path: "/roles"
+      path: "/roles",
+      ...query ? { query: buildRoleQuery(query) } : {}
     });
   }
 };
+function buildRoleQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
 
 // src/sdk/resources/stockTransactions.ts
 var StockTransactionsResource = class {
@@ -448,6 +639,47 @@ function buildStockTransactionsQuery(query) {
   if (query.perPage !== void 0) {
     result.perPage = query.perPage;
   }
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.type_id !== void 0) result.type_id = query.type_id;
+  if (query.status_id !== void 0) result.status_id = query.status_id;
+  if (query.transaction_date_from !== void 0) result.transaction_date_from = query.transaction_date_from;
+  if (query.transaction_date_to !== void 0) result.transaction_date_to = query.transaction_date_to;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
+// src/sdk/resources/transactionTypes.ts
+var TransactionTypesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/transaction-types",
+      ...query ? { query: buildLookupQuery4(query) } : {}
+    });
+  }
+};
+function buildLookupQuery4(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
   return result;
 }
 
@@ -463,10 +695,11 @@ var UsersResource = class {
    * HTTP: `GET /api/v1/users`
    * Access: `admin` only
    */
-  list() {
+  list(query) {
     return this.client.request({
       method: "GET",
-      path: "/users"
+      path: "/users",
+      ...query ? { query: buildUsersQuery(query) } : {}
     });
   }
   /**
@@ -557,21 +790,45 @@ var UsersResource = class {
     });
   }
 };
+function buildUsersQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.role_id !== void 0) result.role_id = query.role_id;
+  if (query.is_active !== void 0) result.is_active = query.is_active;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
 
 // src/sdk/index.ts
 var CapstoneSdk = class {
   client;
+  approvalStatuses;
   auth;
+  itemCategories;
   roles;
   items;
+  itemUnits;
   stockTransactions;
+  transactionTypes;
   users;
   constructor(options) {
     this.client = new ApiClient(options);
+    this.approvalStatuses = new ApprovalStatusesResource(this.client);
     this.auth = new AuthResource(this.client);
+    this.itemCategories = new ItemCategoriesResource(this.client);
     this.roles = new RolesResource(this.client);
     this.items = new ItemsResource(this.client);
+    this.itemUnits = new ItemUnitsResource(this.client);
     this.stockTransactions = new StockTransactionsResource(this.client);
+    this.transactionTypes = new TransactionTypesResource(this.client);
     this.users = new UsersResource(this.client);
   }
   /**

@@ -1,28 +1,19 @@
 import type { ApiClient } from "../client";
-import type { ApiListResponse, Role, RoleListQuery } from "../types";
+import type { ApiListResponse, LookupListQuery, TransactionType } from "../types";
 
-/**
- * Role lookup endpoints.
- */
-export class RolesResource {
+export class TransactionTypesResource {
   public constructor(private readonly client: ApiClient) {}
 
-  /**
-   * Lists all available roles.
-   *
-   * HTTP: `GET /api/v1/roles`
-   * Access: `admin` only
-   */
-  public list(query?: RoleListQuery): Promise<ApiListResponse<Role>> {
-    return this.client.request<ApiListResponse<Role>>({
+  public list(query?: LookupListQuery): Promise<ApiListResponse<TransactionType>> {
+    return this.client.request<ApiListResponse<TransactionType>>({
       method: "GET",
-      path: "/roles",
-      ...(query ? { query: buildRoleQuery(query) } : {})
+      path: "/transaction-types",
+      ...(query ? { query: buildLookupQuery(query) } : {})
     });
   }
 }
 
-function buildRoleQuery(query: RoleListQuery): Record<string, string | number> {
+function buildLookupQuery(query: LookupListQuery): Record<string, string | number> {
   const result: Record<string, string | number> = {};
 
   if (query.page !== undefined) result.page = query.page;

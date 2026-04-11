@@ -4,19 +4,29 @@ namespace App\Services;
 
 use App\Models\ItemCategoryModel;
 use App\Models\ItemModel;
+use App\Models\ItemUnitModel;
 
 class ItemManagementService
 {
-    private const ALLOWED_QUERY_PARAMS = ['page', 'perPage', 'item_category_id', 'is_active', 'q'];
-    public const FORBIDDEN_FIELDS      = ['qty', 'id', 'created_at', 'updated_at', 'deleted_at'];
+    private const ALLOWED_QUERY_PARAMS = [
+        'page', 'perPage',
+        'item_category_id', 'is_active',
+        'q', 'search',
+        'sortBy', 'sortDir',
+        'created_at_from', 'created_at_to',
+        'updated_at_from', 'updated_at_to',
+    ];
+    public const FORBIDDEN_FIELDS = ['qty', 'id', 'created_at', 'updated_at', 'deleted_at'];
 
     protected ItemModel $itemModel;
     protected ItemCategoryModel $itemCategoryModel;
+    protected ItemUnitModel $itemUnitModel;
 
     public function __construct()
     {
         $this->itemModel         = new ItemModel();
         $this->itemCategoryModel = new ItemCategoryModel();
+        $this->itemUnitModel     = new ItemUnitModel();
     }
 
     public function getAllItems(array $queryParams): array
@@ -42,13 +52,31 @@ class ItemManagementService
             ];
         }
 
-        $page = max(1, (int) ($queryParams['page'] ?? 1));
-        $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
-        $categoryId = isset($queryParams['item_category_id']) ? (int) $queryParams['item_category_id'] : null;
-        $isActive = isset($queryParams['is_active']) ? filter_var($queryParams['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
-        $search = trim((string) ($queryParams['q'] ?? ''));
+        $page          = max(1, (int) ($queryParams['page'] ?? 1));
+        $perPage       = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $categoryId    = isset($queryParams['item_category_id']) ? (int) $queryParams['item_category_id'] : null;
+        $isActive      = isset($queryParams['is_active']) ? filter_var($queryParams['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
+        $search        = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
+        $sortBy        = (string) ($queryParams['sortBy'] ?? 'name');
+        $sortDir       = (string) ($queryParams['sortDir'] ?? 'ASC');
+        $createdAtFrom = $queryParams['created_at_from'] ?? null;
+        $createdAtTo   = $queryParams['created_at_to'] ?? null;
+        $updatedAtFrom = $queryParams['updated_at_from'] ?? null;
+        $updatedAtTo   = $queryParams['updated_at_to'] ?? null;
 
-        $result = $this->itemModel->getAllWithCategories($page, $perPage, $categoryId, $isActive, $search);
+        $result = $this->itemModel->getAllWithCategories(
+            $page,
+            $perPage,
+            $categoryId,
+            $isActive,
+            $search,
+            $sortBy,
+            $sortDir,
+            $createdAtFrom,
+            $createdAtTo,
+            $updatedAtFrom,
+            $updatedAtTo,
+        );
 
         return [
             'success' => true,
@@ -84,7 +112,6 @@ class ItemManagementService
             ];
         }
 
-        // Resolve item_category_name to item_category_id if provided
         if (isset($data['item_category_name']) && !isset($data['item_category_id'])) {
             $categoryId = $this->itemCategoryModel->getIdByName($data['item_category_name']);
             if ($categoryId === null) {
@@ -121,13 +148,34 @@ class ItemManagementService
             ];
         }
 
+        $itemUnitBaseId    = $this->resolveItemUnitId($data['unit_base']);
+        $itemUnitConvertId = $this->resolveItemUnitId($data['unit_convert']);
+
+        if ($itemUnitBaseId === null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['unit_base' => 'The unit_base value could not be resolved to an active item unit.'],
+            ];
+        }
+
+        if ($itemUnitConvertId === null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['unit_convert' => 'The unit_convert value could not be resolved to an active item unit.'],
+            ];
+        }
+
         $insertData = [
-            'item_category_id' => (int) $data['item_category_id'],
-            'name'             => trim((string) $data['name']),
-            'unit_base'        => trim((string) $data['unit_base']),
-            'unit_convert'     => trim((string) $data['unit_convert']),
-            'conversion_base'  => (int) $data['conversion_base'],
-            'is_active'        => array_key_exists('is_active', $data)
+            'item_category_id'     => (int) $data['item_category_id'],
+            'name'                 => trim((string) $data['name']),
+            'unit_base'            => trim((string) $data['unit_base']),
+            'unit_convert'         => trim((string) $data['unit_convert']),
+            'item_unit_base_id'    => $itemUnitBaseId,
+            'item_unit_convert_id' => $itemUnitConvertId,
+            'conversion_base'      => (int) $data['conversion_base'],
+            'is_active'            => array_key_exists('is_active', $data)
                 ? filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN)
                 : true,
         ];
@@ -170,7 +218,6 @@ class ItemManagementService
             ];
         }
 
-        // Resolve item_category_name to item_category_id if provided
         if (isset($data['item_category_name']) && !isset($data['item_category_id'])) {
             $categoryId = $this->itemCategoryModel->getIdByName($data['item_category_name']);
             if ($categoryId === null) {
@@ -216,10 +263,28 @@ class ItemManagementService
             $updateData['name'] = trim((string) $data['name']);
         }
         if (isset($data['unit_base'])) {
-            $updateData['unit_base'] = trim((string) $data['unit_base']);
+            $itemUnitBaseId = $this->resolveItemUnitId($data['unit_base']);
+            if ($itemUnitBaseId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['unit_base' => 'The unit_base value could not be resolved to an active item unit.'],
+                ];
+            }
+            $updateData['unit_base']         = trim((string) $data['unit_base']);
+            $updateData['item_unit_base_id'] = $itemUnitBaseId;
         }
         if (isset($data['unit_convert'])) {
-            $updateData['unit_convert'] = trim((string) $data['unit_convert']);
+            $itemUnitConvertId = $this->resolveItemUnitId($data['unit_convert']);
+            if ($itemUnitConvertId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['unit_convert' => 'The unit_convert value could not be resolved to an active item unit.'],
+                ];
+            }
+            $updateData['unit_convert']            = trim((string) $data['unit_convert']);
+            $updateData['item_unit_convert_id']    = $itemUnitConvertId;
         }
         if (isset($data['conversion_base'])) {
             $updateData['conversion_base'] = (int) $data['conversion_base'];
@@ -277,6 +342,11 @@ class ItemManagementService
         ];
     }
 
+    private function resolveItemUnitId(string $unitName): ?int
+    {
+        return $this->itemUnitModel->getIdByName($unitName);
+    }
+
     private function collectForbiddenFieldErrors(array $data): array
     {
         $errors = [];
@@ -293,19 +363,29 @@ class ItemManagementService
     private function formatItemResponse(array $item): array
     {
         return [
-            'id'               => (int) $item['id'],
-            'item_category_id' => (int) $item['item_category_id'],
-            'name'             => $item['name'],
-            'unit_base'        => $item['unit_base'],
-            'unit_convert'     => $item['unit_convert'],
-            'conversion_base'  => (int) $item['conversion_base'],
-            'qty'              => number_format((float) $item['qty'], 2, '.', ''),
-            'is_active'        => (bool) $item['is_active'],
-            'created_at'       => $item['created_at'],
-            'updated_at'       => $item['updated_at'],
-            'category'         => [
+            'id'                   => (int) $item['id'],
+            'item_category_id'     => (int) $item['item_category_id'],
+            'name'                 => $item['name'],
+            'unit_base'            => $item['unit_base'],
+            'unit_convert'         => $item['unit_convert'],
+            'item_unit_base_id'    => isset($item['item_unit_base_id']) ? (int) $item['item_unit_base_id'] : null,
+            'item_unit_convert_id' => isset($item['item_unit_convert_id']) ? (int) $item['item_unit_convert_id'] : null,
+            'conversion_base'      => (int) $item['conversion_base'],
+            'qty'                  => number_format((float) $item['qty'], 2, '.', ''),
+            'is_active'            => (bool) $item['is_active'],
+            'created_at'           => $item['created_at'],
+            'updated_at'           => $item['updated_at'],
+            'category'             => [
                 'id'   => (int) $item['item_category_id'],
                 'name' => $item['category_name'] ?? null,
+            ],
+            'item_unit_base' => [
+                'id'   => isset($item['item_unit_base_id']) ? (int) $item['item_unit_base_id'] : null,
+                'name' => $item['item_unit_base_name'] ?? $item['unit_base'],
+            ],
+            'item_unit_convert' => [
+                'id'   => isset($item['item_unit_convert_id']) ? (int) $item['item_unit_convert_id'] : null,
+                'name' => $item['item_unit_convert_name'] ?? $item['unit_convert'],
             ],
         ];
     }
@@ -335,6 +415,25 @@ class ItemManagementService
             $errors['is_active'] = 'The is_active field must be a boolean value.';
         }
 
+        if (isset($queryParams['sortBy']) && ! in_array($queryParams['sortBy'], ItemModel::SORTABLE_COLUMNS, true)) {
+            $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', ItemModel::SORTABLE_COLUMNS) . '.';
+        }
+
+        if (isset($queryParams['sortDir']) && ! in_array(strtoupper((string) $queryParams['sortDir']), ['ASC', 'DESC'], true)) {
+            $errors['sortDir'] = 'The sortDir field must be ASC or DESC.';
+        }
+
+        foreach (['created_at_from', 'created_at_to', 'updated_at_from', 'updated_at_to'] as $dateParam) {
+            if (isset($queryParams[$dateParam]) && ! $this->isValidDateTimeString($queryParams[$dateParam])) {
+                $errors[$dateParam] = sprintf('The %s field must be a valid date/datetime string.', $dateParam);
+            }
+        }
+
         return $errors;
+    }
+
+    private function isValidDateTimeString(string $value): bool
+    {
+        return strtotime($value) !== false;
     }
 }

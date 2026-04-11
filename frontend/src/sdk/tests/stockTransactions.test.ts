@@ -31,6 +31,47 @@ describe("StockTransactionsResource", () => {
     expect(init?.method).toBe("POST");
   });
 
+  it("serializes the verified list filters for stock transactions", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [],
+          meta: { page: 1, perPage: 10, total: 0, totalPages: 0 },
+          links: {
+            self: "/api/v1/stock-transactions?page=1&perPage=10",
+            first: "/api/v1/stock-transactions?page=1&perPage=10",
+            last: "/api/v1/stock-transactions?page=1&perPage=10",
+            next: null,
+            previous: null
+          }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    await sdk.stockTransactions.list({
+      q: "12345",
+      sortBy: "updated_at",
+      sortDir: "ASC",
+      type_id: 1,
+      status_id: 2,
+      transaction_date_from: "2026-04-01",
+      transaction_date_to: "2026-04-30",
+      created_at_from: "2026-04-01",
+      updated_at_to: "2026-04-30"
+    });
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe(
+      "http://127.0.0.1:8080/api/v1/stock-transactions?q=12345&sortBy=updated_at&sortDir=ASC&type_id=1&status_id=2&transaction_date_from=2026-04-01&transaction_date_to=2026-04-30&created_at_from=2026-04-01&updated_at_to=2026-04-30"
+    );
+  });
+
   it("sends input_unit=convert in create request body when specified", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

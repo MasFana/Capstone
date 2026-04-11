@@ -17,13 +17,82 @@ class UserManagementService
         $this->roleModel    = new RoleModel();
     }
 
-    public function getAllUsers(): array
+    private const ALLOWED_QUERY_PARAMS = [
+        'page',
+        'perPage',
+        'q',
+        'search',
+        'sortBy',
+        'sortDir',
+        'role_id',
+        'is_active',
+        'created_at_from',
+        'created_at_to',
+        'updated_at_from',
+        'updated_at_to',
+    ];
+
+    public function getAllUsers(array $queryParams = []): array
     {
-        $users = $this->userProvider->getAllWithRoles();
-        
-        return array_map(function ($user) {
-            return $this->formatUserResponse($user);
-        }, $users);
+        $unknownParams = array_diff(array_keys($queryParams), self::ALLOWED_QUERY_PARAMS);
+
+        if ($unknownParams !== []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'query' => 'Unsupported query parameter(s): ' . implode(', ', $unknownParams),
+                ],
+            ];
+        }
+
+        $queryErrors = $this->validateListQueryValues($queryParams);
+        if ($queryErrors !== []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $queryErrors,
+            ];
+        }
+
+        $page          = max(1, (int) ($queryParams['page'] ?? 1));
+        $perPage       = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $search        = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
+        $sortBy        = (string) ($queryParams['sortBy'] ?? 'name');
+        $sortDir       = (string) ($queryParams['sortDir'] ?? 'ASC');
+        $roleId        = isset($queryParams['role_id']) ? (int) $queryParams['role_id'] : null;
+        $isActive      = isset($queryParams['is_active'])
+            ? filter_var($queryParams['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+            : null;
+        $createdAtFrom = $queryParams['created_at_from'] ?? null;
+        $createdAtTo   = $queryParams['created_at_to'] ?? null;
+        $updatedAtFrom = $queryParams['updated_at_from'] ?? null;
+        $updatedAtTo   = $queryParams['updated_at_to'] ?? null;
+
+        $result = $this->userProvider->getAllWithRolesPaginated(
+            $page,
+            $perPage,
+            $search,
+            $sortBy,
+            $sortDir,
+            $roleId,
+            $isActive,
+            $createdAtFrom,
+            $createdAtTo,
+            $updatedAtFrom,
+            $updatedAtTo,
+        );
+
+        return [
+            'success' => true,
+            'data'    => array_map(fn (array $user): array => $this->formatUserResponse($user), $result['users']),
+            'meta'    => [
+                'page'       => $result['page'],
+                'perPage'    => $result['perPage'],
+                'total'      => $result['total'],
+                'totalPages' => $result['totalPages'],
+            ],
+        ];
     }
 
     public function getUserById(int $id): ?array
@@ -342,5 +411,43 @@ class UserManagementService
     protected function isAllowedRole(string $roleName): bool
     {
         return in_array($roleName, ['admin', 'dapur', 'gudang'], true);
+    }
+
+    private function validateListQueryValues(array $queryParams): array
+    {
+        $errors = [];
+
+        if (isset($queryParams['page']) && (! ctype_digit((string) $queryParams['page']) || (int) $queryParams['page'] < 1)) {
+            $errors['page'] = 'The page field must be a positive integer.';
+        }
+
+        if (isset($queryParams['perPage']) && (! ctype_digit((string) $queryParams['perPage']) || (int) $queryParams['perPage'] < 1 || (int) $queryParams['perPage'] > 100)) {
+            $errors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
+        }
+
+        if (isset($queryParams['role_id']) && (! ctype_digit((string) $queryParams['role_id']) || (int) $queryParams['role_id'] < 1)) {
+            $errors['role_id'] = 'The role_id field must be a positive integer.';
+        }
+
+        if (isset($queryParams['is_active']) && ! in_array((string) $queryParams['is_active'], ['0', '1', 'true', 'false'], true)) {
+            $errors['is_active'] = 'The is_active field must be a boolean value.';
+        }
+
+        $validSortColumns = ['id', 'name', 'username', 'email', 'created_at', 'updated_at'];
+        if (isset($queryParams['sortBy']) && ! in_array($queryParams['sortBy'], $validSortColumns, true)) {
+            $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', $validSortColumns) . '.';
+        }
+
+        if (isset($queryParams['sortDir']) && ! in_array(strtoupper((string) $queryParams['sortDir']), ['ASC', 'DESC'], true)) {
+            $errors['sortDir'] = 'The sortDir field must be ASC or DESC.';
+        }
+
+        foreach (['created_at_from', 'created_at_to', 'updated_at_from', 'updated_at_to'] as $dateParam) {
+            if (isset($queryParams[$dateParam]) && strtotime((string) $queryParams[$dateParam]) === false) {
+                $errors[$dateParam] = sprintf('The %s field must be a valid date/datetime string.', $dateParam);
+            }
+        }
+
+        return $errors;
     }
 }

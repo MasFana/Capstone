@@ -7,7 +7,10 @@ use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Shield\Entities\User;
 use App\Models\AppUserProvider;
+use App\Models\ItemCategoryModel;
+use App\Models\ItemUnitModel;
 use App\Models\RoleModel;
+use Config\Database;
 
 class LookupsTest extends CIUnitTestCase
 {
@@ -26,6 +29,8 @@ class LookupsTest extends CIUnitTestCase
         $this->seedRoles();
         $this->seedUsers();
         $this->seedLookupData();
+        $this->seedItemUnits();
+        $this->seedItems();
     }
 
     protected function seedRoles(): void
@@ -102,6 +107,38 @@ class LookupsTest extends CIUnitTestCase
         ]);
     }
 
+    protected function seedItemUnits(): void
+    {
+        $this->db->table('item_units')->insertBatch([
+            ['name' => 'gram'],
+            ['name' => 'kg'],
+            ['name' => 'pack'],
+        ]);
+    }
+
+    protected function seedItems(): void
+    {
+        $categoryModel = new ItemCategoryModel();
+        $itemUnitModel = new ItemUnitModel();
+        $db            = Database::connect();
+
+        $kering = $categoryModel->where('name', 'KERING')->first();
+        $gramId = $itemUnitModel->getIdByName('gram');
+        $kgId   = $itemUnitModel->getIdByName('kg');
+
+        $db->table('items')->insert([
+            'item_category_id'     => $kering['id'],
+            'name'                 => 'Seeded Lookup Item',
+            'unit_base'            => 'gram',
+            'unit_convert'         => 'kg',
+            'item_unit_base_id'    => $gramId,
+            'item_unit_convert_id' => $kgId,
+            'conversion_base'      => 1000,
+            'is_active'            => true,
+            'qty'                  => 100,
+        ]);
+    }
+
     protected function getToken(string $username): string
     {
         $loginResult = $this->withBodyFormat('json')
@@ -144,7 +181,11 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+        $this->assertSame(3, $json['meta']['total']);
+        $this->assertSame(1, $json['meta']['page']);
         $this->assertSame('BASAH', $json['data'][0]['name']);
         $this->assertSame('KERING', $json['data'][1]['name']);
         $this->assertSame('PENGEMAS', $json['data'][2]['name']);
@@ -161,7 +202,128 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+    }
+
+    public function testItemCategoriesSupportSearchSortAndDateRange(): void
+    {
+        $db = Database::connect();
+
+        $db->table('item_categories')->where('name', 'BASAH')->update(['created_at' => '2026-04-01 10:00:00']);
+        $db->table('item_categories')->where('name', 'KERING')->update(['created_at' => '2026-04-15 10:00:00']);
+        $db->table('item_categories')->where('name', 'PENGEMAS')->update(['created_at' => '2026-04-20 10:00:00']);
+
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-categories?q=KER&sortBy=id&sortDir=DESC&created_at_from=2026-04-10&created_at_to=2026-04-18');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame('KERING', $json['data'][0]['name']);
+    }
+
+    public function testItemCategoriesRejectUnsupportedQueryParameter(): void
+    {
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-categories?unknown=value');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testAdminCanCreateAndDeleteUnusedItemCategory(): void
+    {
+        $token = $this->getToken('admin');
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/item-categories', ['name' => 'MINUMAN']);
+
+        $createResult->assertStatus(201);
+        $createJson = json_decode($createResult->getJSON(), true);
+
+        $deleteResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/item-categories/' . $createJson['data']['id']);
+
+        $deleteResult->assertStatus(200);
+        $deleteResult->assertJSONFragment(['message' => 'Item category deleted successfully.']);
+    }
+
+    public function testAdminCannotDeleteItemCategoryUsedByActiveItems(): void
+    {
+        $token         = $this->getToken('admin');
+        $categoryModel = new ItemCategoryModel();
+        $kering        = $categoryModel->where('name', 'KERING')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/item-categories/' . $kering['id']);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testAdminCannotRecreateDeletedItemCategoryAndMustRestoreIt(): void
+    {
+        $token = $this->getToken('admin');
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/item-categories', ['name' => 'MINUMAN']);
+
+        $createResult->assertStatus(201);
+        $createdJson = json_decode($createResult->getJSON(), true);
+        $categoryId  = $createdJson['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/item-categories/' . $categoryId)
+            ->assertStatus(200);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/item-categories', ['name' => '  minuman  ']);
+
+        $result->assertStatus(400);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertSame('Validation failed.', $json['message']);
+        $this->assertSame('The name belongs to a deleted item category. Restore it instead.', $json['errors']['name']);
+        $this->assertSame((string) $categoryId, $json['errors']['restore_id']);
+    }
+
+    public function testAdminCanRestoreDeletedItemCategory(): void
+    {
+        $token = $this->getToken('admin');
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/item-categories', ['name' => 'MINUMAN']);
+
+        $createResult->assertStatus(201);
+        $createdJson = json_decode($createResult->getJSON(), true);
+        $categoryId  = $createdJson['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/item-categories/' . $categoryId)
+            ->assertStatus(200);
+
+        $restoreResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->patch('api/v1/item-categories/' . $categoryId . '/restore');
+
+        $restoreResult->assertStatus(200);
+        $restoreResult->assertJSONFragment(['message' => 'Item category restored successfully.']);
+
+        $showResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-categories/' . $categoryId);
+
+        $showResult->assertStatus(200);
+        $showJson = json_decode($showResult->getJSON(), true);
+        $this->assertSame('MINUMAN', $showJson['data']['name']);
     }
 
     // Transaction Types Tests
@@ -194,7 +356,11 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+        $this->assertSame(3, $json['meta']['total']);
+        $this->assertSame(1, $json['meta']['page']);
         $this->assertSame('IN', $json['data'][0]['name']);
         $this->assertSame('OUT', $json['data'][1]['name']);
         $this->assertSame('RETURN_IN', $json['data'][2]['name']);
@@ -211,7 +377,23 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+    }
+
+    public function testRolesSupportSearchAndSorting(): void
+    {
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/roles?q=gu&sortBy=id&sortDir=DESC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame('gudang', $json['data'][0]['name']);
     }
 
     // Approval Statuses Tests
@@ -244,7 +426,11 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+        $this->assertSame(3, $json['meta']['total']);
+        $this->assertSame(1, $json['meta']['page']);
         $this->assertSame('APPROVED', $json['data'][0]['name']);
         $this->assertSame('PENDING', $json['data'][1]['name']);
         $this->assertSame('REJECTED', $json['data'][2]['name']);
@@ -261,6 +447,8 @@ class LookupsTest extends CIUnitTestCase
         
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
     }
 }
