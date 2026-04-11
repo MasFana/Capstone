@@ -115,6 +115,7 @@ Catatan implementasi soft delete pada lookup tables:
 - Semua lookup list endpoint mengembalikan envelope paginated standar `data/meta/links`.
 - `item_categories.name` dan `item_units.name` unik hanya di antara row aktif; jika nama yang sama sudah ada pada row soft-deleted, admin harus restore row tersebut secara eksplisit.
 - `roles.name`, `transaction_types.name`, `approval_statuses.name`, dan `users.username` tetap unik secara permanen walaupun row sudah di-soft-delete.
+- Pada level schema MariaDB/MySQL, active-only uniqueness untuk `item_categories` dan `item_units` didukung oleh generated helper column `name_active_lookup` yang bernilai `LOWER(TRIM(name))` saat row aktif dan `NULL` saat row soft-deleted.
 
 ### 4.2 User & Access Module
 

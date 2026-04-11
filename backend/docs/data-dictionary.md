@@ -24,6 +24,7 @@ Fungsi: Menyimpan kategori barang sebagai lookup tetap. Mendukung soft delete.
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
+| `name_active_lookup` | varchar(50) | generated, nullable | Generated helper column untuk enforce unique aktif (trimmed + lowercase, NULL saat deleted) |
 
 ### 2.2 `transaction_types`
 
@@ -71,6 +72,7 @@ Fungsi: Menyimpan satuan pengukuran barang (item unit lookup) yang dapat direfer
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
+| `name_active_lookup` | varchar(50) | generated, nullable | Generated helper column untuk enforce unique aktif (trimmed + lowercase, NULL saat deleted) |
 
 Catatan implementasi:
 
@@ -79,6 +81,7 @@ Catatan implementasi:
 - Soft-deleted item units tetap ada di database dan tetap dapat direferensikan oleh item historis melalui FK, tetapi tidak dapat diassign ke item baru.
 - `item_units.name` harus unik hanya di antara row aktif (non-deleted), dengan pencocokan trimmed dan case-insensitive.
 - Jika nama yang sama hanya ada pada row yang sudah soft-deleted, create akan ditolak dan admin harus memanggil restore endpoint untuk mengaktifkan kembali row lama.
+- Implementasi schema memakai generated column `name_active_lookup` + unique index agar aturan active-only uniqueness kompatibel dengan MariaDB/MySQL, sedangkan perilaku soft delete/restore tetap didefinisikan di model CI4.
 
 Catatan implementasi lookup saat ini:
 

@@ -86,7 +86,7 @@ class BackfillItemUnitsFromItems extends Migration
         }
 
         if ($this->hasTable('item_units')) {
-            $this->db->table('item_units')->truncate();
+            $this->db->table('item_units')->where('id >', 0)->delete();
         }
     }
 
