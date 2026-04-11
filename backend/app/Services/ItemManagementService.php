@@ -132,11 +132,24 @@ class ItemManagementService
             ];
         }
 
-        if ($this->itemModel->nameExists($data['name'])) {
+        // Check for active-name duplicate first, then deleted-name collision
+        if ($this->itemModel->nameExists($data['name'], null, false)) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
                 'errors'  => ['name' => 'The name has already been taken.'],
+            ];
+        }
+
+        $deletedMatch = $this->itemModel->findByNameIncludingDeleted($data['name']);
+        if ($deletedMatch !== null && $deletedMatch['deleted_at'] !== null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'name'       => 'The name belongs to a deleted item. Restore it instead.',
+                    'restore_id' => (string) $deletedMatch['id'],
+                ],
             ];
         }
 
@@ -238,12 +251,28 @@ class ItemManagementService
             ];
         }
 
-        if (isset($data['name']) && $this->itemModel->nameExists($data['name'], $id)) {
-            return [
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors'  => ['name' => 'The name has already been taken.'],
-            ];
+        if (isset($data['name'])) {
+            // Check for active-name duplicate (excluding this item)
+            if ($this->itemModel->nameExists($data['name'], $id, false)) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['name' => 'The name has already been taken.'],
+                ];
+            }
+
+            // Check for deleted-name collision (excluding this item)
+            $deletedMatch = $this->itemModel->findByNameIncludingDeleted($data['name']);
+            if ($deletedMatch !== null && $deletedMatch['deleted_at'] !== null && (int) $deletedMatch['id'] !== $id) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'name'       => 'The name belongs to a deleted item. Restore it instead.',
+                        'restore_id' => (string) $deletedMatch['id'],
+                    ],
+                ];
+            }
         }
 
         if (array_key_exists('is_active', $data) && ! $this->isSupportedBooleanValue($data['is_active'])) {
@@ -339,6 +368,74 @@ class ItemManagementService
         return [
             'success' => true,
             'message' => 'Item deleted successfully.',
+        ];
+    }
+
+    public function restoreItem(int $id): array
+    {
+        $item = $this->itemModel->findByIdIncludingDeleted($id);
+
+        if ($item === null) {
+            return [
+                'success' => false,
+                'message' => 'Item not found.',
+            ];
+        }
+
+        // Already active — idempotent: return current data
+        if ($item['deleted_at'] === null) {
+            $current = $this->itemModel->findWithCategory($id);
+            return [
+                'success' => true,
+                'item'    => $this->formatItemResponse($current),
+            ];
+        }
+
+        if (! $this->itemCategoryModel->exists((int) $item['item_category_id'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['item_category_id' => 'Cannot restore: the item category is no longer active.'],
+            ];
+        }
+
+        if (! $this->itemUnitModel->exists((int) $item['item_unit_base_id'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['unit_base' => 'Cannot restore: the base unit is no longer active.'],
+            ];
+        }
+
+        if (! $this->itemUnitModel->exists((int) $item['item_unit_convert_id'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['unit_convert' => 'Cannot restore: the converted unit is no longer active.'],
+            ];
+        }
+
+        // Active duplicate name exists → block restore
+        if ($this->itemModel->nameExists($item['name'], $id, false)) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['name' => 'Cannot restore: an active item with this name already exists.'],
+            ];
+        }
+
+        if (! $this->itemModel->restore($id)) {
+            return [
+                'success' => false,
+                'message' => 'Failed to restore item.',
+            ];
+        }
+
+        $restored = $this->itemModel->findWithCategory($id);
+
+        return [
+            'success' => true,
+            'item'    => $this->formatItemResponse($restored),
         ];
     }
 

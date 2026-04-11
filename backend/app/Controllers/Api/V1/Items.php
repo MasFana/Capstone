@@ -173,7 +173,7 @@ class Items extends BaseController
 
         $rules = [
             'id'               => 'required|is_natural_no_zero',
-            'name'             => 'permit_empty|max_length[100]|is_unique[items.name,id,{id}]',
+            'name'             => 'permit_empty|max_length[100]',
             'unit_base'        => 'permit_empty|max_length[20]',
             'unit_convert'     => 'permit_empty|max_length[20]',
             'conversion_base'  => 'permit_empty|is_natural_no_zero',
@@ -234,6 +234,33 @@ class Items extends BaseController
             ->setStatusCode(200)
             ->setJSON([
                 'message' => $result['message'],
+            ]);
+    }
+
+    public function restore(int $id): ResponseInterface
+    {
+        $result = $this->itemService->restoreItem($id);
+
+        if (! $result['success']) {
+            $statusCode = match ($result['message']) {
+                'Item not found.' => 404,
+                'Failed to restore item.' => 422,
+                default => 400,
+            };
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => 'Item restored successfully.',
+                'data'    => $result['item'],
             ]);
     }
 

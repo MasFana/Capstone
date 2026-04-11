@@ -130,15 +130,41 @@ class ItemModel extends Model
         return $item ?: null;
     }
 
-    public function nameExists(string $name, ?int $exceptId = null): bool
+    public function findByIdIncludingDeleted(int $id): ?array
     {
-        $builder = $this->builder();
-        $builder->where('name', $name);
+        $item = $this->withDeleted()->find($id);
+
+        return $item !== null ? $item : null;
+    }
+
+    public function findByNameIncludingDeleted(string $name): ?array
+    {
+        $trimmedName = trim($name);
+        $result      = $this->withDeleted()->where('LOWER(name)', strtolower($trimmedName))->first();
+
+        return $result !== null ? $result : null;
+    }
+
+    public function nameExists(string $name, ?int $exceptId = null, bool $includeDeleted = true): bool
+    {
+        $builder = $includeDeleted ? $this->withDeleted() : $this;
+        $builder = $builder->where('LOWER(name)', strtolower(trim($name)));
+
         if ($exceptId !== null) {
-            $builder->where('id !=', $exceptId);
+            $builder = $builder->where('id !=', $exceptId);
         }
 
-        return $builder->countAllResults() > 0;
+        return $builder->first() !== null;
+    }
+
+    public function restore(int $id): bool
+    {
+        return $this->builder()
+            ->where('id', $id)
+            ->update([
+                'deleted_at' => null,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
     }
 
     public function countActiveItemsByCategoryId(int $categoryId): int
