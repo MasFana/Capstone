@@ -25,6 +25,14 @@ class UserSeeder extends Seeder
                 'active'    => true,
             ],
             [
+                'role_id'   => $adminRole['id'],
+                'name'      => 'Inactive Admin User',
+                'username'  => 'inactiveadmin',
+                'email'     => 'inactiveadmin@example.com',
+                'is_active' => false,
+                'active'    => false,
+            ],
+            [
                 'role_id'   => $spkRole['id'],
                 'name'      => 'SPK Gizi User',
                 'username'  => 'spkgizi',
