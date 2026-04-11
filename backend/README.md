@@ -81,9 +81,15 @@ The project currently provides these seeders:
 
 - `RoleSeeder`
 - `UserSeeder`
+- `ItemCategorySeeder`
+- `TransactionTypeSeeder`
+- `ApprovalStatusSeeder`
+- `MealTimeSeeder`
+- `ItemUnitSeeder`
+- `ItemSeeder`
 - `TestSeeder`
 
-To seed roles and users in the correct order, run:
+To seed the full development baseline in the correct order, run:
 
 ```bash
 php spark db:seed TestSeeder
@@ -93,6 +99,12 @@ php spark db:seed TestSeeder
 
 1. `RoleSeeder`
 2. `UserSeeder`
+3. `ItemCategorySeeder`
+4. `TransactionTypeSeeder`
+5. `ApprovalStatusSeeder`
+6. `MealTimeSeeder`
+7. `ItemUnitSeeder`
+8. `ItemSeeder`
 
 ## 6. Run the backend server
 
@@ -115,6 +127,7 @@ After running `TestSeeder`, these users are created:
 | Role | Username | Email |
 |---|---|---|
 | admin | `admin` | `admin@example.com` |
+| admin (inactive) | `inactiveadmin` | `inactiveadmin@example.com` |
 | dapur | `spkgizi` | `spkgizi@example.com` |
 | gudang | `gudang` | `gudang@example.com` |
 
@@ -123,6 +136,17 @@ Default password for all seeded users:
 ```text
 password123
 ```
+
+Seeded lookup/master baseline also includes:
+
+- item categories: `BASAH`, `KERING`, `PENGEMAS`
+- transaction types: `IN`, `OUT`, `RETURN_IN`
+- approval statuses: `APPROVED`, `PENDING`, `REJECTED`
+- meal times: `SIANG`, `SORE`, `PAGI`
+- item units: `gram`, `kg`, `ml`, `liter`, `butir`, `pack`
+- items: `Beras`, `Ayam`, `Minyak Goreng`, `Telur`
+
+The default development seeder intentionally does **not** seed stock transaction history, transaction details, or audit logs. Those tables stay empty by default so stock movement and approval workflows are not confused by fake historical data.
 
 ## Full quick start
 
