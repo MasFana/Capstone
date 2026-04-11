@@ -3,6 +3,7 @@ export interface PaginationMeta {
   perPage: number;
   total: number;
   totalPages: number;
+  paginated?: boolean;
 }
 
 export interface PaginationLinks {

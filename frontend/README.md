@@ -120,6 +120,7 @@ type ApiListResponse<T> = {
     perPage: number;
     total: number;
     totalPages: number;
+    paginated?: boolean;
   };
   links: {
     self: string;
@@ -415,6 +416,7 @@ Used by:
 
 Supported fields:
 
+- `paginate` — optional boolean; use `false` for dropdown-style lookup reads
 - `page`
 - `perPage`
 - `q`
@@ -548,6 +550,25 @@ try {
   }
 }
 ```
+
+### Dropdown lookup flow with `paginate=false`
+
+```ts
+const lookup = await sdk.itemUnits.list({
+  paginate: false,
+  sortBy: "name",
+  sortDir: "ASC"
+});
+
+const options = lookup.data.map((unit) => ({
+  value: unit.id,
+  label: unit.name
+}));
+
+console.log(lookup.meta.paginated); // false
+```
+
+Even with `paginate=false`, lookup endpoints still return the same `data/meta/links` envelope.
 
 ### List users with admin-only filters
 

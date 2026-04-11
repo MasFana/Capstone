@@ -6,6 +6,7 @@ export interface LookupResource {
 }
 
 export interface LookupListQuery {
+  paginate?: boolean;
   page?: number;
   perPage?: number;
   q?: string;

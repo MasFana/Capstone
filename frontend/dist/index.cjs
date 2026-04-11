@@ -256,6 +256,7 @@ var ApprovalStatusesResource = class {
 };
 function buildLookupQuery(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.q !== void 0) result.q = query.q;
@@ -317,6 +318,7 @@ var ItemCategoriesResource = class {
 };
 function buildLookupQuery2(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.q !== void 0) result.q = query.q;
@@ -489,6 +491,7 @@ var ItemUnitsResource = class {
 };
 function buildLookupQuery3(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.q !== void 0) result.q = query.q;
@@ -524,6 +527,7 @@ var RolesResource = class {
 };
 function buildRoleQuery(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.q !== void 0) result.q = query.q;
@@ -670,6 +674,7 @@ var TransactionTypesResource = class {
 };
 function buildLookupQuery4(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.q !== void 0) result.q = query.q;

@@ -177,10 +177,11 @@ Authenticated users can change their own password. This endpoint requires the us
 
 These endpoints provide reference data for creating and filtering inventory operations. All lookup list endpoints are restricted to users with `admin` or `gudang` roles. Write operations on `item-units` and `item-categories` are restricted to `admin` only.
 
-All lookup list endpoints support pagination and return the standard `data/meta/links` envelope. Soft-deleted rows are excluded from all list and show responses.
+All lookup list endpoints support pagination by default and return the standard `data/meta/links` envelope. Soft-deleted rows are excluded from all list and show responses.
 
 Supported query parameters for all lookup list endpoints:
 
+- `paginate` — optional boolean; default `true`. Use `paginate=false` for dropdown-style reads that should return all matching rows while keeping the same `data/meta/links` envelope.
 - `page` — page number (positive integer, default `1`)
 - `perPage` — results per page (integer 1–100, default `10`)
 - `q` / `search` — partial name match (case-insensitive); `q` takes priority if both are sent
@@ -188,6 +189,7 @@ Supported query parameters for all lookup list endpoints:
 - `created_at_from`, `created_at_to` — created-at date/datetime range
 - `updated_at_from`, `updated_at_to` — updated-at date/datetime range
 - Unknown query parameters return `400` validation errors.
+- If `paginate=false`, the endpoint still returns `data/meta/links`; `meta.paginated=false`, `page=1`, `totalPages=1` (or `0` for empty results), and `next/previous=null`.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -238,6 +240,41 @@ Supported query parameters for all lookup list endpoints:
     "self": "/api/v1/item-categories?page=1&perPage=10",
     "first": "/api/v1/item-categories?page=1&perPage=10",
     "last": "/api/v1/item-categories?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+##### Response with `paginate=false`
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "BASAH",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "KERING",
+      "created_at": "2026-04-02 10:00:00",
+      "updated_at": "2026-04-02 10:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 2,
+    "total": 2,
+    "totalPages": 1,
+    "paginated": false
+  },
+  "links": {
+    "self": "/api/v1/item-categories?paginate=false",
+    "first": "/api/v1/item-categories?paginate=false",
+    "last": "/api/v1/item-categories?paginate=false",
     "next": null,
     "previous": null
   }
@@ -366,6 +403,8 @@ Supported query parameters for all lookup list endpoints:
   }
 }
 ```
+
+`paginate=false` is supported here as well for dropdown-style consumers; the response keeps the same envelope and sets `meta.paginated=false`.
 
 ##### Show Response
 

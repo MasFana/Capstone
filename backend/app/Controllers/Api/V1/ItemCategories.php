@@ -15,6 +15,7 @@ class ItemCategories extends BaseController
     private const SORTABLE_COLUMNS = ['id', 'name', 'created_at', 'updated_at'];
 
     private const ALLOWED_PARAMS = [
+        'paginate',
         'page',
         'perPage',
         'q',
@@ -49,6 +50,7 @@ class ItemCategories extends BaseController
 
         $page    = max(1, (int) ($queryParams['page'] ?? 1));
         $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $paginate = $this->shouldPaginate($queryParams['paginate'] ?? null);
         $search  = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
         $requestedSortBy = (string) ($queryParams['sortBy'] ?? 'name');
         $sortBy  = in_array($requestedSortBy, self::SORTABLE_COLUMNS, true)
@@ -74,14 +76,22 @@ class ItemCategories extends BaseController
         $countBuilder = clone $builder;
         $total        = $countBuilder->countAllResults();
 
-        $data = $builder
-            ->limit($perPage, ($page - 1) * $perPage)
-            ->get()
-            ->getResultArray();
+        if ($paginate) {
+            $data = $builder
+                ->limit($perPage, ($page - 1) * $perPage)
+                ->get()
+                ->getResultArray();
 
-        $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 0;
+            $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 0;
+        } else {
+            $data       = $builder->get()->getResultArray();
+            $page       = 1;
+            $perPage    = max(1, count($data));
+            $total      = count($data);
+            $totalPages = $total > 0 ? 1 : 0;
+        }
 
-        $meta = ['page' => $page, 'perPage' => $perPage, 'total' => $total, 'totalPages' => $totalPages];
+        $meta = ['page' => $page, 'perPage' => $perPage, 'total' => $total, 'totalPages' => $totalPages, 'paginated' => $paginate];
 
         return $this->response
             ->setStatusCode(200)
@@ -311,6 +321,10 @@ class ItemCategories extends BaseController
             $errors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
         }
 
+        if (isset($params['paginate']) && ! in_array(strtolower((string) $params['paginate']), ['true', 'false', '1', '0'], true)) {
+            $errors['paginate'] = 'The paginate field must be a boolean value.';
+        }
+
         if (isset($params['sortBy']) && ! in_array($params['sortBy'], self::SORTABLE_COLUMNS, true)) {
             $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', self::SORTABLE_COLUMNS) . '.';
         }
@@ -337,6 +351,15 @@ class ItemCategories extends BaseController
         if ($to !== null && $to !== '') {
             $builder->where($column . ' <=', $to);
         }
+    }
+
+    private function shouldPaginate(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        return ! in_array(strtolower((string) $value), ['false', '0'], true);
     }
 
     private function buildPaginationLinks(array $meta): array

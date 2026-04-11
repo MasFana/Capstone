@@ -25,6 +25,7 @@ export class RolesResource {
 function buildRoleQuery(query: RoleListQuery): Record<string, string | number> {
   const result: Record<string, string | number> = {};
 
+  if (query.paginate !== undefined) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== undefined) result.page = query.page;
   if (query.perPage !== undefined) result.perPage = query.perPage;
   if (query.q !== undefined) result.q = query.q;

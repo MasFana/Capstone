@@ -57,6 +57,7 @@ When a new backend feature is added, discover its SDK impact using this checklis
 - Auth header: `Authorization: Bearer <token>`
 - Implemented resources: `auth`, `roles`, `item-categories`, `transaction-types`, `approval-statuses`, `item-units`, `items`, `stock-transactions`, `users`
 - List envelope: `{ data, meta, links }`
+- Lookup list endpoints may also accept `paginate=false`, but they still return the same `{ data, meta, links }` envelope.
 - Single-resource envelope: `{ data }`
 - Mutation success envelope: `{ message, data }` or `{ message }`
 - Auth login success envelope: `{ message, access_token, token_type, user }`
@@ -237,6 +238,7 @@ Uniqueness policy notes:
 - `users.username`, `roles.name`, `transaction_types.name`, and `approval_statuses.name` remain globally unique even after soft delete.
 - `item_categories.name` and `item_units.name` are unique only among active rows.
 - If a create request matches a deleted item category or item unit, the API returns `400` with a restore-focused validation error and `restore_id`; SDK/UI should call restore explicitly instead of retrying create.
+- Lookup list endpoints also support `paginate=false` for dropdown usage. SDK callers should still read the result through `response.data`; do not introduce a bare-array return type.
 
 ### Items
 

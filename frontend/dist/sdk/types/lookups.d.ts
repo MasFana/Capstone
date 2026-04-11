@@ -5,6 +5,7 @@ export interface LookupResource {
     updated_at?: string | null;
 }
 export interface LookupListQuery {
+    paginate?: boolean;
     page?: number;
     perPage?: number;
     q?: string;

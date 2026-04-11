@@ -227,6 +227,37 @@ class LookupsTest extends CIUnitTestCase
         $this->assertSame('KERING', $json['data'][0]['name']);
     }
 
+    public function testItemCategoriesSupportPaginateFalseForDropdowns(): void
+    {
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-categories?paginate=false&sortBy=id&sortDir=ASC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(3, $json['data']);
+        $this->assertSame(1, $json['meta']['page']);
+        $this->assertSame(3, $json['meta']['perPage']);
+        $this->assertSame(3, $json['meta']['total']);
+        $this->assertSame(1, $json['meta']['totalPages']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertNull($json['links']['next']);
+        $this->assertNull($json['links']['previous']);
+    }
+
+    public function testItemCategoriesRejectInvalidPaginateValue(): void
+    {
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-categories?paginate=maybe');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
     public function testItemCategoriesRejectUnsupportedQueryParameter(): void
     {
         $token = $this->getToken('admin');
@@ -382,6 +413,21 @@ class LookupsTest extends CIUnitTestCase
         $this->assertCount(3, $json['data']);
     }
 
+    public function testTransactionTypesSupportPaginateFalse(): void
+    {
+        $token = $this->getToken('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/transaction-types?paginate=false');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(3, $json['data']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertSame(3, $json['meta']['total']);
+    }
+
     public function testRolesSupportSearchAndSorting(): void
     {
         $token = $this->getToken('admin');
@@ -394,6 +440,21 @@ class LookupsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         $this->assertCount(1, $json['data']);
         $this->assertSame('gudang', $json['data'][0]['name']);
+    }
+
+    public function testRolesSupportPaginateFalse(): void
+    {
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/roles?paginate=false&sortBy=id&sortDir=ASC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(3, $json['data']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertSame('admin', $json['data'][0]['name']);
     }
 
     // Approval Statuses Tests
@@ -450,5 +511,20 @@ class LookupsTest extends CIUnitTestCase
         $this->assertArrayHasKey('meta', $json);
         $this->assertArrayHasKey('links', $json);
         $this->assertCount(3, $json['data']);
+    }
+
+    public function testApprovalStatusesSupportPaginateFalse(): void
+    {
+        $token = $this->getToken('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/approval-statuses?paginate=false');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(3, $json['data']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertSame(3, $json['meta']['total']);
     }
 }

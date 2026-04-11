@@ -31,6 +31,37 @@ describe("Lookup resources", () => {
     expect(url).toBe("http://127.0.0.1:8080/api/v1/roles?q=ad&sortBy=name&sortDir=ASC");
   });
 
+  it("serializes paginate=false for dropdown lookup calls without changing response shape", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 1, name: "admin" }, { id: 2, name: "gudang" }],
+          meta: { page: 1, perPage: 2, total: 2, totalPages: 1, paginated: false },
+          links: {
+            self: "/api/v1/roles?paginate=false",
+            first: "/api/v1/roles?paginate=false",
+            last: "/api/v1/roles?paginate=false",
+            next: null,
+            previous: null
+          }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+    const response = await sdk.roles.list({ paginate: false, q: "ad" });
+
+    expect(response.meta.paginated).toBe(false);
+    expect(response.data).toHaveLength(2);
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/roles?paginate=false&q=ad");
+  });
+
   it("calls the verified item-units CRUD endpoints", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ message: "Item unit created successfully.", data: { id: 1, name: "box" } }), {

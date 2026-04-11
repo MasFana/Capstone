@@ -161,6 +161,37 @@ class ItemUnitsTest extends CIUnitTestCase
         $this->assertSame('kg', $json['data'][0]['name']);
     }
 
+    public function testListItemUnitsSupportsPaginateFalseForDropdowns(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-units?paginate=false&sortBy=id&sortDir=ASC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(5, $json['data']);
+        $this->assertSame(1, $json['meta']['page']);
+        $this->assertSame(5, $json['meta']['perPage']);
+        $this->assertSame(5, $json['meta']['total']);
+        $this->assertSame(1, $json['meta']['totalPages']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertNull($json['links']['next']);
+        $this->assertNull($json['links']['previous']);
+    }
+
+    public function testListItemUnitsRejectsInvalidPaginateValue(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/item-units?paginate=invalid');
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
     public function testAdminCanCreateItemUnit(): void
     {
         $token = $this->login('admin');
