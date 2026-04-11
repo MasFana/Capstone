@@ -383,7 +383,7 @@ Supported query parameters for all lookup list endpoints:
   "data": [
     {
       "id": 1,
-      "name": "GRAM",
+      "name": "gram",
       "created_at": "2026-04-10 08:00:00",
       "updated_at": "2026-04-10 08:00:00"
     }
@@ -412,7 +412,7 @@ Supported query parameters for all lookup list endpoints:
 {
   "data": {
     "id": 1,
-    "name": "GRAM",
+      "name": "gram",
     "created_at": "2026-04-10 08:00:00",
     "updated_at": "2026-04-10 08:00:00"
   }
@@ -427,7 +427,7 @@ Supported query parameters for all lookup list endpoints:
 }
 ```
 
-Name is automatically UPPER-cased on save. Case-insensitive duplicate detection applies (e.g. `gram` and `GRAM` are considered the same name).
+Name is stored as provided. Case-insensitive duplicate detection applies (e.g. `gram` and `GRAM` are considered the same normalized name).
 
 ##### Create Response (`201`)
 
@@ -436,7 +436,7 @@ Name is automatically UPPER-cased on save. Case-insensitive duplicate detection 
   "message": "Item unit created successfully.",
   "data": {
     "id": 7,
-    "name": "GRAM",
+      "name": "gram",
     "created_at": "2026-04-10 08:00:00",
     "updated_at": "2026-04-10 08:00:00"
   }
@@ -458,7 +458,7 @@ Name is automatically UPPER-cased on save. Case-insensitive duplicate detection 
   "message": "Item unit updated successfully.",
   "data": {
     "id": 2,
-    "name": "KILOGRAM",
+      "name": "kilogram",
     "created_at": "2026-04-10 08:00:00",
     "updated_at": "2026-04-10 09:00:00"
   }
@@ -1336,8 +1336,8 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
     "name": "Beras",
     "unit_base": "gram",
     "unit_convert": "kg",
-    "satuan_base_id": 1,
-    "satuan_convert_id": 2,
+      "item_unit_base_id": 1,
+      "item_unit_convert_id": 2,
     "conversion_base": 1000,
     "qty": "0.00",
     "is_active": true,
@@ -1347,14 +1347,14 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
       "id": 2,
       "name": "KERING"
     },
-    "satuan_base": {
-      "id": 1,
-      "name": "GRAM"
-    },
-    "satuan_convert": {
-      "id": 2,
-      "name": "KG"
-    }
+      "item_unit_base": {
+        "id": 1,
+        "name": "gram"
+      },
+      "item_unit_convert": {
+        "id": 2,
+        "name": "kg"
+      }
   }
 }
 ```

@@ -428,6 +428,11 @@ Supported fields:
 - `updated_at_from`
 - `updated_at_to`
 
+Rules:
+
+- unknown lookup query parameters return `400` validation errors
+- if both `q` and `search` are sent, backend behavior gives precedence to `q`
+
 ### `items.list(query)`
 
 Supported fields:
