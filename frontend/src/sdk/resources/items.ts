@@ -83,6 +83,24 @@ export class ItemsResource {
       path: `/items/${id}`
     });
   }
+
+  /**
+   * Restores a soft-deleted item.
+   *
+   * Idempotent: if the item is already active, returns 200 with current data.
+   * Returns 400 if an active item with the same name already exists.
+   * Returns 400 if the referenced category or units are no longer active.
+   * Returns 404 if the item does not exist at all.
+   *
+   * HTTP: `PATCH /api/v1/items/{id}/restore`
+   * Access: `admin` only
+   */
+  public restore(id: number): Promise<ApiMessageDataResponse<Item>> {
+    return this.client.request<ApiMessageDataResponse<Item>>({
+      method: "PATCH",
+      path: `/items/${id}/restore`
+    });
+  }
 }
 
 function buildItemsQuery(query: ListItemsQuery): Record<string, string | number | boolean> {

@@ -67,4 +67,46 @@ describe("ItemsResource", () => {
     expect(item.item_unit_base_id).toBe(1);
     expect(item.item_unit_convert?.name).toBe("kg");
   });
+
+  it("sends PATCH to the restore endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Item restored successfully.",
+          data: {
+            id: 3,
+            item_category_id: 3,
+            name: "Minyak",
+            unit_base: "ml",
+            unit_convert: "liter",
+            item_unit_base_id: 3,
+            item_unit_convert_id: 4,
+            conversion_base: 1000,
+            qty: "0.00",
+            is_active: true,
+            created_at: "2026-04-03 11:00:00",
+            updated_at: "2026-04-03 12:00:00",
+            category: { id: 3, name: "PENGEMAS" },
+            item_unit_base: { id: 3, name: "ml" },
+            item_unit_convert: { id: 4, name: "liter" }
+          }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    const result = await sdk.items.restore(3);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/items/3/restore");
+    expect(init?.method).toBe("PATCH");
+    expect(result.message).toBe("Item restored successfully.");
+    expect(result.data.id).toBe(3);
+  });
 });

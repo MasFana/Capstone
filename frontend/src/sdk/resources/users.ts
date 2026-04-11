@@ -124,6 +124,24 @@ export class UsersResource {
       path: `/users/${id}`
     });
   }
+
+  /**
+   * Restores a soft-deleted user.
+   *
+   * Idempotent: if the user is already active, returns 200 with current data.
+   * Returns 400 if an active user with the same username already exists.
+   * Returns 400 if the assigned role is no longer active.
+   * Returns 404 if the user does not exist at all.
+   *
+   * HTTP: `PATCH /api/v1/users/{id}/restore`
+   * Access: `admin` only
+   */
+  public restore(id: number): Promise<ApiMessageDataResponse<User>> {
+    return this.client.request<ApiMessageDataResponse<User>>({
+      method: "PATCH",
+      path: `/users/${id}/restore`
+    });
+  }
 }
 
 function buildUsersQuery(query: ListUsersQuery): Record<string, string | number | boolean> {

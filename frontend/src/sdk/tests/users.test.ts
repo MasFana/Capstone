@@ -66,4 +66,40 @@ describe("UsersResource", () => {
     expect(parsedUrl.searchParams.get("created_at_from")).toBe("2026-04-01");
     expect(parsedUrl.searchParams.get("updated_at_to")).toBe("2026-04-30");
   });
+
+  it("sends PATCH to the restore endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "User restored successfully.",
+          data: {
+            id: 4,
+            role_id: 2,
+            name: "Gudang User",
+            username: "gudang1",
+            email: null,
+            is_active: true,
+            created_at: "2026-04-01 10:00:00",
+            updated_at: "2026-04-01 11:00:00",
+            role: { id: 2, name: "gudang" }
+          }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    const result = await sdk.users.restore(4);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/users/4/restore");
+    expect(init?.method).toBe("PATCH");
+    expect(result.message).toBe("User restored successfully.");
+    expect(result.data.id).toBe(4);
+  });
 });
