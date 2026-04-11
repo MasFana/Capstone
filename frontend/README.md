@@ -4,9 +4,17 @@ This folder contains the TypeScript SDK for the currently implemented Capstone b
 
 It is a typed wrapper over the CodeIgniter 4 backend under `/api/v1`, with resource modules, request/response types, typed API errors, and a small shared HTTP client.
 
+## Canonical Backend References
+
+- **Use this file for:** SDK usage, SDK resource surface, SDK request/response typing, and frontend-facing examples.
+- **Do not use this file as the canonical source for:** backend implementation status, backend schema rules, or route discovery workflow.
+- **Read next before changing SDK contracts:** `../backend/AGENTS.md`, `../backend/docs/project-flow-alignment.md`, `../backend/docs/api-design.md`, `../backend/docs/typescript-sdk-maintenance-guide.md`.
+
 ## Scope
 
 The SDK only covers the backend routes that are implemented and verified now. It does not expose planned backend modules that do not yet exist as active API routes.
+
+If you need a compact backend-side index of implemented vs planned modules, route groups, key flow rules, and permission notes before wiring new SDK surfaces, see `../backend/docs/project-flow-alignment.md` section **4.2 Compact Runtime Cross-Reference Matrix**.
 
 Implemented SDK resources:
 
@@ -322,13 +330,17 @@ await sdk.auth.login({
 | `sdk.items.create(payload)` | `POST /api/v1/items` | `admin`, `gudang` |
 | `sdk.items.update(id, payload)` | `PUT /api/v1/items/{id}` | `admin`, `gudang` |
 | `sdk.items.delete(id)` | `DELETE /api/v1/items/{id}` | `admin` only |
+| `sdk.items.restore(id)` | `PATCH /api/v1/items/{id}/restore` | `admin` only |
 
 #### Important item behavior
 
 - `qty` is backend-controlled and is **not** a writable request field
 - `unit_base` and `unit_convert` are still sent as strings on write
 - item responses also include `item_unit_base_id`, `item_unit_convert_id`, and nested `item_unit_base` / `item_unit_convert`
-- item names are still effectively permanent-unique in the current backend flow; if the same logical item should return, prefer restore/reactivation semantics at the backend/domain layer instead of creating duplicates
+- item names remain globally unique even after soft delete
+- creating an item with the name of a deleted item returns `400` with `errors.restore_id`
+- restore is explicit through `sdk.items.restore(id)` and is idempotent when the item is already active
+- restore also returns `400` if the item's category or units are no longer active
 
 #### Example item response shape
 
@@ -379,6 +391,7 @@ await sdk.auth.login({
 - list filters support `type_id`, `status_id`, `transaction_date_from/to`, `created_at_from/to`, `updated_at_from/to`
 - create supports `type_id` or `type_name`
 - detail rows still use `item_id`; there is no item-name write shortcut in transaction details
+- there is intentionally no `sdk.stockTransactions.delete()` method because the backend exposes no delete route for stock transactions
 
 ### `users`
 
@@ -392,6 +405,7 @@ await sdk.auth.login({
 | `sdk.users.deactivate(id)` | `PATCH /api/v1/users/{id}/deactivate` | `admin` only |
 | `sdk.users.changePassword(id, payload)` | `PATCH /api/v1/users/{id}/password` | `admin` only |
 | `sdk.users.delete(id)` | `DELETE /api/v1/users/{id}` | `admin` only |
+| `sdk.users.restore(id)` | `PATCH /api/v1/users/{id}/restore` | `admin` only |
 
 #### Important user behavior
 
@@ -399,6 +413,9 @@ await sdk.auth.login({
 - `is_active` controls application-level activation status
 - soft delete revokes access tokens and makes the user effectively absent from active reads/mutations
 - create/update accept `role_id` or `role_name`
+- creating a user with the username of a deleted user returns `400` with `errors.restore_id`
+- restore is explicit through `sdk.users.restore(id)` and is idempotent when the user is already active
+- restore also returns `400` if the user's assigned role is no longer active
 
 ## List query reference
 
@@ -630,14 +647,15 @@ await sdk.stockTransactions.approve(revision.data.id);
 
 Do not update the SDK by guessing from one controller or one doc.
 
-Use this backend discovery workflow:
+Use the canonical backend discovery workflow in `../backend/AGENTS.md` and the deeper maintenance checklist in `../backend/docs/typescript-sdk-maintenance-guide.md`.
 
-1. start from `../backend/app/Config/Routes.php`
-2. compare with `../backend/docs/api-design.md`
-3. read the matching controllers
-4. read supporting services/models/config where they affect validation, response shape, auth, filters, and lookup behavior
-5. read backend feature tests as executable contract evidence
-6. then update SDK source, tests, and rebuild `dist/`
+Minimal SDK update read order:
+
+1. `../backend/AGENTS.md`
+2. `../backend/docs/project-flow-alignment.md`
+3. `../backend/docs/api-design.md`
+4. matching backend code and feature tests
+5. SDK source, SDK tests, then rebuild `dist/`
 
 Supporting references:
 

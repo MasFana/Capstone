@@ -199,4 +199,10 @@ describe("StockTransactionsResource", () => {
     expect(body.details[0].qty).toBe(4);
     expect(body.details[0].input_unit).toBe("convert");
   });
+
+  it("does not expose a delete method on the StockTransactionsResource", () => {
+    const sdk = new CapstoneSdk({});
+
+    expect("delete" in sdk.stockTransactions).toBe(false);
+  });
 });
