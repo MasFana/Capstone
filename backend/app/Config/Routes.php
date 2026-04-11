@@ -64,6 +64,14 @@ $routes->group(
             "item-units/(:num)/restore",
             static fn() => service("response")->setStatusCode(204),
         );
+        $routes->options(
+            "items/(:num)/restore",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "users/(:num)/restore",
+            static fn() => service("response")->setStatusCode(204),
+        );
 
         if (ENVIRONMENT === "testing") {
             $routes->get(
@@ -210,6 +218,8 @@ $routes->group(
                 );
                 $routes->delete("users/(:num)", 'Users::delete/$1');
                 $routes->delete("items/(:num)", 'Items::delete/$1');
+                $routes->patch("items/(:num)/restore", 'Items::restore/$1');
+                $routes->patch("users/(:num)/restore", 'Users::restore/$1');
             });
         });
     },
