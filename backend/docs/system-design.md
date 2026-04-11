@@ -1,5 +1,12 @@
 # System Design — Sistem Informasi Manajemen Gudang dan SPK Instalasi Gizi RSD Balung
 
+## Quick Router
+
+- **Canonical for:** target architecture, domain boundaries, actor responsibilities, and future-state module design.
+- **Read this when:** you are reasoning about planned modules, workflow design, or architectural direction beyond the currently active routes.
+- **Read next:** `docs/project-flow-alignment.md` for current runtime status and `docs/api-design.md` for live route contracts.
+- **Not canonical for:** deciding whether an endpoint is already implemented right now.
+
 ## 1. Overview
 
 Dokumen ini merangkum desain sistem berdasarkan SRS dan diselaraskan dengan DB diagram terbaru untuk **Sistem Informasi Manajemen Gudang dan Pengambilan Keputusan (SPK) Instalasi Gizi RSD Balung**.
@@ -11,6 +18,8 @@ Baseline desain yang dipakai:
 - **Architecture style**: Modular monolith
 - **API style**: RESTful API dengan endpoint workflow untuk proses operasional
 - **Primary users**: admin, dapur, gudang
+
+Untuk ringkasan cepat modul yang sudah implemented vs planned beserta surface API runtime dan aturan aksesnya, lihat `docs/project-flow-alignment.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**. Dokumen ini tetap menjadi referensi desain target sistem.
 
 Sistem ini adalah aplikasi internal rumah sakit untuk mengelola inventaris bahan makanan, siklus menu, input pasien harian, transaksi stok, rekomendasi belanja berbasis SPK, audit log, dan pelaporan.
 

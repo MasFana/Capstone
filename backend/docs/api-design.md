@@ -1,5 +1,12 @@
 # API Design — Sistem Informasi Manajemen Gudang dan SPK Instalasi Gizi RSD Balung
 
+## Quick Router
+
+- **Canonical for:** active runtime API contract, implemented-vs-planned endpoint inventory, and request/response behavior.
+- **Read this when:** you are implementing or consuming a live backend endpoint or SDK surface.
+- **Read next:** `docs/project-flow-alignment.md` for the compact module/status index and `docs/data-dictionary.md` for schema-backed rules.
+- **Not canonical for:** target architecture decisions for modules that are still planned.
+
 ## 1. Overview
 
 Dokumen ini mendefinisikan rancangan API untuk backend **CodeIgniter 4 + MySQL** yang sudah diselaraskan dengan DB diagram terbaru.
@@ -14,6 +21,8 @@ Source of truth untuk endpoint yang sudah berjalan adalah:
 - `app/Config/Routes.php`
 - controller di `app/Controllers/Api/V1/`
 - feature tests di `tests/feature/Api/V1/`
+
+Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `docs/project-flow-alignment.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
 
 ## 2. API Principles
 
@@ -67,16 +76,11 @@ Source of truth untuk endpoint yang sudah berjalan adalah:
 }
 ```
 
-## 4. Authentication & Access Endpoints
+## 4. Authentication Notes
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/v1/auth/login` | Login user with `username` and `password`, returns Bearer token |
-| POST | `/api/v1/auth/logout` | Logout current Bearer token |
-| GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
-| GET | `/api/v1/roles` | List roles (paginated), restricted to `admin` via role filter |
+Authentication runtime contract is documented in the implemented API surface under **5.1 Authentication & Access Endpoints**. Bagian ini hanya menyimpan contoh login dan format auth header yang dipakai lintas endpoint.
 
-### 4.1 Login Contract
+### 4.1 Login Example
 
 #### Request
 
@@ -489,6 +493,7 @@ All user management endpoints are restricted to users with the `admin` role.
 | PATCH | `/api/v1/users/{id}/deactivate` | Deactivate user account (blocks login) |
 | PATCH | `/api/v1/users/{id}/password` | Change user password (revokes all tokens) |
 | DELETE | `/api/v1/users/{id}` | Soft delete user (revokes all tokens) |
+| PATCH | `/api/v1/users/{id}/restore` | Restore soft-deleted user |
 
 #### 5.3.1 List Users
 
@@ -673,6 +678,30 @@ Soft deletes the user and revokes all their access tokens. The user cannot log i
 }
 ```
 
+#### 5.3.7 Restore User
+
+Restores a soft-deleted user. Only `admin` can call this endpoint.
+
+- If the user is already active, returns `200` with current data (idempotent).
+- If an active user with the same username already exists, returns `400` with a `username` error.
+- If the user's assigned role is no longer active, returns `400` with a `role_id` error.
+- If the user does not exist at all, returns `404`.
+
+Creating a new user with the username of a deleted user returns `400` with `errors.restore_id` pointing to the deleted user's ID.
+
+#### Response
+
+```json
+{
+  "message": "User restored successfully.",
+  "data": {
+    "id": 4,
+    "username": "newuser",
+    ...
+  }
+}
+```
+
 ### 5.4 Item Endpoints
 
 Phase 1 item management covers item master CRUD only. `qty` is read-only in this module and stock-related behavior stays in inventory transaction flows.
@@ -684,11 +713,12 @@ Phase 1 item management covers item master CRUD only. `qty` is read-only in this
 | GET | `/api/v1/items/{id}` | Get item detail |
 | PUT | `/api/v1/items/{id}` | Partial update item |
 | DELETE | `/api/v1/items/{id}` | Soft delete item |
+| PATCH | `/api/v1/items/{id}/restore` | Restore soft-deleted item |
 
 #### 5.4.1 Access Rules
 
 - `admin` and `gudang` can list, create, view, and update items.
-- `admin` only can soft delete items.
+- `admin` only can soft delete or restore items.
 - `dapur` has no access to item master management.
 
 #### 5.4.2 List Items
@@ -947,11 +977,77 @@ Unit resolution contract:
 - `item_category_id` must reference an existing category.
 - `item_category_name` may be used instead of `item_category_id` and resolves to the same lookup table.
 - `unit_base` and `unit_convert` must resolve to existing, active (non-deleted) `item_units` rows; soft-deleted item units are rejected with a `400` error.
-- `name` must be unique among active rows.
-- if a deleted row already owns the same normalized name, create returns `400` with a restore-focused validation error and `restore_id`.
-- Missing or soft-deleted items return `404`.
+- `name` must be globally unique across both active and deleted rows; if an active row owns the name, create/update returns `400` with a `name` error.
+- if a deleted row already owns the same name, create returns `400` with `errors.restore_id` pointing to the deleted item's ID and a restore-guidance message.
+- Missing or soft-deleted items return `404` for all show/update/delete operations.
 
-#### 5.4.8 Deferred From Item Module
+#### 5.4.8 Restore Item
+
+Restores a soft-deleted item. Only `admin` can call this endpoint.
+
+- If the item is already active, returns `200` with current data (idempotent).
+- If an active item with the same name already exists, returns `400` with a `name` error.
+- If the referenced category is no longer active, returns `400` with an `item_category_id` error.
+- If the referenced base or converted unit is no longer active, returns `400` with a `unit_base` or `unit_convert` error.
+- If the item does not exist at all, returns `404`.
+
+Creating a new item with the name of a deleted item returns `400` with `errors.restore_id` pointing to the deleted item's ID.
+
+#### Response (restored)
+
+```json
+{
+  "message": "Item restored successfully.",
+  "data": {
+    "id": 3,
+    "item_category_id": 3,
+    "name": "Minyak",
+    "unit_base": "ml",
+    "unit_convert": "liter",
+    "item_unit_base_id": 3,
+    "item_unit_convert_id": 4,
+    "conversion_base": 1000,
+    "qty": "0.00",
+    "is_active": true,
+    "created_at": "2026-04-03 11:00:00",
+    "updated_at": "2026-04-03 12:00:00",
+    "category": {
+      "id": 3,
+      "name": "PENGEMAS"
+    },
+    "item_unit_base": {
+      "id": 3,
+      "name": "ml"
+    },
+    "item_unit_convert": {
+      "id": 4,
+      "name": "liter"
+    }
+  }
+}
+```
+
+#### Response (already active — idempotent 200)
+
+```json
+{
+  "message": "Item restored successfully.",
+  "data": { ... }
+}
+```
+
+#### Response (active duplicate name — 400)
+
+```json
+{
+  "message": "Validation failed.",
+  "errors": {
+    "name": "Cannot restore: an active item with this name already exists."
+  }
+}
+```
+
+#### 5.4.9 Deferred From Item Module
 
 - `GET /api/v1/items/{id}/stock-summary`
 - stock usage locking rules
@@ -972,6 +1068,7 @@ Unit resolution contract:
 
 - `admin` dan `gudang` dapat mengakses endpoint transaksi stok Milestone 1.
 - `dapur` tidak memiliki akses ke endpoint transaksi stok.
+- Stock transactions intentionally have **no DELETE route**. Transactions are permanent audit records and cannot be soft-deleted or hard-deleted through the API. Any DELETE request to `/api/v1/stock-transactions/{id}` returns `404`.
 
 #### 5.5.3 List Stock Transactions
 
@@ -1312,52 +1409,7 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 ### 7.1 Create Item
 
-#### Request
-
-```json
-{
-  "name": "Beras",
-  "item_category_id": 2,
-  "unit_base": "gram",
-  "unit_convert": "kg",
-  "conversion_base": 1000,
-  "is_active": true
-}
-```
-
-#### Response
-
-```json
-{
-  "message": "Item created successfully.",
-  "data": {
-    "id": 1,
-    "item_category_id": 2,
-    "name": "Beras",
-    "unit_base": "gram",
-    "unit_convert": "kg",
-      "item_unit_base_id": 1,
-      "item_unit_convert_id": 2,
-    "conversion_base": 1000,
-    "qty": "0.00",
-    "is_active": true,
-    "created_at": "2026-04-03 11:00:00",
-    "updated_at": "2026-04-03 11:00:00",
-    "category": {
-      "id": 2,
-      "name": "KERING"
-    },
-      "item_unit_base": {
-        "id": 1,
-        "name": "gram"
-      },
-      "item_unit_convert": {
-        "id": 2,
-        "name": "kg"
-      }
-  }
-}
-```
+Kontrak request/response untuk create item mengikuti bagian **5.4.3 Create Item** di atas.
 
 ### 7.2 Create Stock Transaction
 

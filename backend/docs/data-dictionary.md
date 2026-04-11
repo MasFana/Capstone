@@ -1,5 +1,12 @@
 # Data Dictionary — Sistem Informasi Manajemen Gudang dan SPK Instalasi Gizi RSD Balung
 
+## Quick Router
+
+- **Canonical for:** schema structure, foreign keys, uniqueness, soft delete behavior, and persistence constraints.
+- **Read this when:** you are changing migrations, models, lookup rules, or database-backed invariants.
+- **Read next:** `docs/api-design.md` for request/response contract details and `docs/project-flow-alignment.md` for compact runtime status.
+- **Not canonical for:** full endpoint behavior, access rules per route, or planned module contracts.
+
 ## 1. Overview
 
 Dokumen ini mendefinisikan data dictionary berdasarkan DB diagram terbaru untuk backend **CodeIgniter 4 + MySQL**.
@@ -83,11 +90,7 @@ Catatan implementasi:
 - Jika nama yang sama hanya ada pada row yang sudah soft-deleted, create akan ditolak dan admin harus memanggil restore endpoint untuk mengaktifkan kembali row lama.
 - Implementasi schema memakai generated column `name_active_lookup` + unique index agar aturan active-only uniqueness kompatibel dengan MariaDB/MySQL, sedangkan perilaku soft delete/restore tetap didefinisikan di model CI4.
 
-Catatan implementasi lookup saat ini:
-
-- endpoint write yang menerima `role_name`, `item_category_name`, dan `type_name` melakukan lookup ke tabel referensi terkait dengan pencocokan trimmed dan case-insensitive;
-- contract tersebut saat ini berlaku untuk create/update user, create/update item, dan create stock transaction;
-- lookup detail transaksi stok masih tetap menggunakan `item_id`, bukan `item` by name.
+Catatan kontrak runtime terkait lookup-by-name dan endpoint write tidak menjadi source utama dokumen ini. Untuk perilaku request/response yang aktif saat ini, lihat `docs/api-design.md` dan gunakan file ini untuk aspek schema, FK, dan constraint-nya.
 
 ## 3. Master Data & Users
 

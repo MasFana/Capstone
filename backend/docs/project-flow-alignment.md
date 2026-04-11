@@ -1,5 +1,12 @@
 # Project Flow Alignment and Revised Class Diagram
 
+## Quick Router
+
+- **Canonical for:** compact runtime status index across modules, flow summary, and cross-doc navigation.
+- **Read this when:** you need the fastest answer for what is implemented vs planned and which detailed doc to open next.
+- **Read next:** `docs/api-design.md` for endpoint contracts, `docs/data-dictionary.md` for schema/constraints, `docs/system-design.md` for target design.
+- **Not canonical for:** full request/response payload detail or field-by-field schema definitions.
+
 ## 1. Purpose
 
 Dokumen ini menyelaraskan class diagram usulan dengan implementasi backend yang benar-benar ada saat ini.
@@ -87,6 +94,7 @@ Contoh:
 - `App\Controllers\Api\V1\Users`
 - `App\Controllers\Api\V1\Roles`
 - `App\Controllers\Api\V1\ItemCategories`
+- `App\Controllers\Api\V1\ItemUnits`
 - `App\Controllers\Api\V1\TransactionTypes`
 - `App\Controllers\Api\V1\ApprovalStatuses`
 
@@ -115,6 +123,7 @@ Model saat ini terutama menangani persistence dan query helper, misalnya:
 
 - `ItemModel`
 - `ItemCategoryModel`
+- `ItemUnitModel`
 - `StockTransactionModel`
 - `StockTransactionDetailModel`
 - `TransactionTypeModel`
@@ -132,19 +141,46 @@ Model saat ini terutama menangani persistence dan query helper, misalnya:
 
 ## 4. Module Status After Code Review
 
+### 4.1 Module Status Summary
+
 | Module | Current Status | Notes |
 |---|---|---|
 | Auth | Implemented | Login, me, logout, dan self-service change password sudah aktif |
 | Roles | Implemented | `GET /api/v1/roles` aktif |
 | Users | Implemented | CRUD + activate/deactivate/password flow aktif |
+| Lookup APIs | Partial | `roles`, `item-categories`, `transaction-types`, `approval-statuses`, dan `item-units` aktif; `meal-times` masih belum punya endpoint publik |
 | Items | Implemented | CRUD aktif, `qty` tidak boleh diubah langsung |
 | Stock Transactions | Implemented | Create/list/show/details/revision/approve/reject aktif |
-| Item Categories / Lookup APIs | Partial | `item-categories`, `transaction-types`, dan `approval-statuses` aktif; `meal-times` masih belum punya endpoint publik |
 | Dashboard | Planned | belum ada route aktif |
 | Menu & Nutrition | Planned | belum ada route aktif |
 | Daily Patients | Planned | belum ada route aktif |
 | SPK Calculations | Planned | belum ada route aktif; saat ini hanya ada `spk_id` pada transaksi stok |
 | Audit Reporting / Export | Planned | audit logging internal sudah ada, endpoint report belum ada |
+
+### 4.2 Compact Runtime Cross-Reference Matrix
+
+Matriks ini adalah indeks cepat lintas dokumen. Gunakan tabel ini untuk menjawab pertanyaan “fitur ini statusnya apa, route aktifnya apa, flow utamanya apa, query/request pentingnya apa, siapa yang boleh akses, dan detailnya harus baca dokumen mana?”.
+
+| Feature / Module | Runtime Status | API Surface | Key Flow / State Rules | Request / Query Summary | Access / Permission | Canonical Backend Docs |
+|---|---|---|---|---|---|---|
+| Auth | Implemented | `/auth/login`, `/auth/me`, `/auth/logout`, `/auth/password` | Login berbasis token Shield; self-service password change revoke semua token user | Login pakai `username` + `password`; password change butuh current password | `login` public; sisanya authenticated user | `docs/api-design.md`, `docs/system-design.md` |
+| Roles | Implemented | `GET /roles` | Read-only lookup pada implemented baseline | List mendukung query lookup standar | `admin` only | `docs/api-design.md`, `docs/system-design.md`, `docs/typescript-sdk-maintenance-guide.md` |
+| Users | Implemented | `/users`, `/users/{id}`, `/users/{id}/activate`, `/deactivate`, `/password`, `/users/{id}/restore` | Soft delete revoke token; activate/deactivate mengontrol login; role resolution bisa by id atau by name; restore bersifat idempotent, blok jika ada active-username duplikat; `username` unik secara global bahkan setelah soft delete | List mendukung `q/search`, `role_id`, `is_active`, sort, created/updated date range | `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
+| Lookup APIs | Partial | `/item-categories`, `/item-units`, `/transaction-types`, `/approval-statuses`; `meal-times` masih planned | Lookup soft delete tidak muncul di list/show; `item-categories` dan `item-units` pakai explicit restore; delete lookup tertentu diblok jika masih direferensikan | Semua lookup list mendukung `paginate=false`, `q/search`, sort, created/updated date range; envelope tetap `data/meta/links` | Read: `admin`, `gudang`; write untuk `item-categories` dan `item-units`: `admin` only; `roles` list: `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
+| Items | Implemented | `/items`, `/items/{id}`, `/items/{id}/restore` | `qty` tidak boleh diedit langsung; unit write pakai nama lalu di-resolve ke FK `item_unit_*`; delete bersifat soft delete; restore bersifat idempotent, blok jika ada active-name duplikat; `name` unik secara global bahkan setelah soft delete; create/update mengembalikan `restore_id` jika nama milik deleted item | List mendukung `item_category_id`, `is_active`, `q/search`, sort, created/updated date range; create/update menerima `item_category_id` atau `item_category_name` | Read/write: `admin`, `gudang`; delete/restore: `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
+| Stock Transactions | Implemented | `/stock-transactions`, `/stock-transactions/{id}`, `/details`, `/submit-revision`, `/approve`, `/reject` | Transaksi stok adalah satu-satunya jalur mutasi stok; revision workflow submit/approve/reject adalah domain flow inti; audit logging aktif; **tidak ada DELETE route** — transaksi adalah audit record permanen | List mendukung `type_id`, `status_id`, `transaction_date_from/to`, `q/search`, sort, created/updated date range; create bisa `type_id` atau `type_name` | Read/write dasar: `admin`, `gudang`; approve/reject: `admin` only | `docs/api-design.md`, `docs/system-design.md` |
+| Dashboard | Planned | belum ada route aktif | Akan menjadi agregasi role-based summary | Query belum finalized | target: `admin`, `dapur`, `gudang` menurut desain | `docs/system-design.md`, `docs/use-case-diagram.md` |
+| Menu & Nutrition | Planned | belum ada route aktif (`menus`, `menu-schedules`, `dishes`, `menu-dishes`, `dish-compositions`) | Akan menangani siklus menu, dish, dan komposisi bahan | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
+| Daily Patients | Planned | belum ada route aktif (`daily-patients`) | Akan menjadi input pasien harian untuk kebutuhan operasional/SPK | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
+| SPK Calculations | Planned | belum ada route aktif (`spk-calculations`) | Generate/finalize SPK masih desain; saat ini hanya ada `spk_id` pada transaksi stok | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
+| Audit Reporting / Export | Planned | belum ada route aktif (`audit-logs`, `dashboard`, `reports/*`) | Audit log internal sudah ada, tetapi endpoint baca/export belum aktif | Query/report filters masih desain, belum runtime | target utama: admin untuk audit; reporting/export masih desain | `docs/api-design.md`, `docs/system-design.md` |
+
+Catatan penggunaan tabel:
+
+- kolom **Runtime Status** mengikuti route aktif yang benar-benar ada sekarang;
+- kolom **API Surface** bersifat ringkas, bukan pengganti kontrak endpoint detail;
+- kolom **Key Flow / State Rules** hanya merangkum aturan domain yang paling penting untuk orientasi cepat;
+- kolom **Canonical Backend Docs** menunjukkan dokumen backend yang harus dibuka untuk detail kontrak, skema, atau desain target.
 
 ## 5. Revised Class Diagram — Current Implemented Architecture
 
@@ -168,10 +204,13 @@ classDiagram
             +/api/v1/auth/*
             +/api/v1/roles
             +/api/v1/item-categories
+            +/api/v1/item-units
             +/api/v1/transaction-types
             +/api/v1/approval-statuses
             +/api/v1/users/*
+            +/api/v1/users/{id}/restore
             +/api/v1/items/*
+            +/api/v1/items/{id}/restore
             +/api/v1/stock-transactions/*
         }
 
@@ -230,6 +269,7 @@ classDiagram
             +deactivate(id)
             +changePassword(id)
             +delete(id)
+            +restore(id)
         }
 
         class ItemsController {
@@ -239,6 +279,7 @@ classDiagram
             +create()
             +update(id)
             +delete(id)
+            +restore(id)
         }
 
         class StockTransactionsController {
@@ -269,6 +310,7 @@ classDiagram
             +updateUser(id, data)
             +changePassword(id, data)
             +deleteUser(id)
+            +restoreUser(id)
         }
 
         class ItemManagementService {
@@ -278,6 +320,7 @@ classDiagram
             +createItem(data)
             +updateItem(id, data)
             +deleteItem(id)
+            +restoreItem(id)
         }
 
         class StockTransactionService {
