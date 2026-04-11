@@ -75,7 +75,7 @@ class Users extends BaseController
 
         $rules = [
             'name'     => 'required|max_length[255]',
-            'username' => 'required|max_length[100]|is_unique[users.username]',
+            'username' => 'required|max_length[100]',
             'password' => 'required|min_length[8]',
             'email'    => 'permit_empty|valid_email|max_length[255]',
         ];
@@ -158,7 +158,7 @@ class Users extends BaseController
         }
 
         if (array_key_exists('username', $data)) {
-            $rules['username'] = 'required|max_length[100]|is_unique[users.username,id,{id}]';
+            $rules['username'] = 'required|max_length[100]';
         }
 
         if (!$this->validateData($validationData, $rules)) {
@@ -291,6 +291,33 @@ class Users extends BaseController
             ->setStatusCode(200)
             ->setJSON([
                 'message' => $result['message'],
+            ]);
+    }
+
+    public function restore(int $id): ResponseInterface
+    {
+        $result = $this->userService->restoreUser($id);
+
+        if (!$result['success']) {
+            $statusCode = match ($result['message']) {
+                'User not found.' => 404,
+                'Failed to restore user.' => 422,
+                default => 400,
+            };
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => 'User restored successfully.',
+                'data'    => $result['user'],
             ]);
     }
 

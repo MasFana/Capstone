@@ -34,6 +34,37 @@ class AppUserProvider extends ShieldUserModel
         return $user;
     }
 
+    public function findByUsernameIncludingDeleted(string $username): ?User
+    {
+        $user = $this->withDeleted()
+                     ->where('username', $username)
+                     ->first();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    public function usernameExists(string $username, ?int $exceptId = null, bool $includeDeleted = true): bool
+    {
+        $builder = $includeDeleted ? $this->withDeleted() : $this;
+        $builder = $builder->where('username', $username);
+
+        if ($exceptId !== null) {
+            $builder = $builder->where('id !=', $exceptId);
+        }
+
+        return $builder->first() !== null;
+    }
+
+    public function restore(int $id): bool
+    {
+        return $this->builder()
+            ->where('id', $id)
+            ->update([
+                'deleted_at' => null,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+    }
+
     public function findById($id): ?User
     {
         $user = $this->find($id);

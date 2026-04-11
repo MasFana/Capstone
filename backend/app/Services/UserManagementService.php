@@ -132,6 +132,28 @@ class UserManagementService
             ];
         }
 
+        // Check for active-username duplicate
+        if ($this->userProvider->usernameExists($data['username'], null, false)) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['username' => 'The username has already been taken.'],
+            ];
+        }
+
+        // Check for deleted-username collision
+        $deletedMatch = $this->userProvider->findByUsernameIncludingDeleted($data['username']);
+        if ($deletedMatch !== null && $deletedMatch->deleted_at !== null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'username'   => 'The username belongs to a deleted user. Restore it instead.',
+                    'restore_id' => (string) $deletedMatch->id,
+                ],
+            ];
+        }
+
         $userData = [
             'role_id'   => $data['role_id'],
             'name'      => $data['name'],
@@ -213,7 +235,31 @@ class UserManagementService
             $updateData['name'] = $data['name'];
         }
         if (isset($data['username'])) {
-            $updateData['username'] = $data['username'];
+            $newUsername = $data['username'];
+
+            // Check for active-username duplicate (excluding self)
+            if ($this->userProvider->usernameExists($newUsername, $id, false)) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => ['username' => 'The username has already been taken.'],
+                ];
+            }
+
+            // Check for deleted-username collision (excluding self)
+            $deletedMatch = $this->userProvider->findByUsernameIncludingDeleted($newUsername);
+            if ($deletedMatch !== null && $deletedMatch->deleted_at !== null && (int) $deletedMatch->id !== $id) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'username'   => 'The username belongs to a deleted user. Restore it instead.',
+                        'restore_id' => (string) $deletedMatch->id,
+                    ],
+                ];
+            }
+
+            $updateData['username'] = $newUsername;
         }
         if (isset($data['email'])) {
             $updateData['email'] = $data['email'];
@@ -380,6 +426,59 @@ class UserManagementService
         return [
             'success' => true,
             'message' => 'User deleted successfully.',
+        ];
+    }
+
+    public function restoreUser(int $id): array
+    {
+        $user = $this->userProvider->findByIdIncludingDeleted($id);
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'User not found.',
+            ];
+        }
+
+        // Already active — idempotent: return current data
+        if ($user->deleted_at === null) {
+            $current = $this->getUserById($id);
+            return [
+                'success' => true,
+                'user'    => $current,
+            ];
+        }
+
+        $role = $this->roleModel->find((int) $user->role_id);
+        if (! is_array($role)) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['role_id' => 'Cannot restore: the assigned role is no longer active.'],
+            ];
+        }
+
+        // Active duplicate username exists → block restore
+        if ($this->userProvider->usernameExists((string) $user->username, $id, false)) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['username' => 'Cannot restore: an active user with this username already exists.'],
+            ];
+        }
+
+        if (!$this->userProvider->restore($id)) {
+            return [
+                'success' => false,
+                'message' => 'Failed to restore user.',
+            ];
+        }
+
+        $restoredUser = $this->getUserById($id);
+
+        return [
+            'success' => true,
+            'user'    => $restoredUser,
         ];
     }
 
