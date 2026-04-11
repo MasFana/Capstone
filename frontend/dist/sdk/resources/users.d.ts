@@ -62,4 +62,16 @@ export declare class UsersResource {
      * Access: `admin` only
      */
     delete(id: number): Promise<ApiMessageResponse>;
+    /**
+     * Restores a soft-deleted user.
+     *
+     * Idempotent: if the user is already active, returns 200 with current data.
+     * Returns 400 if an active user with the same username already exists.
+     * Returns 400 if the assigned role is no longer active.
+     * Returns 404 if the user does not exist at all.
+     *
+     * HTTP: `PATCH /api/v1/users/{id}/restore`
+     * Access: `admin` only
+     */
+    restore(id: number): Promise<ApiMessageDataResponse<User>>;
 }

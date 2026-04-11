@@ -41,4 +41,16 @@ export declare class ItemsResource {
      * Access: `admin` only
      */
     delete(id: number): Promise<ApiMessageResponse>;
+    /**
+     * Restores a soft-deleted item.
+     *
+     * Idempotent: if the item is already active, returns 200 with current data.
+     * Returns 400 if an active item with the same name already exists.
+     * Returns 400 if the referenced category or units are no longer active.
+     * Returns 404 if the item does not exist at all.
+     *
+     * HTTP: `PATCH /api/v1/items/{id}/restore`
+     * Access: `admin` only
+     */
+    restore(id: number): Promise<ApiMessageDataResponse<Item>>;
 }

@@ -358,6 +358,23 @@ var ItemsResource = class {
       path: `/items/${id}`
     });
   }
+  /**
+   * Restores a soft-deleted item.
+   *
+   * Idempotent: if the item is already active, returns 200 with current data.
+   * Returns 400 if an active item with the same name already exists.
+   * Returns 400 if the referenced category or units are no longer active.
+   * Returns 404 if the item does not exist at all.
+   *
+   * HTTP: `PATCH /api/v1/items/{id}/restore`
+   * Access: `admin` only
+   */
+  restore(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/items/${id}/restore`
+    });
+  }
 };
 function buildItemsQuery(query) {
   const result = {};
@@ -749,6 +766,23 @@ var UsersResource = class {
     return this.client.request({
       method: "DELETE",
       path: `/users/${id}`
+    });
+  }
+  /**
+   * Restores a soft-deleted user.
+   *
+   * Idempotent: if the user is already active, returns 200 with current data.
+   * Returns 400 if an active user with the same username already exists.
+   * Returns 400 if the assigned role is no longer active.
+   * Returns 404 if the user does not exist at all.
+   *
+   * HTTP: `PATCH /api/v1/users/{id}/restore`
+   * Access: `admin` only
+   */
+  restore(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/users/${id}/restore`
     });
   }
 };
