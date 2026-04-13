@@ -572,6 +572,22 @@ var StockTransactionsResource = class {
     });
   }
   /**
+   * Applies a direct stock correction for a single item.
+   *
+   * The system derives the mutation type (IN/OUT) and applies the correction
+   * to the item's stock level.
+   *
+   * HTTP: `POST /api/v1/stock-transactions/direct-corrections`
+   * Access: `admin` only
+   */
+  directCorrection(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/stock-transactions/direct-corrections",
+      body: payload
+    });
+  }
+  /**
    * Submits a revision for an existing transaction.
    *
    * HTTP: `POST /api/v1/stock-transactions/{id}/submit-revision`
@@ -586,6 +602,10 @@ var StockTransactionsResource = class {
   }
   /**
    * Approves a revision transaction.
+   *
+   * The backend applies the approved revision as a correction against the
+   * parent transaction's stock effect, not as an additional standalone stock
+   * movement.
    *
    * HTTP: `POST /api/v1/stock-transactions/{id}/approve`
    * Access: `admin` only

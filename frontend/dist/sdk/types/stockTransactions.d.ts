@@ -11,6 +11,7 @@ export interface StockTransaction {
     approved_by: number | null;
     user_id: number;
     spk_id: number | null;
+    reason: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -57,6 +58,13 @@ export interface SubmitRevisionRequest {
     transaction_date: string;
     spk_id?: number | null;
     details: StockTransactionDetailInput[];
+}
+export interface DirectStockCorrectionRequest {
+    transaction_date: string;
+    item_id: number;
+    expected_current_qty: number;
+    target_qty: number;
+    reason: string;
 }
 export interface StockTransactionCreateResult {
     id: number;
