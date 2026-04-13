@@ -381,6 +381,7 @@ await sdk.auth.login({
 | `sdk.stockTransactions.get(id)` | `GET /api/v1/stock-transactions/{id}` | `admin`, `gudang` |
 | `sdk.stockTransactions.details(id)` | `GET /api/v1/stock-transactions/{id}/details` | `admin`, `gudang` |
 | `sdk.stockTransactions.create(payload)` | `POST /api/v1/stock-transactions` | `admin`, `gudang` |
+| `sdk.stockTransactions.directCorrection(payload)` | `POST /api/v1/stock-transactions/direct-corrections` | `admin` only |
 | `sdk.stockTransactions.submitRevision(id, payload)` | `POST /api/v1/stock-transactions/{id}/submit-revision` | `admin`, `gudang` |
 | `sdk.stockTransactions.approve(id)` | `POST /api/v1/stock-transactions/{id}/approve` | `admin` only |
 | `sdk.stockTransactions.reject(id)` | `POST /api/v1/stock-transactions/{id}/reject` | `admin` only |
@@ -390,6 +391,10 @@ await sdk.auth.login({
 - list search uses `q` / `search` against `spk_id`
 - list filters support `type_id`, `status_id`, `transaction_date_from/to`, `created_at_from/to`, `updated_at_from/to`
 - create supports `type_id` or `type_name`
+- direct correction is admin-only and requires `item_id`, `expected_current_qty`, `target_qty`, and `reason`
+- direct correction is stored as a normal stock transaction (not a revision), with the server deriving whether the adjustment is `IN` or `OUT`
+- submit revision only creates a pending child revision; it does not change stock immediately
+- approve revision applies the revision as a **net correction** against the parent transaction's stock effect, not as a second additive stock movement
 - detail rows still use `item_id`; there is no item-name write shortcut in transaction details
 - there is intentionally no `sdk.stockTransactions.delete()` method because the backend exposes no delete route for stock transactions
 
@@ -620,6 +625,15 @@ const created = await sdk.stockTransactions.create({
   ]
 });
 
+// Admin direct stock correction example
+await sdk.stockTransactions.directCorrection({
+  transaction_date: "2026-04-20",
+  item_id: 1,
+  expected_current_qty: 5000,
+  target_qty: 4800,
+  reason: "Found 200g damaged during audit"
+});
+
 const revision = await sdk.stockTransactions.submitRevision(created.data.id, {
   transaction_date: "2026-04-19",
   spk_id: 12345,
@@ -634,6 +648,21 @@ const revision = await sdk.stockTransactions.submitRevision(created.data.id, {
 
 await sdk.stockTransactions.approve(revision.data.id);
 ```
+
+
+### Direct stock correction workflow
+
+```ts
+await sdk.stockTransactions.directCorrection({
+  transaction_date: "2026-04-20",
+  item_id: 1,
+  expected_current_qty: 5000,
+  target_qty: 4800,
+  reason: "Found 200g damaged during audit"
+});
+```
+
+In the workflow above, approval corrects the parent transaction's stock effect based on the difference between the parent details and the revision details. It does not replay the revision quantities as an additional standalone movement.
 
 ## Design rules kept by the SDK
 

@@ -31,6 +31,63 @@ describe("StockTransactionsResource", () => {
     expect(init?.method).toBe("POST");
   });
 
+  it("posts direct correction payloads to the direct-corrections endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Direct stock correction applied successfully.",
+          data: { id: 15, approval_status_id: 1, is_revision: false }
+        }),
+        {
+          status: 201,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    await sdk.stockTransactions.directCorrection({
+      transaction_date: "2026-04-13",
+      item_id: 1,
+      expected_current_qty: 5000,
+      target_qty: 4800,
+      reason: "Damaged goods found during physical count"
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/stock-transactions/direct-corrections");
+    expect(init?.method).toBe("POST");
+    const body = JSON.parse(init?.body as string);
+    expect(body.expected_current_qty).toBe(5000);
+    expect(body.target_qty).toBe(4800);
+  });
+
+  it("keeps approve as a command endpoint for revision correction workflow", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Revision approved successfully.",
+          data: { id: 12, approval_status_id: 1, approved_by: 1 }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    await sdk.stockTransactions.approve(12);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/stock-transactions/12/approve");
+    expect(init?.method).toBe("POST");
+  });
+
   it("serializes the verified list filters for stock transactions", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
