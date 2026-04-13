@@ -17,6 +17,7 @@ class StockTransactionModel extends Model
         'approved_by',
         'user_id',
         'spk_id',
+        'reason',
     ];
     protected $useTimestamps  = true;
     protected $useSoftDeletes = true;
@@ -156,6 +157,23 @@ class StockTransactionModel extends Model
         $builder->where('id', $id);
         $builder->where('is_revision', true);
         $builder->where('deleted_at', null);
+
+        $transaction = $builder->get()->getRowArray();
+
+        return $transaction ?: null;
+    }
+
+    public function findApprovedRevisionByParentId(int $parentId, int $approvedStatusId, ?int $excludeId = null): ?array
+    {
+        $builder = $this->builder();
+        $builder->where('parent_transaction_id', $parentId);
+        $builder->where('is_revision', true);
+        $builder->where('approval_status_id', $approvedStatusId);
+        $builder->where('deleted_at', null);
+
+        if ($excludeId !== null) {
+            $builder->where('id !=', $excludeId);
+        }
 
         $transaction = $builder->get()->getRowArray();
 
