@@ -43,6 +43,14 @@ class StockTransactionService
         'details',
     ];
 
+    private const ALLOWED_DIRECT_CORRECTION_FIELDS = [
+        'transaction_date',
+        'item_id',
+        'expected_current_qty',
+        'target_qty',
+        'reason',
+    ];
+
     private const SUPPORTED_TRANSACTION_TYPES = [
         TransactionTypeModel::NAME_IN,
         TransactionTypeModel::NAME_OUT,
@@ -449,6 +457,304 @@ class StockTransactionService
         return $errors;
     }
 
+    private function applySignedItemDelta(int $itemId, float $signedDelta, string $insufficientStockMessage): array
+    {
+        if (abs($signedDelta) < 0.005) {
+            return [
+                'success' => true,
+            ];
+        }
+
+        $escapedQty = $this->db->escape(number_format(abs($signedDelta), 2, '.', ''));
+        $builder    = $this->db->table('items');
+        $builder->where('id', $itemId);
+        $builder->set('updated_at', date('Y-m-d H:i:s'));
+
+        if ($signedDelta > 0) {
+            $builder->set('qty', "qty + {$escapedQty}", false);
+
+            if (! $builder->update()) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to update item quantity.',
+                    'errors'  => [],
+                ];
+            }
+
+            return [
+                'success' => true,
+            ];
+        }
+
+        $builder->where("qty >= {$escapedQty}", null, false);
+        $builder->set('qty', "qty - {$escapedQty}", false);
+
+        if (! $builder->update()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update item quantity.',
+                'errors'  => [],
+            ];
+        }
+
+        if ($this->db->affectedRows() === 0) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'details' => $insufficientStockMessage,
+                ],
+            ];
+        }
+
+        return [
+            'success' => true,
+        ];
+    }
+
+    public function createDirectCorrection(array $data, int $userId, ?string $ipAddress = null): array
+    {
+        $approvedStatusId = $this->approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
+        if ($approvedStatusId === null) {
+            return [
+                'success' => false,
+                'message' => 'System error: APPROVED approval status not found.',
+                'errors'  => [],
+            ];
+        }
+
+        $forbiddenErrors = $this->collectForbiddenFieldErrors($data);
+        if ($forbiddenErrors !== []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $forbiddenErrors,
+            ];
+        }
+
+        $unknownTopLevelFields = array_diff(array_keys($data), self::ALLOWED_DIRECT_CORRECTION_FIELDS);
+        if ($unknownTopLevelFields !== []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'fields' => 'Unknown field(s): ' . implode(', ', $unknownTopLevelFields),
+                ],
+            ];
+        }
+
+        if (! isset($data['transaction_date'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['transaction_date' => 'The transaction_date field is required.'],
+            ];
+        }
+
+        if (strtotime((string) $data['transaction_date']) === false) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['transaction_date' => 'The transaction_date field must be a valid date.'],
+            ];
+        }
+
+        if (! isset($data['item_id']) || ! is_numeric($data['item_id'])) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['item_id' => 'The item_id field is required and must be numeric.'],
+            ];
+        }
+
+        $itemId = (int) $data['item_id'];
+        $item   = $this->itemModel->find($itemId);
+        if ($item === null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['item_id' => 'The selected item is invalid.'],
+            ];
+        }
+
+        if (! array_key_exists('expected_current_qty', $data) || ! is_numeric($data['expected_current_qty']) || (float) $data['expected_current_qty'] < 0) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['expected_current_qty' => 'The expected_current_qty field is required and must be a non-negative number.'],
+            ];
+        }
+
+        if (! array_key_exists('target_qty', $data) || ! is_numeric($data['target_qty']) || (float) $data['target_qty'] < 0) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['target_qty' => 'The target_qty field is required and must be a non-negative number.'],
+            ];
+        }
+
+        if (! isset($data['reason']) || trim((string) $data['reason']) === '') {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['reason' => 'The reason field is required.'],
+            ];
+        }
+
+        $reason = trim((string) $data['reason']);
+        if (mb_strlen($reason) > 255) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['reason' => 'The reason field must not exceed 255 characters.'],
+            ];
+        }
+
+        $expectedCurrentQty = round((float) $data['expected_current_qty'], 2);
+        $targetQty          = round((float) $data['target_qty'], 2);
+
+        if (abs($expectedCurrentQty - $targetQty) < 0.005) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['target_qty' => 'The target_qty field must be different from expected_current_qty.'],
+            ];
+        }
+
+        $deltaQty = round($targetQty - $expectedCurrentQty, 2);
+        $typeName = $deltaQty > 0 ? TransactionTypeModel::NAME_IN : TransactionTypeModel::NAME_OUT;
+        $typeId   = $this->typeModel->getIdByName($typeName);
+        if ($typeId === null) {
+            return [
+                'success' => false,
+                'message' => 'System error: transaction type not found.',
+                'errors'  => [],
+            ];
+        }
+
+        $this->db->transStart();
+
+        $escapedExpectedQty = $this->db->escape(number_format($expectedCurrentQty, 2, '.', ''));
+        $itemBuilder        = $this->db->table('items');
+        $itemBuilder->where('id', $itemId);
+        $itemBuilder->where("qty = {$escapedExpectedQty}", null, false);
+        $itemBuilder->set('qty', number_format($targetQty, 2, '.', ''));
+        $itemBuilder->set('updated_at', date('Y-m-d H:i:s'));
+
+        if (! $itemBuilder->update()) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Failed to update item quantity.',
+                'errors'  => [],
+            ];
+        }
+
+        if ($this->db->affectedRows() === 0) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'expected_current_qty' => 'Current stock no longer matches expected_current_qty. Reload the item and retry the correction.',
+                ],
+            ];
+        }
+
+        $transactionData = [
+            'type_id'               => $typeId,
+            'transaction_date'      => $data['transaction_date'],
+            'is_revision'           => false,
+            'parent_transaction_id' => null,
+            'approval_status_id'    => $approvedStatusId,
+            'approved_by'           => null,
+            'user_id'               => $userId,
+            'spk_id'                => null,
+            'reason'                => $reason,
+        ];
+
+        $transactionId = $this->transactionModel->insert($transactionData, true);
+        if ($transactionId === false) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Failed to create stock transaction.',
+                'errors'  => $this->transactionModel->errors(),
+            ];
+        }
+
+        $detailData = [
+            'transaction_id' => $transactionId,
+            'item_id'        => $itemId,
+            'qty'            => abs($deltaQty),
+            'input_qty'      => abs($deltaQty),
+            'input_unit'     => 'base',
+        ];
+
+        if ($this->detailModel->insert($detailData) === false) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Failed to create transaction details.',
+                'errors'  => $this->detailModel->errors(),
+            ];
+        }
+
+        $auditLogged = $this->auditService->log(
+            $userId,
+            'stock_direct_correction_create',
+            'stock_transactions',
+            (int) $transactionId,
+            'Direct stock correction created.',
+            [
+                'item_id'               => $itemId,
+                'expected_current_qty'  => number_format($expectedCurrentQty, 2, '.', ''),
+            ],
+            array_merge($transactionData, [
+                'item_id'      => $itemId,
+                'target_qty'   => number_format($targetQty, 2, '.', ''),
+                'delta_qty'    => number_format($deltaQty, 2, '.', ''),
+                'detail_qty'   => number_format(abs($deltaQty), 2, '.', ''),
+                'input_unit'   => 'base',
+            ]),
+            $ipAddress
+        );
+
+        if (! $auditLogged) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Failed to write audit log.',
+                'errors'  => [],
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return [
+                'success' => false,
+                'message' => 'Transaction failed.',
+                'errors'  => [],
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Direct stock correction created successfully.',
+            'data'    => [
+                'id'                 => (int) $transactionId,
+                'approval_status_id' => $approvedStatusId,
+                'is_revision'        => false,
+            ],
+        ];
+    }
+
     public function submitRevision(int $parentTransactionId, array $data, int $userId, ?string $ipAddress = null): array
     {
         $parent = $this->transactionModel->findById($parentTransactionId);
@@ -762,12 +1068,39 @@ class StockTransactionService
             ];
         }
 
+        $parentTransactionId = (int) ($revision['parent_transaction_id'] ?? 0);
+        if ($parentTransactionId <= 0) {
+            return [
+                'success' => false,
+                'message' => 'System error: parent transaction not found.',
+                'errors'  => [],
+            ];
+        }
+
+        $parent = $this->transactionModel->findById($parentTransactionId);
+        if ($parent === null) {
+            return [
+                'success' => false,
+                'message' => 'System error: parent transaction not found.',
+                'errors'  => [],
+            ];
+        }
+
         // Load detail rows
         $details = $this->detailModel->getDetailsByTransactionId($revisionId);
         if ($details === []) {
             return [
                 'success' => false,
                 'message' => 'System error: revision has no details.',
+                'errors'  => [],
+            ];
+        }
+
+        $parentDetails = $this->detailModel->getDetailsByTransactionId($parentTransactionId);
+        if ($parentDetails === []) {
+            return [
+                'success' => false,
+                'message' => 'System error: parent transaction has no details.',
                 'errors'  => [],
             ];
         }
@@ -785,59 +1118,45 @@ class StockTransactionService
         // Start transaction
         $this->db->transStart();
 
-        // Apply stock mutations per detail using existing atomic logic
+        $approvedSibling = $this->transactionModel->findApprovedRevisionByParentId($parentTransactionId, $approvedStatusId, $revisionId);
+        if ($approvedSibling !== null) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['id' => 'Another revision for this transaction has already been approved.'],
+            ];
+        }
+
+        $parentMap = [];
+        foreach ($parentDetails as $detail) {
+            $parentMap[(int) $detail['item_id']] = (float) $detail['qty'];
+        }
+
+        $revisionMap = [];
         foreach ($details as $detail) {
-            $changeQty  = (float) $detail['qty'];
-            $itemId     = (int) $detail['item_id'];
-            $escapedQty = $this->db->escape(number_format($changeQty, 2, '.', ''));
+            $revisionMap[(int) $detail['item_id']] = (float) $detail['qty'];
+        }
 
-            if (in_array($type['name'], [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_RETURN_IN], true)) {
-                // IN/RETURN_IN: unconditional increment
-                $builder = $this->db->table('items');
-                $builder->where('id', $itemId);
-                $builder->set('qty', "qty + {$escapedQty}", false);
-                $builder->set('updated_at', date('Y-m-d H:i:s'));
+        $allItemIds = array_values(array_unique(array_merge(array_keys($parentMap), array_keys($revisionMap))));
+        $direction  = in_array($type['name'], [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_RETURN_IN], true) ? 1 : -1;
 
-                if (! $builder->update()) {
-                    $this->db->transRollback();
+        foreach ($allItemIds as $itemId) {
+            $parentQty   = $parentMap[$itemId] ?? 0.0;
+            $revisionQty = $revisionMap[$itemId] ?? 0.0;
+            $signedDelta = $direction * ($revisionQty - $parentQty);
 
-                    return [
-                        'success' => false,
-                        'message' => 'Failed to update item quantity.',
-                        'errors'  => [],
-                    ];
-                }
-            } else {
-                // OUT: conditional decrement
-                $builder = $this->db->table('items');
-                $builder->where('id', $itemId);
-                $builder->where("qty >= {$escapedQty}", null, false);
-                $builder->set('qty', "qty - {$escapedQty}", false);
-                $builder->set('updated_at', date('Y-m-d H:i:s'));
+            $mutationResult = $this->applySignedItemDelta(
+                (int) $itemId,
+                (float) $signedDelta,
+                'Insufficient stock. Stock may have changed since revision submission.'
+            );
 
-                if (! $builder->update()) {
-                    $this->db->transRollback();
+            if (! $mutationResult['success']) {
+                $this->db->transRollback();
 
-                    return [
-                        'success' => false,
-                        'message' => 'Failed to update item quantity.',
-                        'errors'  => [],
-                    ];
-                }
-
-                $affectedRows = $this->db->affectedRows();
-
-                if ($affectedRows === 0) {
-                    $this->db->transRollback();
-
-                    return [
-                        'success' => false,
-                        'message' => 'Validation failed.',
-                        'errors'  => [
-                            'details' => 'Insufficient stock. Stock may have changed since revision submission.',
-                        ],
-                    ];
-                }
+                return $mutationResult;
             }
         }
 

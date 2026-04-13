@@ -130,6 +130,41 @@ class StockTransactions extends BaseController
             ]);
     }
 
+    public function directCorrection(): ResponseInterface
+    {
+        $data = $this->request->getJSON(true) ?? [];
+        $user = auth()->user();
+
+        if ($user === null) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthorized.',
+                ]);
+        }
+
+        $userId    = $user->id;
+        $ipAddress = $this->request->getIPAddress();
+
+        $result = $this->transactionService->createDirectCorrection($data, $userId, $ipAddress);
+
+        if (! $result['success']) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(201)
+            ->setJSON([
+                'message' => $result['message'],
+                'data'    => $result['data'],
+            ]);
+    }
+
     public function show(int $id): ResponseInterface
     {
         $transaction = $this->transactionModel->findById($id);

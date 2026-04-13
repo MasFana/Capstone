@@ -166,6 +166,15 @@ $routes->group(
                 $routes->patch("item-units/(:num)/restore", 'ItemUnits::restore/$1');
 
                 $routes->post(
+                    "stock-transactions/direct-corrections",
+                    'StockTransactions::directCorrection',
+                );
+                $routes->options(
+                    "stock-transactions/direct-corrections",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+
+                $routes->post(
                     "stock-transactions/(:num)/approve",
                     'StockTransactions::approve/$1',
                 );
