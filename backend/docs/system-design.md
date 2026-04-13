@@ -366,14 +366,23 @@ Catatan status implementasi:
 2. Sistem menambah kembali `items.qty` sesuai jumlah retur.
 3. Sistem mencatat audit log.
 
-### 8.4 Revision and Approval
+### 8.4 Direct Stock Correction
+
+1. Admin melakukan koreksi stok langsung melalui endpoint `direct-corrections`.
+2. Admin menyertakan `expected_current_qty`, `target_qty`, dan `reason`.
+3. Sistem menghitung selisih dan menentukan tipe transaksi (`IN` jika target > current, `OUT` jika target < current).
+4. Sistem menerapkan perubahan stok secara atomik.
+5. Alasan koreksi disimpan di `stock_transactions.reason`.
+6. Koreksi langsung dianggap sebagai transaksi final (bukan revisi) dengan status `APPROVED`.
+
+### 8.5 Revision and Approval
 
 1. User membuat transaksi revisi dengan `is_revision=true`.
 2. `parent_transaction_id` menunjuk transaksi asal.
 3. `approval_status_id` berubah ke `PENDING`.
 4. admin meninjau.
 5. Selama masih `PENDING`, revisi belum mengubah `items.qty`.
-6. Jika disetujui, `approval_status_id` menjadi `APPROVED`, `approved_by` diisi, dan mutasi qty revisi diterapkan.
+6. Jika disetujui, `approval_status_id` menjadi `APPROVED`, `approved_by` diisi, dan sistem menerapkan **koreksi selisih bersih** antara detail parent dan detail revisi ke `items.qty`.
 7. Jika ditolak, status menjadi `REJECTED` tanpa perubahan qty.
 
 ### 8.5 Menu Scheduling and Consumption Base

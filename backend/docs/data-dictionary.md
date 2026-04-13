@@ -308,6 +308,7 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | `approved_by` | bigint | nullable, FK | User Admin yang menyetujui |
 | `user_id` | bigint | not null, FK | User pembuat transaksi |
 | `spk_id` | bigint | nullable | Relasi opsional ke `spk_calculations.id` pada fase integrasi SPK |
+| `reason` | text | nullable | Alasan transaksi (digunakan pada koreksi stok langsung) |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
@@ -324,7 +325,9 @@ Catatan desain:
 - Untuk transaksi normal, aplikasi menetapkan status approval awal dengan lookup nama `APPROVED` di service layer, bukan mengandalkan DB default literal.
 - Revisi yang baru disubmit disimpan dengan status `PENDING` dan tidak langsung mengubah `items.qty`.
 - `approved_by` diisi saat admin melakukan approve atau reject terhadap revisi.
+- Koreksi stok langsung disimpan sebagai transaksi final (`is_revision = false`, `parent_transaction_id = null`) dan menggunakan `reason` pada header transaksi untuk menjelaskan penyebab koreksi.
 - Mutasi stok dari revisi hanya diterapkan ketika status revisi berubah menjadi `APPROVED`.
+- Saat revisi di-approve, aplikasi menerapkan **selisih bersih** antara detail parent dan detail revisi per item, sehingga revisi berfungsi sebagai koreksi terhadap transaksi asal, bukan sebagai mutasi stok tambahan yang berdiri sendiri.
 
 ### 4.3 `stock_transaction_details`
 

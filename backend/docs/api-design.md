@@ -1061,12 +1061,14 @@ Creating a new item with the name of a deleted item returns `400` with `errors.r
 |---|---|---|
 | GET | `/api/v1/stock-transactions` | List stock transactions with pagination |
 | POST | `/api/v1/stock-transactions` | Create stock transaction header + details |
+| POST | `/api/v1/stock-transactions/direct-corrections` | Admin-only direct stock correction for a single item |
 | GET | `/api/v1/stock-transactions/{id}` | Get stock transaction header only |
 | GET | `/api/v1/stock-transactions/{id}/details` | Get stock transaction item lines only |
 
 #### 5.5.2 Access Rules
 
 - `admin` dan `gudang` dapat mengakses endpoint transaksi stok Milestone 1.
+- `admin` only dapat mengakses endpoint `/api/v1/stock-transactions/direct-corrections`.
 - `dapur` tidak memiliki akses ke endpoint transaksi stok.
 - Stock transactions intentionally have **no DELETE route**. Transactions are permanent audit records and cannot be soft-deleted or hard-deleted through the API. Any DELETE request to `/api/v1/stock-transactions/{id}` returns `404`.
 
@@ -1105,6 +1107,7 @@ Rules:
       "approved_by": null,
       "user_id": 2,
       "spk_id": null,
+      "reason": null,
       "created_at": "2026-04-18 08:00:00",
       "updated_at": "2026-04-18 08:00:00"
     }
@@ -1281,7 +1284,52 @@ Request with unit conversion — `qty` is in convert units (e.g. kg), stored as 
 - `input_qty` — original quantity as submitted in the request.
 - `input_unit` — `"base"` (default) or `"convert"` as submitted/defaulted.
 
-#### 5.5.7 Revision Workflow Actions
+#### 5.5.7 Direct Stock Correction
+
+Admin can directly correct an item's stock level. The system calculates the required mutation (IN or OUT) based on the target quantity and the expected current quantity.
+
+**Access:** `admin` only
+
+##### Request
+
+```json
+{
+  "transaction_date": "2026-04-13",
+  "item_id": 1,
+  "expected_current_qty": 5000,
+  "target_qty": 4800,
+  "reason": "Damaged goods found during physical count"
+}
+```
+
+- `transaction_date` — date of the correction.
+- `item_id` — ID of the item to correct.
+- `expected_current_qty` — current quantity expected by the admin (used for optimistic concurrency).
+- `target_qty` — the desired final quantity in base units.
+- `reason` — explanation for the correction (persisted in `stock_transactions`).
+
+##### Response (`201`)
+
+```json
+{
+  "message": "Direct stock correction created successfully.",
+  "data": {
+    "id": 15,
+    "approval_status_id": 1,
+    "is_revision": false
+  }
+}
+```
+
+Rules:
+
+- endpoint ini hanya untuk `admin`;
+- request harus memuat tepat satu `item_id` dengan `expected_current_qty`, `target_qty`, dan `reason`;
+- client tidak mengirim `type_id`/`type_name`; server menentukan `IN` atau `OUT` dari selisih `target_qty - expected_current_qty`;
+- koreksi langsung disimpan sebagai transaksi final (`is_revision = false`, `parent_transaction_id = null`) dengan status `APPROVED`;
+- jika stok aktual tidak lagi sama dengan `expected_current_qty`, request ditolak agar koreksi tidak menimpa perubahan stok yang lebih baru.
+
+#### 5.5.8 Revision Workflow Actions
 
 Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone 1.
 
@@ -1298,6 +1346,8 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 - submit revision membuat child transaction dengan `is_revision = true` dan `approval_status_id = PENDING`;
 - submit revision **tidak** mengubah `items.qty`;
 - `items.qty` baru berubah ketika revision di-approve;
+- saat approve, sistem **tidak** memperlakukan qty revision sebagai mutasi baru yang ditambahkan di atas parent;
+- saat approve, sistem menghitung **selisih bersih (net difference)** antara detail parent dan detail revision per item, lalu hanya menerapkan selisih tersebut ke `items.qty`;
 - reject revision tidak mengubah `items.qty`;
 - parent transaction tetap dipertahankan sebagai histori asal.
 
@@ -1492,7 +1542,7 @@ Submit revision hanya membuat child revision pending dan tidak langsung mengubah
 }
 ```
 
-Saat approve berhasil, sistem menerapkan mutasi qty dari detail revision ke `items.qty` secara atomik.
+Saat approve berhasil, sistem menerapkan **selisih bersih** antara detail parent dan detail revision ke `items.qty` secara atomik. Dengan kata lain, revision berfungsi sebagai koreksi terhadap efek parent, bukan sebagai mutasi stok kedua yang berdiri sendiri.
 
 ### 7.5 Reject Revision
 
