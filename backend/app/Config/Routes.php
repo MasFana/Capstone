@@ -57,6 +57,106 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "dishes",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "dishes/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "dish-compositions",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "dish-compositions/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "menus",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "menu-dishes",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "menu-schedules",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "menu-schedules/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "menu-calendar",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "daily-patients",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "daily-patients/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/menu-calendar",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/generate",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/operational-stock-preview",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/history",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/history/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/history/(:num)/post-stock",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/basah/history/(:num)/override",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/menu-calendar",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/generate",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/history",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/history/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/history/(:num)/post-stock",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/kering-pengemas/history/(:num)/override",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "spk/stock-in-prefill/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "item-categories/(:num)/restore",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -70,6 +170,50 @@ $routes->group(
         );
         $routes->options(
             "users/(:num)/restore",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames/(:num)/submit",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames/(:num)/approve",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames/(:num)/reject",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-opnames/(:num)/post",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "dashboard",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "reports/stocks",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "reports/transactions",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "reports/spk-history",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "reports/evaluation",
             static fn() => service("response")->setStatusCode(204),
         );
 
@@ -88,8 +232,54 @@ $routes->group(
 
             $routes->group(
                 "",
+                ["filter" => "role:admin,dapur,gudang"],
+                static function ($routes) {
+                    $routes->get("dashboard", "Dashboard::index");
+                    $routes->get("reports/stocks", "Reports::stocks");
+                    $routes->get("reports/transactions", "Reports::transactions");
+                    $routes->get("reports/spk-history", "Reports::spkHistory");
+                    $routes->get("reports/evaluation", "Reports::evaluation");
+                },
+            );
+
+            $routes->group(
+                "",
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
+                    $routes->get("dishes", "Dishes::index");
+                    $routes->get("dishes/(:num)", 'Dishes::show/$1');
+
+                    $routes->get("dish-compositions", "DishCompositions::index");
+                    $routes->get("dish-compositions/(:num)", 'DishCompositions::show/$1');
+
+                    $routes->get("menus", "Menus::index");
+                    $routes->get("menu-dishes", "Menus::slots");
+                    $routes->get("menu-schedules", "MenuSchedules::index");
+                    $routes->get("menu-schedules/(:num)", 'MenuSchedules::show/$1');
+                    $routes->get("menu-calendar", "MenuSchedules::calendarProjection");
+                    $routes->get("daily-patients", "DailyPatients::index");
+                    $routes->get("daily-patients/(:num)", 'DailyPatients::show/$1');
+
+                    $routes->get(
+                        "spk/basah/menu-calendar",
+                        "SpkBasah::menuCalendarProjection",
+                    );
+                    $routes->get("spk/basah/history", "SpkBasah::history");
+                    $routes->get("spk/basah/history/(:num)", 'SpkBasah::show/$1');
+
+                    $routes->get(
+                        "spk/kering-pengemas/menu-calendar",
+                        "SpkKeringPengemas::menuCalendarProjection",
+                    );
+                    $routes->get(
+                        "spk/kering-pengemas/history",
+                        "SpkKeringPengemas::history",
+                    );
+                    $routes->get(
+                        "spk/kering-pengemas/history/(:num)",
+                        'SpkKeringPengemas::show/$1',
+                    );
+
                     $routes->get("item-categories", "ItemCategories::index");
                     $routes->get("item-categories/(:num)", 'ItemCategories::show/$1');
                     $routes->get("transaction-types", "TransactionTypes::index");
@@ -143,12 +333,51 @@ $routes->group(
                         "stock-transactions/(:num)/submit-revision",
                         'StockTransactions::submitRevision/$1',
                     );
+                    $routes->post("stock-opnames", "StockOpnames::create");
+                    $routes->get("stock-opnames/(:num)", 'StockOpnames::show/$1');
+                    $routes->post("stock-opnames/(:num)/submit", 'StockOpnames::submit/$1');
                     $routes->options(
                         "stock-transactions/(:num)/submit-revision",
                         static fn() => service("response")->setStatusCode(204),
                     );
                 },
             );
+
+            $routes->group("", ["filter" => "role:admin,dapur"], static function (
+                $routes,
+            ) {
+                $routes->post("dishes", "Dishes::create");
+                $routes->put("dishes/(:num)", 'Dishes::update/$1');
+                $routes->delete("dishes/(:num)", 'Dishes::delete/$1');
+                $routes->post("dish-compositions", "DishCompositions::create");
+                $routes->put("dish-compositions/(:num)", 'DishCompositions::update/$1');
+                $routes->delete("dish-compositions/(:num)", 'DishCompositions::delete/$1');
+                $routes->post("menu-dishes", "Menus::assignSlot");
+                $routes->post("menu-schedules", "MenuSchedules::create");
+                $routes->put("menu-schedules/(:num)", 'MenuSchedules::update/$1');
+                $routes->post("daily-patients", "DailyPatients::create");
+                $routes->post("spk/basah/generate", "SpkBasah::generate");
+                $routes->post(
+                    "spk/basah/operational-stock-preview",
+                    "SpkBasah::operationalStockPreview",
+                );
+                $routes->post(
+                    "spk/kering-pengemas/generate",
+                    "SpkKeringPengemas::generate",
+                );
+                $routes->post(
+                    "spk/basah/history/(:num)/override",
+                    'SpkBasah::overrideItem/$1',
+                );
+                $routes->post(
+                    "spk/kering-pengemas/history/(:num)/override",
+                    'SpkKeringPengemas::overrideItem/$1',
+                );
+                $routes->get(
+                    "spk/stock-in-prefill/(:num)",
+                    'SpkStockInPrefill::show/$1',
+                );
+            });
 
             $routes->group("", ["filter" => "role:admin"], static function (
                 $routes,
@@ -186,9 +415,20 @@ $routes->group(
                     "stock-transactions/(:num)/reject",
                     'StockTransactions::reject/$1',
                 );
+                $routes->post("stock-opnames/(:num)/approve", 'StockOpnames::approve/$1');
+                $routes->post("stock-opnames/(:num)/reject", 'StockOpnames::reject/$1');
+                $routes->post("stock-opnames/(:num)/post", 'StockOpnames::post/$1');
                 $routes->options(
                     "stock-transactions/(:num)/reject",
                     static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->post(
+                    "spk/basah/history/(:num)/post-stock",
+                    'SpkBasah::postStock/$1',
+                );
+                $routes->post(
+                    "spk/kering-pengemas/history/(:num)/post-stock",
+                    'SpkKeringPengemas::postStock/$1',
                 );
 
                 // User management endpoints

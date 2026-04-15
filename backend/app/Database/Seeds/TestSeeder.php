@@ -14,7 +14,15 @@ class TestSeeder extends Seeder
         $this->call('TransactionTypeSeeder');
         $this->call('ApprovalStatusSeeder');
         $this->call('MealTimeSeeder');
+        $this->call('MenuSeeder');
         $this->call('ItemUnitSeeder');
         $this->call('ItemSeeder');
+        $this->call('DishSeeder');
+        $this->call('DishCompositionSeeder');
+        $this->call('MenuDishSeeder');
+        $this->call('MenuScheduleSeeder');
+        $this->call('DailyPatientSeeder');
+        $this->call('StockTransactionSeeder');
+        $this->call('SpkPersistenceSeeder');
     }
 }

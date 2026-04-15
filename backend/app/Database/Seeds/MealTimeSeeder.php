@@ -6,12 +6,12 @@ use CodeIgniter\Database\Seeder;
 
 class MealTimeSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $this->db->table('meal_times')->insertBatch([
-            ['name' => 'SIANG'],
-            ['name' => 'SORE'],
-            ['name' => 'PAGI'],
-        ]);
+        $builder = $this->db->table('meal_times');
+
+        $builder->replace(['id' => 1, 'name' => 'Pagi']);
+        $builder->replace(['id' => 2, 'name' => 'Siang']);
+        $builder->replace(['id' => 3, 'name' => 'Sore']);
     }
 }

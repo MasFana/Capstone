@@ -384,6 +384,41 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertSame($qtyBefore + 50, $qtyAfter);
     }
 
+    public function testNormalTransactionTypesAreAutoApprovedAndNonRevision(): void
+    {
+        $token = $this->login('admin');
+
+        $approvalStatusModel = new ApprovalStatusModel();
+        $approvedStatusId    = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
+        $typeModel           = new TransactionTypeModel();
+
+        $cases = [
+            ['type_name' => 'IN', 'item_id' => 1, 'qty' => 10, 'transaction_date' => '2026-10-01'],
+            ['type_name' => 'OUT', 'item_id' => 1, 'qty' => 5, 'transaction_date' => '2026-10-02'],
+            ['type_name' => 'RETURN_IN', 'item_id' => 2, 'qty' => 7, 'transaction_date' => '2026-10-03'],
+        ];
+
+        foreach ($cases as $case) {
+            $type = $typeModel->where('name', $case['type_name'])->first();
+
+            $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->withBodyFormat('json')
+                ->post('api/v1/stock-transactions', [
+                    'type_id'          => $type['id'],
+                    'transaction_date' => $case['transaction_date'],
+                    'details'          => [
+                        ['item_id' => $case['item_id'], 'qty' => $case['qty']],
+                    ],
+                ]);
+
+            $result->assertStatus(201);
+
+            $json = json_decode($result->getJSON(), true);
+            $this->assertSame($approvedStatusId, $json['data']['approval_status_id']);
+            $this->assertFalse($json['data']['is_revision']);
+        }
+    }
+
     public function testCreateOutTransactionWithInsufficientStockReturnsError(): void
     {
         $token = $this->login('admin');
@@ -980,6 +1015,90 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
     }
 
+    public function testAdminRevisionReviewListShowAndDetailsKeepFlatContracts(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-10-04',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-10-05',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+
+        $revisionId = json_decode($revisionResult->getJSON(), true)['data']['id'];
+
+        $listResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->get('api/v1/stock-transactions?sortBy=id&sortDir=DESC');
+
+        $listResult->assertStatus(200);
+        $listJson = json_decode($listResult->getJSON(), true);
+
+        $parentRow   = null;
+        $revisionRow = null;
+        foreach ($listJson['data'] as $row) {
+            if ((int) $row['id'] === (int) $parentId) {
+                $parentRow = $row;
+            }
+            if ((int) $row['id'] === (int) $revisionId) {
+                $revisionRow = $row;
+            }
+        }
+
+        $this->assertNotNull($parentRow);
+        $this->assertNotNull($revisionRow);
+        $this->assertArrayHasKey('id', $revisionRow);
+        $this->assertArrayHasKey('type_id', $revisionRow);
+        $this->assertArrayHasKey('transaction_date', $revisionRow);
+        $this->assertArrayHasKey('is_revision', $revisionRow);
+        $this->assertArrayHasKey('parent_transaction_id', $revisionRow);
+        $this->assertArrayHasKey('approval_status_id', $revisionRow);
+        $this->assertArrayNotHasKey('details', $revisionRow);
+        $this->assertTrue((bool) $revisionRow['is_revision']);
+        $this->assertSame((int) $parentId, (int) $revisionRow['parent_transaction_id']);
+
+        $showResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->get('api/v1/stock-transactions/' . $revisionId);
+
+        $showResult->assertStatus(200);
+        $showJson = json_decode($showResult->getJSON(), true);
+        $this->assertSame((int) $revisionId, (int) $showJson['data']['id']);
+        $this->assertTrue((bool) $showJson['data']['is_revision']);
+        $this->assertSame((int) $parentId, (int) $showJson['data']['parent_transaction_id']);
+        $this->assertArrayNotHasKey('details', $showJson['data']);
+
+        $detailsResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->get('api/v1/stock-transactions/' . $revisionId . '/details');
+
+        $detailsResult->assertStatus(200);
+        $detailsJson = json_decode($detailsResult->getJSON(), true);
+        $this->assertCount(1, $detailsJson['data']);
+        $this->assertArrayHasKey('item_id', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('input_qty', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('input_unit', $detailsJson['data'][0]);
+        $this->assertArrayNotHasKey('type_id', $detailsJson['data'][0]);
+        $this->assertArrayNotHasKey('is_revision', $detailsJson['data'][0]);
+        $this->assertArrayNotHasKey('parent_transaction_id', $detailsJson['data'][0]);
+    }
+
     public function testDetailsMissingTransactionReturnsNotFound(): void
     {
         $token = $this->login('admin');
@@ -1116,6 +1235,76 @@ class StockTransactionsTest extends CIUnitTestCase
 
         $result->assertStatus(400);
         $result->assertJSONFragment(['message' => 'Validation failed.']);
+    }
+
+    public function testCreateTransactionWithValidSpkIdPersistsCompatibilityLink(): void
+    {
+        $token = $this->login('admin');
+
+        $categoryModel = new ItemCategoryModel();
+        $kering = $categoryModel->where('name', 'KERING')->first();
+        $this->assertNotNull($kering);
+
+        $spkId = Database::connect()->table('spk_calculations')->insert([
+            'spk_type'          => 'basah',
+            'calculation_scope' => 'combined_window',
+            'scope_key'         => 'task-9-stock-transaction-spk-compat',
+            'version'           => 1,
+            'is_latest'         => true,
+            'calculation_date'  => '2026-04-22',
+            'target_date_start' => '2026-04-22',
+            'target_date_end'   => '2026-04-23',
+            'target_month'      => null,
+            'daily_patient_id'  => null,
+            'user_id'           => 1,
+            'category_id'       => (int) $kering['id'],
+            'estimated_patients' => 100,
+            'is_finish'         => false,
+        ], true);
+
+        $this->assertNotFalse($spkId);
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-04-22',
+                'spk_id'           => (int) $spkId,
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+
+        $this->assertSame('Stock transaction created successfully.', $json['message']);
+
+        $transactionModel = new StockTransactionModel();
+        $savedTransaction = $transactionModel->find((int) $json['data']['id']);
+        $this->assertNotNull($savedTransaction);
+        $this->assertSame((int) $spkId, (int) $savedTransaction['spk_id']);
+    }
+
+    public function testDirectCorrectionRejectsGudangRoleWithForbiddenResponse(): void
+    {
+        $token = $this->login('gudang');
+        $currentQty = (float) (new ItemModel())->find(1)['qty'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/direct-corrections', [
+                'transaction_date'      => '2026-04-23',
+                'item_id'               => 1,
+                'expected_current_qty'  => $currentQty,
+                'target_qty'            => $currentQty - 5,
+                'reason'                => 'RBAC check.',
+            ]);
+
+        $result->assertStatus(403);
     }
 
     public function testListTransactionsRejectsInvalidPage(): void
