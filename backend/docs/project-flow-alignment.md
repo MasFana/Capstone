@@ -38,11 +38,8 @@ Itu tidak cocok dengan codebase saat ini karena:
 1. backend tidak merender flow UI untuk modul-modul bisnis tersebut;
 2. route aktif yang ada sekarang adalah endpoint API di `/api/v1`;
 3. business logic utama berada di **service layer**, bukan langsung di controller atau view;
-4. beberapa modul pada diagram awal masih **planned** dan belum tersedia sebagai route aktif, terutama:
+4. beberapa modul pada diagram awal sudah diimplementasikan (Daily Patients, SPK), namun masih ada yang **planned** dan belum tersedia sebagai route aktif, terutama:
    - dashboard
-   - menu & nutrition
-   - daily patient
-   - SPK calculation
    - audit reporting/export
 
 ## 3. Current Implemented Flow (As-Is)
@@ -152,9 +149,6 @@ Model saat ini terutama menangani persistence dan query helper, misalnya:
 | Items | Implemented | CRUD aktif, `qty` tidak boleh diubah langsung |
 | Stock Transactions | Implemented | Create/list/show/details/revision/approve/reject aktif |
 | Dashboard | Planned | belum ada route aktif |
-| Menu & Nutrition | Planned | belum ada route aktif |
-| Daily Patients | Planned | belum ada route aktif |
-| SPK Calculations | Planned | belum ada route aktif; saat ini hanya ada `spk_id` pada transaksi stok |
 | Audit Reporting / Export | Planned | audit logging internal sudah ada, endpoint report belum ada |
 
 ### 4.2 Compact Runtime Cross-Reference Matrix
@@ -166,14 +160,15 @@ Matriks ini adalah indeks cepat lintas dokumen. Gunakan tabel ini untuk menjawab
 | Auth | Implemented | `/auth/login`, `/auth/me`, `/auth/logout`, `/auth/password` | Login berbasis token Shield; self-service password change revoke semua token user | Login pakai `username` + `password`; password change butuh current password | `login` public; sisanya authenticated user | `docs/api-design.md`, `docs/system-design.md` |
 | Roles | Implemented | `GET /roles` | Read-only lookup pada implemented baseline | List mendukung query lookup standar | `admin` only | `docs/api-design.md`, `docs/system-design.md`, `docs/typescript-sdk-maintenance-guide.md` |
 | Users | Implemented | `/users`, `/users/{id}`, `/users/{id}/activate`, `/deactivate`, `/password`, `/users/{id}/restore` | Soft delete revoke token; activate/deactivate mengontrol login; role resolution bisa by id atau by name; restore bersifat idempotent, blok jika ada active-username duplikat; `username` unik secara global bahkan setelah soft delete | List mendukung `q/search`, `role_id`, `is_active`, sort, created/updated date range | `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
-| Lookup APIs | Partial | `/item-categories`, `/item-units`, `/transaction-types`, `/approval-statuses`; `meal-times` masih planned | Lookup soft delete tidak muncul di list/show; `item-categories` dan `item-units` pakai explicit restore; delete lookup tertentu diblok jika masih direferensikan | Semua lookup list mendukung `paginate=false`, `q/search`, sort, created/updated date range; envelope tetap `data/meta/links` | Read: `admin`, `gudang`; write untuk `item-categories` dan `item-units`: `admin` only; `roles` list: `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
+| Lookup APIs | Implemented | `/item-categories`, `/item-units`, `/transaction-types`, `/approval-statuses`, `/roles`, `/meal-times` | Lookup soft delete tidak muncul di list/show; `item-categories` dan `item-units` pakai explicit restore; delete lookup tertentu diblok jika masih direferensikan | Semua lookup list mendukung `paginate=false`, `q/search`, sort, created/updated date range; envelope tetap `data/meta/links` | Read: `admin`, `gudang`; write untuk `item-categories` dan `item-units`: `admin` only; `roles` list: `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
 | Items | Implemented | `/items`, `/items/{id}`, `/items/{id}/restore` | `qty` tidak boleh diedit langsung; unit write pakai nama lalu di-resolve ke FK `item_unit_*`; delete bersifat soft delete; restore bersifat idempotent, blok jika ada active-name duplikat; `name` unik secara global bahkan setelah soft delete; create/update mengembalikan `restore_id` jika nama milik deleted item | List mendukung `item_category_id`, `is_active`, `q/search`, sort, created/updated date range; create/update menerima `item_category_id` atau `item_category_name` | Read/write: `admin`, `gudang`; delete/restore: `admin` only | `docs/api-design.md`, `docs/data-dictionary.md` |
 | Stock Transactions | Implemented | `/stock-transactions`, `/stock-transactions/{id}`, `/details`, `/submit-revision`, `/approve`, `/reject`, `/stock-transactions/direct-corrections` | Transaksi stok adalah satu-satunya jalur mutasi stok; revision workflow submit/approve/reject adalah domain flow inti; direct stock correction tersedia untuk admin; audit logging aktif; **tidak ada DELETE route** — transaksi adalah audit record permanen | List mendukung `type_id`, `status_id`, `transaction_date_from/to`, `q/search`, sort, created/updated date range; create bisa `type_id` atau `type_name`; direct correction butuh `item_id`, `expected_current_qty`, `target_qty`, `reason` | Read/write dasar: `admin`, `gudang`; approve/reject & direct correction: `admin` only | `docs/api-design.md`, `docs/system-design.md` |
-| Dashboard | Planned | belum ada route aktif | Akan menjadi agregasi role-based summary | Query belum finalized | target: `admin`, `dapur`, `gudang` menurut desain | `docs/system-design.md`, `docs/use-case-diagram.md` |
-| Menu & Nutrition | Planned | belum ada route aktif (`menus`, `menu-schedules`, `dishes`, `menu-dishes`, `dish-compositions`) | Akan menangani siklus menu, dish, dan komposisi bahan | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
-| Daily Patients | Planned | belum ada route aktif (`daily-patients`) | Akan menjadi input pasien harian untuk kebutuhan operasional/SPK | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
-| SPK Calculations | Planned | belum ada route aktif (`spk-calculations`) | Generate/finalize SPK masih desain; saat ini hanya ada `spk_id` pada transaksi stok | Request/query masih desain, belum runtime | target utama: `admin`, `dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
+| Dashboard | Implemented (Minimum) | `/dashboard` | Agregasi minimum role-based summary untuk `admin`, `dapur`, `gudang` | Query belum dipublikasikan penuh; payload mengikuti kontrak role-based minimum | `admin`, `dapur`, `gudang` | `docs/api-design.md`, `app/Controllers/Api/V1/Dashboard.php` |
+| Menu & Nutrition | Implemented | `/menus`, `/menu-dishes`, `/menu-schedules`, `/menu-calendar`, `/dishes`, `/dish-compositions` | Siklus menu 1-11; package header immutable (no menu create/delete route); calendar resolver otomatis (day 31 -> Pkt 11, Feb 29 -> Pkt 9, fallback % 10); slot menu per meal time (Pagi, Siang, Sore) | List menu `1..11`; calendar butuh `date`, `month`, atau `start_date`+`end_date` | Read: `admin,dapur,gudang`; write: `admin,dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/data-dictionary.md` |
+| Daily Patients | Implemented | `/daily-patients`, `/daily-patients/{id}` | Input pasien harian per service date; divalidasi agar tidak duplikat per tanggal layanan; immutable audit record (no edit/delete route) | Create butuh `service_date`, `total_patients`, `notes` | Read: `admin,dapur,gudang`; write: `admin,dapur` | `docs/api-design.md`, `docs/system-design.md`, `docs/data-dictionary.md` |
+| SPK Calculations | Implemented | `/spk/basah/*`, `/spk/kering-pengemas/*` | Basah: input-day basis, 5% ceil; Kering: monthly basis, 110% uplift; generation membuat versi histori baru tanpa overwrite; stock posting adalah langkah eksplisit | Basah butuh `target_date`, `daily_patient_id`, `category_id`; Kering butuh `target_month`, `category_id` | Read: `admin,dapur,gudang`; write/generate: `admin,dapur`; post-stock: `admin` only | `docs/api-design.md`, `docs/system-design.md`, `docs/use-case-diagram.md` |
 | Audit Reporting / Export | Planned | belum ada route aktif (`audit-logs`, `dashboard`, `reports/*`) | Audit log internal sudah ada, tetapi endpoint baca/export belum aktif | Query/report filters masih desain, belum runtime | target utama: admin untuk audit; reporting/export masih desain | `docs/api-design.md`, `docs/system-design.md` |
+
 
 Catatan penggunaan tabel:
 
@@ -491,10 +486,26 @@ classDiagram
             <<Planned>>
         }
         class DailyPatientsController {
-            <<Planned>>
+            <<Implemented>>
+            +index()
+            +show(id)
+            +create()
         }
-        class SpkCalculationsController {
-            <<Planned>>
+        class SpkBasahController {
+            <<Implemented>>
+            +menuCalendarProjection()
+            +generate()
+            +history()
+            +show(id)
+            +overrideItem(id)
+        }
+        class SpkKeringPengemasController {
+            <<Implemented>>
+            +menuCalendarProjection()
+            +generate()
+            +history()
+            +show(id)
+            +overrideItem(id)
         }
         class ReportsController {
             <<Planned>>
@@ -530,10 +541,22 @@ classDiagram
             <<Recommended>>
         }
         class DailyPatientService {
-            <<Recommended>>
+            <<Implemented>>
+            +getAllDailyPatients()
+            +getDailyPatientById(id)
+            +createDailyPatient(data)
         }
-        class SpkCalculationService {
-            <<Recommended>>
+        class SpkBasahGenerationService {
+            <<Implemented>>
+            +generate(params, userId)
+        }
+        class SpkKeringPengemasGenerationService {
+            <<Implemented>>
+            +generate(params, userId)
+        }
+        class SpkOverrideService {
+            <<Implemented>>
+            +overrideItem(id, type, data, userId, ip)
         }
         class ReportingService {
             <<Recommended>>
@@ -555,9 +578,9 @@ classDiagram
         class MenuScheduleModel { <<Planned>> }
         class DishModel { <<Planned>> }
         class DishCompositionModel { <<Planned>> }
-        class DailyPatientModel { <<Planned>> }
-        class SpkCalculationModel { <<Planned>> }
-        class SpkRecommendationModel { <<Planned>> }
+        class DailyPatientModel { <<Implemented>> }
+        class SpkCalculationModel { <<Implemented>> }
+        class SpkRecommendationModel { <<Implemented>> }
         class MonthlyStockSnapshotModel { <<Planned>> }
     }
 
@@ -627,22 +650,24 @@ Lanjutkan pola yang sudah sehat saat ini:
 - pertahankan route versioning di `/api/v1`;
 - gunakan endpoint workflow untuk action domain seperti approve, reject, finish, generate.
 
-### 7.2 Recommended Next Modules
+### 7.2 Implemented Next Steps
 
-Urutan pengembangan yang paling nyambung dengan flow project saat ini:
+Sistem telah menyelesaikan fondasi utama untuk:
+1. **Lookup & User Management**
+2. **Item Master & Stock Transactions (with Revisions)**
+3. **Menu & Nutrition Planning**
+4. **Daily Patient Input**
+5. **SPK Calculation (Basah & Kering/Pengemas)**
 
-1. **Lookup endpoint completion**
-   - `meal-times`
-2. **Menu & nutrition module**
-   - menus
-   - menu schedules
-   - dishes
-   - dish compositions
-3. **Daily patient module**
-4. **SPK calculation module**
-5. **Dashboard & reporting endpoints**
+### 7.3 Remaining Planned Modules
 
-Urutan ini masuk akal karena SPK dan dashboard bergantung pada data menu, pasien, dan histori stok yang lebih dulu harus tersedia dengan jelas.
+1. **Dashboard & Reporting Endpoints**
+   - Agregasi stok real-time
+   - Export PDF untuk SPK dan mutasi stok
+2. **Monthly Stock Snapshots**
+   - Penutupan periode bulanan otomatis
+3. **Enhanced Audit UI**
+   - Endpoint publik untuk membaca `audit_logs`
 
 ### 7.3 Design Rules for Future Modules
 

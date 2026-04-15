@@ -363,21 +363,23 @@ Fungsi: Menyimpan jumlah pasien harian sebagai basis operasional dan input SPK.
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID log pasien harian |
-| `total_patient` | int | not null | Jumlah total pasien pada hari tersebut |
-| `created_at` | timestamp | nullable | Tanggal/waktu pencatatan |
+| `service_date` | date | not null | Tanggal layanan gizi |
+| `total_patients` | int | not null | Jumlah total pasien |
+| `notes` | text | nullable | Catatan tambahan |
+| `created_at` | timestamp | nullable | Waktu dibuat |
+| `updated_at` | timestamp | nullable | Waktu diperbarui |
 
-Catatan desain:
-
-- Tabel ini bersifat log operasional harian, bukan master pasien.
+Constraint utama:
+- unique `service_date` untuk mencegah input ganda pada tanggal layanan yang sama.
 
 ### 5.2 `menus`
 
-Fungsi: Menyimpan menu siklus utama, misalnya menu 1 s/d 11.
+Fungsi: Menyimpan menu siklus utama (Paket 1 s/d 11).
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
-| `id` | tinyint | PK | ID menu siklus |
-| `name` | varchar(100) | not null | Nama menu |
+| `id` | tinyint | PK | ID menu siklus (dibatasi 1 s/d 11) |
+| `name` | varchar(100) | not null | Nama menu, mis. "Paket 1" |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 
@@ -408,14 +410,17 @@ Fungsi: Menyimpan daftar dish/hidangan.
 
 ### 5.5 `menu_dishes`
 
-Fungsi: Menghubungkan menu dengan dish pada waktu makan tertentu.
+Fungsi: Menghubungkan menu (Paket) dengan dish pada waktu makan tertentu.
 
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID relasi menu-dish |
 | `menu_id` | tinyint | not null, FK | Relasi ke `menus.id` |
-| `meal_time_id` | tinyint | not null, FK | Relasi ke `meal_times.id` |
+| `meal_time_id` | tinyint | not null, FK | Relasi ke `meal_times.id` (Pagi, Siang, Sore) |
 | `dish_id` | bigint | not null, FK | Relasi ke `dishes.id` |
+
+Constraint utama:
+- unique `(menu_id, meal_time_id)` untuk mencegah slot ganda pada satu paket menu.
 
 ### 5.6 `dish_compositions`
 
@@ -441,14 +446,21 @@ Fungsi: Menyimpan header perhitungan SPK.
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID kalkulasi SPK |
+| `spk_type` | varchar(50) | not null | Tipe SPK (basah, kering-pengemas) |
+| `version` | int | default 1 | Versi regenerasi untuk scope yang sama |
+| `scope_key` | varchar(255) | not null | Hash/key identitas scope (tanggal/bulan/meal/category) |
+| `is_latest` | boolean | default true | Penanda versi terbaru untuk scope_key |
+| `calculation_scope` | varchar(50) | not null | Skala hitung (daily, monthly) |
 | `calculation_date` | date | not null | Tanggal kalkulasi dibuat |
-| `target_date_start` | date | not null | Tanggal awal target belanja |
-| `target_date_end` | date | not null | Tanggal akhir target belanja |
-| `daily_patient_id` | bigint | nullable, FK | Relasi ke `daily_patients.id` |
+| `target_date_start` | date | nullable | Tanggal awal target belanja |
+| `target_date_end` | date | nullable | Tanggal akhir target belanja |
+| `target_month` | varchar(7) | nullable | Target bulan (YYYY-MM) |
+| `daily_patient_id` | bigint | nullable, FK | Relasi ke `daily_patients.id` (untuk SPK basah) |
 | `user_id` | bigint | not null, FK | User pembuat SPK |
-| `category_id` | tinyint | not null, FK | Relasi ke `item_categories.id` |
+| `category_id` | bigint | not null, FK | Relasi ke `item_categories.id` |
 | `estimated_patients` | int | not null | Jumlah pasien terkunci saat generate |
 | `is_finish` | bool | default false | Status finalisasi / validasi SPK |
+| `stock_posted` | bool | default false | Penanda mutasi stok OUT sudah di-post |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 
@@ -461,11 +473,25 @@ Fungsi: Menyimpan hasil rekomendasi item untuk satu kalkulasi SPK.
 | `id` | bigint | PK, increment | ID rekomendasi |
 | `spk_id` | bigint | not null, FK | Relasi ke `spk_calculations.id` |
 | `item_id` | bigint | not null, FK | Relasi ke `items.id` |
-| `qty` | decimal(12,2) | not null | Jumlah rekomendasi belanja |
+| `target_date` | date | nullable | Tanggal spesifik kebutuhan (untuk SPK basah) |
+| `current_stock_qty` | decimal(12,2) | not null | Sisa stok saat generate |
+| `required_qty` | decimal(12,2) | not null | Kebutuhan bruto sistem |
+| `system_recommended_qty` | decimal(12,2) | not null | Rekomendasi belanja (bruto - stok) |
+| `recommended_qty` | decimal(12,2) | not null | Rekomendasi final setelah override |
+| `is_overridden` | boolean | default false | Penanda ada override manual |
+| `override_reason` | text | nullable | Alasan override |
+| `overridden_by` | bigint | nullable, FK | User yang melakukan override |
+| `overridden_at` | timestamp | nullable | Waktu override |
 
 Constraint utama:
 
 - unique `(spk_id, item_id)` untuk mencegah item ganda pada satu hasil SPK.
+
+Catatan kompatibilitas SRS/report:
+
+- Runtime persistence menyimpan rekomendasi kaya (`required_qty`, `system_recommended_qty`, `recommended_qty`, override metadata).
+- Untuk kebutuhan kontrak SRS/report yang lebih sederhana, backend menyediakan lapisan proyeksi kompatibilitas yang memetakan `recommended_qty` -> `qty` tanpa menghapus field kaya di persistence.
+- Proyeksi kompatibilitas ini bersifat additive/read-only terhadap response report; histori versi dan semantics persistence tetap mengikuti model runtime saat ini.
 
 ## 7. Audit Logging
 

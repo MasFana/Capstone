@@ -44,7 +44,8 @@ Sistem dirancang untuk:
 - Snapshot stok bulanan
 - Pengelolaan menu, dish, komposisi bahan, dan jadwal menu
 - Input pasien harian
-- Generate dan penyimpanan hasil SPK
+- Generate dan penyimpanan hasil SPK (Basah, Kering, Pengemas)
+- Stock mutation based on SPK recommendations
 - Audit log dan ekspor laporan
 
 ### 2.3 Out of Scope
@@ -177,12 +178,12 @@ Catatan implementasi Milestone 1:
 - soft delete item master dibatasi ke `admin`.
 - transaksi stok normal sudah tersedia melalui `stock_transactions` dan `stock_transaction_details`.
 
-Catatan implementasi lanjutan:
+Catatan implementasi SPK & Daily Patients:
 
-- endpoint submit/approve/reject revisi transaksi stok kini sudah tersedia.
-- create/update item kini menerima `item_category_id` atau `item_category_name`, dengan lookup nama yang trimmed dan case-insensitive.
-- `unit_base`/`unit_convert` strings di-resolve ke FK-backed `item_units` rows pada setiap create/update.
-- monthly snapshot, menu, daily patient, SPK, audit reporting, dan export endpoints masih berupa target desain dan belum tersedia sebagai route aktif.
+- endpoint daily-patients sudah aktif untuk pencatatan pasien per tanggal/waktu makan.
+- modul SPK basah dan kering/pengemas sudah aktif dengan pemisahan tahap: menu projection -> generation/history -> stock posting.
+- generation SPK bersifat versioned (tidak overwrite versi sebelumnya).
+- stock posting adalah aksi eksplisit yang men-trigger mutasi stok OUT berdasarkan rekomendasi.
 
 ### 4.4 Inventory Transaction Module
 
@@ -223,6 +224,13 @@ menu_dishes -> meal_times
 ```
 
 Artinya menu bukan konten statis, melainkan template operasional yang dijadwalkan dan diturunkan menjadi kebutuhan bahan.
+
+Catatan implementasi:
+- Modul ini sudah sepenuhnya diimplementasikan sebagai route aktif.
+- `admin` dan `dapur` memiliki akses penuh (write).
+- `gudang` hanya memiliki akses baca.
+- Calendar resolver di `MenuScheduleManagementService` menangani logika rotasi paket menu (1-11) secara otomatis jika tidak ada override manual.
+- Paket menu dibatasi 1 s/d 11 sesuai desain siklus rumah sakit.
 
 ### 4.6 Daily Patient & SPK Module
 
@@ -307,17 +315,20 @@ Dokumentasi implementasi harus menegaskan bahwa update terhadap `items.qty` hany
 
 ### 6.5 SPK Rules
 
-#### Bahan basah
+#### Bahan basah (Daily Basis)
 
-```text
-(Jumlah Pasien Terakhir × 105%) × Komposisi − Sisa Stok
-```
+- Scope: Per tanggal dan per waktu makan (Pagi/Siang/Sore).
+- Basis: Input jumlah pasien harian (`daily_patients`).
+- Logic: `(Jumlah Pasien Terakhir × 105%) × Komposisi - Sisa Stok`.
+- Aturan: Pembulatan ke atas (`ceil`) terhadap 5% buffer; sisa stok dipotong dari kebutuhan.
 
-#### Bahan kering dan pengemas
+#### Bahan kering dan pengemas (Monthly Basis)
 
-```text
-(Total Penggunaan Bulan Lalu × 110%) − Sisa Stok
-```
+- Scope: Per bulan (berdasarkan `target_month`).
+- Basis: Total penggunaan (transaksi OUT) bulan lalu untuk item kategori terkait.
+- Logic: `(Total Penggunaan Bulan Lalu × 110%) - Sisa Stok`.
+- Aturan: Uplift fixed 110%; sisa stok dipotong; hasil floor 0 (tidak boleh negatif).
+- Boundary: Perhitungan penggunaan bulan lalu menggunakan cakupan tanggal dari 1 sampai akhir bulan kalender yang sama.
 
 Aturan desain yang perlu dijaga:
 

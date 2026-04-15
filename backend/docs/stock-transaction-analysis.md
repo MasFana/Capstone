@@ -4,6 +4,21 @@
 > **Scope:** Normal stock movement (IN/OUT/RETURN_IN), direct stock correction intent, transaction revision flow (submit/approve/reject), consistency between schema, service logic, tests, and docs.
 > **Constraint:** Minimal redesign bias. Prefer solutions that fit current model first. No event-sourcing rewrite.
 
+## Status Update (2026-04-14) — Boundary Hardening Regression Coverage
+
+Current runtime + feature tests now enforce these boundaries explicitly:
+
+- **SPK generation is non-mutating for stock**: SPK generate/preview paths do not write `items.qty` and do not create stock transactions (`SpkBasahTest::testGenerateDoesNotCreateStockTransactions`, `OperationalStockPreviewTest::testOperationalPreviewReturnsSameDayDraftAndDoesNotMutateStockOrSpkHistory`).
+- **Stock mutation remains authoritative in stock-transaction endpoints**: `items.qty` changes only through stock transaction create/direct-correction/revision-approval flow in `StockTransactionService`.
+- **Normal transaction semantics remain auto-approved and non-revision**: IN/OUT/RETURN_IN creation persists `approval_status_id = APPROVED` with `is_revision = false` (`StockTransactionsTest::testNormalTransactionTypesAreAutoApprovedAndNonRevision`).
+- **Revision semantics remain immutable + admin-gated approval**: submit revision remains pending/non-mutating; approve/reject remain admin-only actions with approval-state guards.
+- **Admin revision review contract remains flat-schema compatible**:
+  - `GET /stock-transactions` returns flat rows (no embedded details),
+  - `GET /stock-transactions/{id}` returns header-only,
+  - `GET /stock-transactions/{id}/details` returns line-only payload (`StockTransactionsTest::testAdminRevisionReviewListShowAndDetailsKeepFlatContracts`).
+
+These checks preserve stage separation as three independently testable phases: **menu projection/SPK computation → SPK generation/history → explicit stock posting via stock transaction endpoints**.
+
 ---
 
 ## A. Current Logic Map

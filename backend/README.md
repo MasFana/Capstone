@@ -96,8 +96,12 @@ The project currently provides these seeders:
 - `TransactionTypeSeeder`
 - `ApprovalStatusSeeder`
 - `MealTimeSeeder`
+- `MenuSeeder`
 - `ItemUnitSeeder`
 - `ItemSeeder`
+- `DishSeeder`
+- `DishCompositionSeeder`
+- `MenuDishSeeder`
 - `TestSeeder`
 
 To seed the full development baseline in the correct order, run:
@@ -114,8 +118,12 @@ php spark db:seed TestSeeder
 4. `TransactionTypeSeeder`
 5. `ApprovalStatusSeeder`
 6. `MealTimeSeeder`
-7. `ItemUnitSeeder`
-8. `ItemSeeder`
+7. `MenuSeeder`
+8. `ItemUnitSeeder`
+9. `ItemSeeder`
+10. `DishSeeder`
+11. `DishCompositionSeeder`
+12. `MenuDishSeeder`
 
 ## 6. Run the backend server
 
@@ -156,8 +164,12 @@ Seeded lookup/master baseline also includes:
 - meal times: `SIANG`, `SORE`, `PAGI`
 - item units: `gram`, `kg`, `ml`, `liter`, `butir`, `pack`
 - items: `Beras`, `Ayam`, `Minyak Goreng`, `Telur`
+- menus: `Paket 1` through `Paket 11`
+- dishes: 33 named dishes covering all 11 menus × 3 meal-time slots
+- dish compositions: one composition per dish, cycling through the seeded items
+- menu dish slots: every menu (1–11) has all three meal times (Pagi, Siang, Sore) assigned
 
-The default development seeder intentionally does **not** seed stock transaction history, transaction details, or audit logs. Those tables stay empty by default so stock movement and approval workflows are not confused by fake historical data.
+The default development seeder intentionally does **not** seed `menu_schedules`, `daily_patients`, `stock_transactions`, `stock_transaction_details`, `spk_calculations`, `spk_recommendations`, or `audit_logs`. Those tables stay empty by default so calendar fallback logic, patient intake workflows, stock movement, SPK calculations, and audit trails are not confused by fake historical data.
 
 ## Full quick start
 

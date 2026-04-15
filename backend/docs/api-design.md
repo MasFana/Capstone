@@ -205,6 +205,8 @@ Supported query parameters for all lookup list endpoints:
 | PATCH | `/api/v1/item-categories/{id}/restore` | Restore soft-deleted item category |
 | GET | `/api/v1/transaction-types` | List transaction types (paginated) |
 | GET | `/api/v1/approval-statuses` | List approval statuses (paginated) |
+| GET | `/api/v1/roles` | List roles (paginated) |
+| GET | `/api/v1/meal-times` | List meal times (paginated) |
 | GET | `/api/v1/item-units` | List item units (paginated) |
 | GET | `/api/v1/item-units/{id}` | Get item unit detail |
 | POST | `/api/v1/item-units` | Create item unit |
@@ -1338,6 +1340,12 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 | POST | `/api/v1/stock-transactions/{id}/submit-revision` | Submit revision against parent transaction |
 | POST | `/api/v1/stock-transactions/{id}/approve` | Approve revision transaction |
 | POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction |
+| POST | `/api/v1/stock-opnames` | Create dedicated stock opname draft |
+| GET | `/api/v1/stock-opnames/{id}` | Get stock opname header and details |
+| POST | `/api/v1/stock-opnames/{id}/submit` | Submit stock opname draft for approval |
+| POST | `/api/v1/stock-opnames/{id}/approve` | Approve submitted stock opname |
+| POST | `/api/v1/stock-opnames/{id}/reject` | Reject submitted stock opname |
+| POST | `/api/v1/stock-opnames/{id}/post` | Post approved stock opname variances to stock |
 
 #### Revision workflow rules
 
@@ -1351,6 +1359,226 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 - reject revision tidak mengubah `items.qty`;
 - parent transaction tetap dipertahankan sebagai histori asal.
 
+#### 5.5.9 Dedicated Stock Opname Workflow
+
+Stock opname sekarang memiliki domain workflow tersendiri yang eksplisit, terpisah dari direct correction ad-hoc:
+
+- `DRAFT -> SUBMITTED -> APPROVED -> POSTED`
+- `DRAFT -> SUBMITTED -> REJECTED`
+
+State transitions bersifat deterministik dan hanya transition valid yang diperbolehkan.
+
+Role policy:
+
+- `admin` dan `gudang`: create draft, show, submit
+- `admin` only: approve, reject, post
+
+##### Create Draft
+
+`POST /api/v1/stock-opnames`
+
+Request fields:
+
+- `opname_date` (required, date)
+- `notes` (optional)
+- `details` (required, non-empty array)
+  - `item_id` (required)
+  - `counted_qty` (required, non-negative)
+
+`system_qty` dan `variance_qty` dihitung server saat draft dibuat.
+
+##### Submit
+
+`POST /api/v1/stock-opnames/{id}/submit`
+
+- hanya valid jika state saat ini `DRAFT`
+- jika state bukan `DRAFT`, response `400` dengan domain validation error
+
+##### Approve / Reject
+
+`POST /api/v1/stock-opnames/{id}/approve`
+`POST /api/v1/stock-opnames/{id}/reject`
+
+- hanya valid jika state saat ini `SUBMITTED`
+- reject butuh body `{ "reason": "..." }`
+
+##### Post / Finalize
+
+`POST /api/v1/stock-opnames/{id}/post`
+
+- hanya valid jika state saat ini `APPROVED`
+- setiap detail variance diposting tepat sekali:
+  - variance positif -> mutasi stok `IN`
+  - variance negatif -> mutasi stok `OUT`
+- setelah sukses, state menjadi `POSTED`
+- endpoint ini tidak mengubah behavior existing `direct-corrections`; keduanya coexist
+
+### 5.6 Menu & Nutrition Endpoints
+
+These endpoints manage meal planning, including dishes, compositions, and cyclical menu schedules.
+
+#### 5.6.1 Access Rules
+
+- `admin`, `dapur`, and `gudang` can read (GET) all menu-related resources.
+- `admin` and `dapur` can write menu-related resources that are mutable at runtime (POST/PUT on dishes, dish compositions, menu slots, and menu schedules).
+- Package headers `Paket 1..11` are fixed identities and are not exposed as create/delete endpoints.
+- `gudang` has no write access to the menu domain.
+
+#### 5.6.2 Menus & Dishes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/menus` | List all menus (Packages 1-11) |
+| GET | `/api/v1/menu-dishes` | List meal time slots for menus |
+| POST | `/api/v1/menu-dishes` | Assign a dish to a menu and meal time slot |
+| GET | `/api/v1/dishes` | List dishes |
+| GET | `/api/v1/dishes/{id}` | Get dish detail |
+| POST | `/api/v1/dishes` | Create a dish |
+| PUT | `/api/v1/dishes/{id}` | Update a dish |
+| DELETE | `/api/v1/dishes/{id}` | Delete a dish |
+
+#### 5.6.3 Dish Compositions
+
+Compositions define the items and quantities required for each dish per patient.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/dish-compositions` | List all dish compositions |
+| GET | `/api/v1/dish-compositions/{id}` | Get composition detail |
+| POST | `/api/v1/dish-compositions` | Create a composition |
+| PUT | `/api/v1/dish-compositions/{id}` | Update a composition |
+| DELETE | `/api/v1/dish-compositions/{id}` | Delete a composition |
+
+#### 5.6.4 Menu Schedules & Calendar
+
+Schedules map days of the month (1-31) to specific menus. The Calendar Projection endpoint resolves which menu applies to any given date.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/menu-schedules` | List manual schedule overrides |
+| GET | `/api/v1/menu-schedules/{id}` | Get schedule detail |
+| POST | `/api/v1/menu-schedules` | Create a schedule override for a day of month |
+| PUT | `/api/v1/menu-schedules/{id}` | Update a schedule override |
+| GET | `/api/v1/menu-calendar` | Resolve effective menu for date, month, or range |
+
+**Calendar Resolver Modes:**
+The `/api/v1/menu-calendar` endpoint requires exactly one of these query parameter sets:
+- `date` (YYYY-MM-DD): returns the menu for a single day.
+- `month` (YYYY-MM): returns a list of menus for every day in that month.
+- `start_date` + `end_date` (YYYY-MM-DD): returns menus for the specified range.
+
+**Resolution Rules:**
+1. **Specific Date:** Feb 29th always maps to Package 9.
+2. **Day 31:** Any 31st day of a month always maps to Package 11.
+3. **Manual Override:** If a `menu_schedules` entry exists for the day of the month, that package is used.
+4. **Default Pattern:** If no override exists:
+   - Days 1-9 map to Packages 1-9.
+   - Day 10 maps to Package 10.
+   - Days 11-20 map to Package % 10 (e.g., 14 -> Package 4, 20 -> Package 10).
+   - Days 21-30 map to Package % 10 (e.g., 27 -> Package 7, 30 -> Package 10).
+
+### 5.7 Daily Patients & SPK Runtime Contract Freeze
+
+Bagian ini membekukan kontrak route, boundary, dan lifecycle untuk fondasi implementasi SPK basah serta kering/pengemas.
+
+#### 5.7.1 Daily Patients
+
+`daily-patients` adalah input harian pasien untuk tanggal operasional tertentu. Resource ini berdiri sendiri dan tidak ditumpangkan ke `/menu-calendar`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/daily-patients` | List daily patient rows (standard `data/meta/links`) |
+| POST | `/api/v1/daily-patients` | Create daily patient row |
+| GET | `/api/v1/daily-patients/{id}` | Get daily patient detail |
+
+Collection response contract mengikuti envelope standar (`data`, `meta`, `links`).
+
+Create/detail response contract menggunakan `data` object.
+
+Example create response:
+
+```json
+{
+  "message": "Daily patient created successfully.",
+  "data": {
+    "id": 1,
+    "service_date": "2026-05-01",
+    "total_patients": 120,
+    "notes": null,
+    "created_at": "2026-05-01 06:00:00",
+    "updated_at": "2026-05-01 06:00:00"
+  }
+}
+```
+
+#### 5.7.2 SPK Basah Route Family
+
+SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generation/history, dan stock posting.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/spk/basah/menu-calendar` | Projection-only resolver untuk menu + patient context |
+| POST | `/api/v1/spk/basah/operational-stock-preview` | Preview sisa stok untuk tanggal yang sama |
+| POST | `/api/v1/spk/basah/generate` | Generate SPK basah (membuat versi histori baru) |
+| GET | `/api/v1/spk/basah/history` | List histori SPK basah |
+| GET | `/api/v1/spk/basah/history/{id}` | Detail histori SPK basah (termasuk rekomendasi item) |
+| POST | `/api/v1/spk/basah/history/{id}/override` | Override rekomendasi qty per item |
+| POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT) |
+
+#### 5.7.3 SPK Kering/Pengemas Route Family
+
+SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/spk/kering-pengemas/menu-calendar` | Projection-only resolver |
+| POST | `/api/v1/spk/kering-pengemas/generate` | Generate SPK kering/pengemas (monthly basis) |
+| GET | `/api/v1/spk/kering-pengemas/history` | List histori |
+| GET | `/api/v1/spk/kering-pengemas/history/{id}` | Detail histori |
+| POST | `/api/v1/spk/kering-pengemas/history/{id}/override` | Override rekomendasi qty per item |
+| POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT) |
+
+#### 5.7.4 Shared SPK Utility
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/spk/stock-in-prefill/{id}` | Prefill data untuk transaksi IN berdasarkan SPK |
+
+#### 5.7.5 Controller/Service Boundary Freeze
+
+Kontrak boundary backend dibekukan sebagai berikut:
+
+- `MenuSchedules::calendarProjection` menangani **hanya** `/api/v1/menu-calendar` (menu projection umum).
+- `SpkBasah::*` dan `SpkKeringPengemas::*` menangani domain SPK masing-masing route family.
+- Endpoint `/post-stock` adalah satu-satunya action SPK yang boleh men-trigger pembuatan stock transaction.
+- Endpoint `/generate` **tidak** membuat stock transaction otomatis.
+
+#### 5.7.5 Lifecycle & Regeneration/Versioning Freeze
+
+Regeneration SPK dibekukan dengan semantics berikut:
+
+1. Generate ulang untuk kombinasi konteks yang sama (tanggal/category) harus membuat **baris histori baru** (new row / new version).
+2. Histori versi sebelumnya tidak boleh di-overwrite.
+3. Endpoint history list/detail harus memungkinkan pelacakan versi.
+4. Stock posting adalah langkah terpisah setelah versi dipilih, bukan side effect dari generate.
+
+Contoh response envelope generate:
+
+```json
+{
+  "message": "SPK generated successfully.",
+  "data": {
+    "id": 31,
+    "version": 3,
+    "regenerated_from_id": 29,
+    "status": "DRAFT",
+    "stock_posted": false,
+    "created_at": "2026-05-01 08:30:00",
+    "updated_at": "2026-05-01 08:30:00"
+  }
+}
+```
+
 ## 6. Planned API Surface
 
 Bagian ini berisi endpoint yang masih merupakan target desain dan **belum tersedia sebagai route aktif**.
@@ -1361,7 +1589,7 @@ Endpoint berikut saat ini **belum tersedia** di `app/Config/Routes.php`, walaupu
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/meal-times` | List meal times |
+| (None) | | |
 
 ### 6.2 Monthly Snapshot Endpoints
 
@@ -1372,87 +1600,149 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 | GET | `/api/v1/monthly-stock-snapshots` | List monthly stock snapshots |
 | POST | `/api/v1/monthly-stock-snapshots` | Create monthly stock snapshot |
 
-### 6.3 Menu & Nutrition Endpoints
+### 5.8 Dashboard Aggregate Endpoint (Minimum SRS Scope)
 
-Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
+`GET /api/v1/dashboard`
 
-#### 6.3.1 Menus
+Endpoint ini mengembalikan agregasi dashboard minimum sesuai SRS dengan payload yang dibentuk eksplisit berdasarkan role login (`admin`, `gudang`, `dapur`).
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/menus` | List menus |
-| POST | `/api/v1/menus` | Create menu |
-| GET | `/api/v1/menus/{id}` | Get menu detail |
-| PUT | `/api/v1/menus/{id}` | Update menu |
+**Access:** `admin`, `dapur`, `gudang`
 
-#### 6.3.2 Menu Schedules
+**Response envelope:**
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/menu-schedules` | List menu schedules |
-| POST | `/api/v1/menu-schedules` | Create menu schedule by day of month |
-| GET | `/api/v1/menu-schedules/{id}` | Get schedule detail |
-| PUT | `/api/v1/menu-schedules/{id}` | Update schedule |
+```json
+{
+  "data": {
+    "role": "admin",
+    "generated_at": "2026-04-15 10:30:00",
+    "aggregates": {
+      "...": "role-specific keys"
+    }
+  }
+}
+```
 
-#### 6.3.3 Dishes
+**Role payload keys (minimum contract):**
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/dishes` | List dishes |
-| POST | `/api/v1/dishes` | Create dish |
-| GET | `/api/v1/dishes/{id}` | Get dish detail |
-| PUT | `/api/v1/dishes/{id}` | Update dish |
+- `admin`: `stock_summary`, `dry_stock_status`, `spending_trend`, `current_menu_cycle`, `latest_spk_history`, `patient_fluctuation`
+- `gudang`: `stock_summary`, `dry_stock_status`, `spending_trend`, `latest_spk_history`, `patient_fluctuation`
+- `dapur`: `current_menu_cycle`, `current_menu_composition`, `latest_spk_history`, `stock_summary`, `dry_stock_status`
 
-#### 6.3.4 Menu Dishes
+Unauthorized/forbidden behavior mengikuti filter runtime:
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/menu-dishes` | List menu to dish assignments |
-| POST | `/api/v1/menu-dishes` | Assign dish to menu and meal time |
-| DELETE | `/api/v1/menu-dishes/{id}` | Remove assignment |
+- missing/invalid token → `401` dengan shape `{"message": "..."}`
+- inactive account / role tidak memenuhi policy endpoint → `403` dengan shape `{"message": "..."}`
 
-#### 6.3.5 Dish Compositions
+### 5.9 Reporting Endpoints (Export-ready Dataset)
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/dish-compositions` | List dish compositions |
-| POST | `/api/v1/dish-compositions` | Add item composition to dish |
-| PUT | `/api/v1/dish-compositions/{id}` | Update composition |
-| DELETE | `/api/v1/dish-compositions/{id}` | Delete composition |
+Reporting API menyediakan dataset JSON siap ekspor (tanpa coupling ke engine PDF).
 
-### 6.4 Daily Patient Endpoints
+**Access:** `admin`, `dapur`, `gudang`
 
-Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
+Semua endpoint report menggunakan query period mandatory:
+
+- `period_start` (required, `Y-m-d`)
+- `period_end` (required, `Y-m-d`)
+
+Validation contract:
+
+- unknown query parameters -> `400` + `{"message":"Validation failed.","errors":{...}}`
+- malformed date / `period_start > period_end` -> `400` + `errors` per field
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/daily-patients` | List daily patient inputs |
-| POST | `/api/v1/daily-patients` | Create daily patient input |
-| GET | `/api/v1/daily-patients/{id}` | Get daily patient detail |
+| GET | `/api/v1/reports/stocks` | Stock report dataset by period and optional stock filters |
+| GET | `/api/v1/reports/transactions` | Stock transaction line dataset by period and optional transaction filters |
+| GET | `/api/v1/reports/spk-history` | SPK history dataset by period and optional SPK filters |
+| GET | `/api/v1/reports/evaluation` | Plan vs realization evaluation dataset with variance |
 
-### 6.5 SPK Endpoints
+#### 5.9.1 Stock Report
 
-Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
+Optional filters:
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/spk-calculations` | List SPK calculations |
-| POST | `/api/v1/spk-calculations` | Generate SPK calculation |
-| GET | `/api/v1/spk-calculations/{id}` | Get SPK calculation detail |
-| POST | `/api/v1/spk-calculations/{id}/finish` | Mark SPK as finished/validated |
-| GET | `/api/v1/spk-calculations/{id}/recommendations` | Get SPK recommendations |
+- `category_id`
+- `item_id`
+- `is_active` (`true`/`false`/`1`/`0`)
 
-### 6.6 Audit & Reporting Endpoints
+Response shape:
+
+```json
+{
+  "data": {
+    "report_type": "stocks",
+    "period": { "start": "2026-04-10", "end": "2026-04-20" },
+    "filters": {},
+    "summary": {
+      "total_items": 2,
+      "active_items": 2,
+      "total_qty": 1500
+    },
+    "rows": [
+      {
+        "item_id": 1,
+        "item_name": "Beras",
+        "category_id": 2,
+        "category_name": "KERING",
+        "qty": 1000,
+        "unit_base": "gram",
+        "unit_convert": "kg",
+        "is_active": true,
+        "updated_at": "2026-04-15 10:00:00"
+      }
+    ]
+  }
+}
+```
+
+#### 5.9.2 Transaction Report
+
+Optional filters:
+
+- `type_id`
+- `status_id`
+- `item_id`
+
+Response `rows` berisi flattened transaction + detail lines untuk kebutuhan ekspor tabular.
+
+#### 5.9.3 SPK History Report
+
+Optional filters:
+
+- `spk_type` (`basah` / `kering_pengemas`)
+- `category_id`
+
+Response berisi ringkasan per `spk_calculations` row (termasuk agregat rekomendasi qty).
+
+Tambahan kontrak kompatibilitas (non-breaking) untuk rekonsiliasi SRS-vs-runtime:
+
+- `data.compatibility_projection` menyajikan proyeksi SRS-safe dari schema SPK runtime yang lebih kaya.
+- Proyeksi ini **tidak** menggantikan field runtime yang sudah ada pada `data.rows`; proyeksi hanya tambahan untuk consumer SRS/report/export.
+- Mapping rekomendasi SRS: `spk_recommendations.qty` diproyeksikan dari `spk_recommendations.recommended_qty` (final recommended quantity).
+- Kontrak projection `spk_calculations` yang dipertahankan: `id`, `calculation_date`, `target_date_start`, `target_date_end`, `daily_patient_id`, `user_id`, `category_id`, `estimated_patients`, `is_finish`.
+- Kontrak projection `spk_recommendations` yang dipertahankan: `id`, `spk_id`, `item_id`, `qty`.
+
+#### 5.9.4 Evaluation Report (Plan vs Realization)
+
+Optional filters:
+
+- `spk_type` (`basah` / `kering_pengemas`)
+- `category_id`
+
+Evaluation semantics:
+
+- `planned_qty` = total `spk_recommendations.recommended_qty` per SPK dalam periode
+- `realization_qty` = total `stock_transaction_details.qty` untuk transaksi `OUT` + `APPROVED` yang mereferensikan `spk_id` terkait dalam periode
+- `variance_qty` = `realization_qty - planned_qty`
+
+Summary menyertakan total planned/realization/variance lintas baris hasil.
+
+### 6.3 Planned Audit & Reporting Endpoints
 
 Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/v1/audit-logs` | List audit logs |
-| GET | `/api/v1/dashboard` | Get role-based dashboard summary |
-| GET | `/api/v1/reports/transactions` | Transaction report |
-| GET | `/api/v1/reports/stocks` | Stock report |
-| GET | `/api/v1/reports/spk-history` | SPK history report |
 | POST | `/api/v1/reports/export-pdf` | Export report as PDF |
 
 ## 7. Example Request/Response Contracts
@@ -1569,18 +1859,13 @@ Reject revision hanya mengubah status approval dan tidak mengubah stok.
 
 ### 7.6 Generate SPK
 
-Contoh berikut masih bersifat planned karena endpoint SPK belum tersedia sebagai route aktif.
-
 #### Request
 
 ```json
 {
-  "calculation_date": "2026-04-02",
-  "target_date_start": "2026-04-03",
-  "target_date_end": "2026-04-04",
-  "daily_patient_id": 8,
-  "category_id": 1,
-  "estimated_patients": 120
+  "target_date": "2026-05-01",
+  "daily_patient_id": 1,
+  "category_id": 1
 }
 ```
 
@@ -1588,11 +1873,12 @@ Contoh berikut masih bersifat planned karena endpoint SPK belum tersedia sebagai
 
 ```json
 {
-  "message": "SPK calculation generated successfully.",
+  "message": "SPK generated successfully.",
   "data": {
-    "id": 6,
-    "category_id": 1,
-    "is_finish": false
+    "id": 31,
+    "version": 3,
+    "status": "DRAFT",
+    "stock_posted": false
   }
 }
 ```
