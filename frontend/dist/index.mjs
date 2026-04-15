@@ -227,6 +227,157 @@ function buildLookupQuery(query) {
   return result;
 }
 
+// src/sdk/resources/dailyPatients.ts
+var DailyPatientsResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  /**
+   * Lists daily patient records.
+   *
+   * HTTP: `GET /api/v1/daily-patients`
+   * Access: `admin`, `gudang`
+   */
+  list() {
+    return this.client.request({
+      method: "GET",
+      path: "/daily-patients"
+    });
+  }
+  /**
+   * Returns a single daily patient record by identifier.
+   *
+   * HTTP: `GET /api/v1/daily-patients/{id}`
+   * Access: `admin`, `gudang`
+   */
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/daily-patients/${id}`
+    });
+  }
+  /**
+   * Creates a daily patient record.
+   *
+   * HTTP: `POST /api/v1/daily-patients`
+   * Access: `admin`, `dapur`
+   */
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/daily-patients",
+      body: payload
+    });
+  }
+};
+
+// src/sdk/resources/dishes.ts
+var DishesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/dishes",
+      ...query ? { query: buildDishesQuery(query) } : {}
+    });
+  }
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/dishes/${id}`
+    });
+  }
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/dishes",
+      body: payload
+    });
+  }
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/dishes/${id}`,
+      body: payload
+    });
+  }
+};
+function buildDishesQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
+// src/sdk/resources/dishCompositions.ts
+var DishCompositionsResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/dish-compositions",
+      ...query ? { query: buildDishCompositionsQuery(query) } : {}
+    });
+  }
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/dish-compositions/${id}`
+    });
+  }
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/dish-compositions",
+      body: payload
+    });
+  }
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/dish-compositions/${id}`,
+      body: payload
+    });
+  }
+  delete(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/dish-compositions/${id}`
+    });
+  }
+};
+function buildDishCompositionsQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.dish_id !== void 0) result.dish_id = query.dish_id;
+  if (query.item_id !== void 0) result.item_id = query.item_id;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
 // src/sdk/resources/itemCategories.ts
 var ItemCategoriesResource = class {
   constructor(client) {
@@ -479,6 +630,82 @@ function buildLookupQuery3(query) {
   return result;
 }
 
+// src/sdk/resources/menus.ts
+var MenusResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list() {
+    return this.client.request({
+      method: "GET",
+      path: "/menus"
+    });
+  }
+  slots() {
+    return this.client.request({
+      method: "GET",
+      path: "/menu-dishes"
+    });
+  }
+  assignSlot(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/menu-dishes",
+      body: payload
+    });
+  }
+};
+
+// src/sdk/resources/menuSchedules.ts
+var MenuSchedulesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list() {
+    return this.client.request({
+      method: "GET",
+      path: "/menu-schedules"
+    });
+  }
+  get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/menu-schedules/${id}`
+    });
+  }
+  create(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/menu-schedules",
+      body: payload
+    });
+  }
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/menu-schedules/${id}`,
+      body: payload
+    });
+  }
+  calendarProjection(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/menu-calendar",
+      ...query ? { query: buildMenuCalendarQuery(query) } : {}
+    });
+  }
+};
+function buildMenuCalendarQuery(query) {
+  const result = {};
+  if (query.month !== void 0) result.month = query.month;
+  if (query.date !== void 0) result.date = query.date;
+  if (query.start_date !== void 0) result.start_date = query.start_date;
+  if (query.end_date !== void 0) result.end_date = query.end_date;
+  return result;
+}
+
 // src/sdk/resources/roles.ts
 var RolesResource = class {
   constructor(client) {
@@ -514,6 +741,101 @@ function buildRoleQuery(query) {
   if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
   return result;
 }
+
+// src/sdk/resources/spk.ts
+var SpkResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  /**
+   * Generates a basah SPK for one requested service date, with backend logic
+   * potentially expanding to a same-month combined window (day + next day).
+   *
+   * HTTP: `POST /api/v1/spk/basah/generate`
+   * Access: `admin`, `dapur`
+   */
+  generateBasah(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/spk/basah/generate",
+      body: payload
+    });
+  }
+  /**
+   * Lists basah SPK history entries.
+   *
+   * Envelope semantics: `{ data: [...], meta: { total } }`
+   * (intentionally no pagination `links` contract).
+   *
+   * HTTP: `GET /api/v1/spk/basah/history`
+   * Access: `admin`, `gudang`
+   */
+  listBasah() {
+    return this.client.request({
+      method: "GET",
+      path: "/spk/basah/history"
+    });
+  }
+  /**
+   * Returns one basah SPK history detail.
+   *
+   * Basah detail/print payload includes combined-window `target_dates` and
+   * item rows with non-null day-level `target_date` fields.
+   *
+   * HTTP: `GET /api/v1/spk/basah/history/{id}`
+   * Access: `admin`, `gudang`
+   */
+  getBasah(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/spk/basah/history/${id}`
+    });
+  }
+  /**
+   * Generates a monthly SPK for kering/pengemas categories.
+   *
+   * HTTP: `POST /api/v1/spk/kering-pengemas/generate`
+   * Access: `admin`, `dapur`
+   */
+  generateKeringPengemas(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/spk/kering-pengemas/generate",
+      body: payload
+    });
+  }
+  /**
+   * Lists kering/pengemas SPK history entries.
+   *
+   * Envelope semantics: `{ data: [...], meta: { total } }`
+   * (intentionally no pagination `links` contract).
+   *
+   * HTTP: `GET /api/v1/spk/kering-pengemas/history`
+   * Access: `admin`, `gudang`
+   */
+  listKeringPengemas() {
+    return this.client.request({
+      method: "GET",
+      path: "/spk/kering-pengemas/history"
+    });
+  }
+  /**
+   * Returns one kering/pengemas SPK history detail.
+   *
+   * Kering/pengemas detail/print payload uses monthly semantics where item rows
+   * keep `target_date = null` and print payload includes `target_month`.
+   *
+   * HTTP: `GET /api/v1/spk/kering-pengemas/history/{id}`
+   * Access: `admin`, `gudang`
+   */
+  getKeringPengemas(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/spk/kering-pengemas/history/${id}`
+    });
+  }
+};
 
 // src/sdk/resources/stockTransactions.ts
 var StockTransactionsResource = class {
@@ -823,29 +1145,143 @@ function buildUsersQuery(query) {
   return result;
 }
 
+// src/sdk/resources/dashboard.ts
+var DashboardResource = class {
+  client;
+  constructor(client) {
+    this.client = client;
+  }
+  async getAggregate() {
+    return this.client.request({
+      method: "GET",
+      path: "/dashboard"
+    });
+  }
+};
+
+// src/sdk/resources/reports.ts
+var ReportsResource = class {
+  client;
+  constructor(client) {
+    this.client = client;
+  }
+  async getStocks(params) {
+    return this.client.request({
+      method: "GET",
+      path: "/reports/stocks",
+      query: { ...params }
+    });
+  }
+  async getTransactions(params) {
+    return this.client.request({
+      method: "GET",
+      path: "/reports/transactions",
+      query: { ...params }
+    });
+  }
+  async getSpkHistory(params) {
+    return this.client.request({
+      method: "GET",
+      path: "/reports/spk-history",
+      query: { ...params }
+    });
+  }
+  async getEvaluation(params) {
+    return this.client.request({
+      method: "GET",
+      path: "/reports/evaluation",
+      query: { ...params }
+    });
+  }
+};
+
+// src/sdk/resources/stockOpnames.ts
+var StockOpnamesResource = class {
+  client;
+  constructor(client) {
+    this.client = client;
+  }
+  async create(request) {
+    return this.client.request({
+      method: "POST",
+      path: "/stock-opnames",
+      body: request
+    });
+  }
+  async get(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/stock-opnames/${id}`
+    });
+  }
+  async submit(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/stock-opnames/${id}/submit`
+    });
+  }
+  async approve(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/stock-opnames/${id}/approve`
+    });
+  }
+  async reject(id, request) {
+    return this.client.request({
+      method: "POST",
+      path: `/stock-opnames/${id}/reject`,
+      body: request
+    });
+  }
+  async post(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/stock-opnames/${id}/post`
+    });
+  }
+};
+
 // src/sdk/index.ts
 var CapstoneSdk = class {
   client;
   approvalStatuses;
   auth;
+  dailyPatients;
+  dishes;
+  dishCompositions;
   itemCategories;
   roles;
   items;
   itemUnits;
+  menus;
+  menuSchedules;
+  spk;
   stockTransactions;
   transactionTypes;
   users;
+  dashboard;
+  reports;
+  stockOpnames;
   constructor(options) {
     this.client = new ApiClient(options);
     this.approvalStatuses = new ApprovalStatusesResource(this.client);
     this.auth = new AuthResource(this.client);
+    this.dailyPatients = new DailyPatientsResource(this.client);
+    this.dishes = new DishesResource(this.client);
+    this.dishCompositions = new DishCompositionsResource(this.client);
     this.itemCategories = new ItemCategoriesResource(this.client);
     this.roles = new RolesResource(this.client);
     this.items = new ItemsResource(this.client);
     this.itemUnits = new ItemUnitsResource(this.client);
+    this.menus = new MenusResource(this.client);
+    this.menuSchedules = new MenuSchedulesResource(this.client);
+    this.spk = new SpkResource(this.client);
     this.stockTransactions = new StockTransactionsResource(this.client);
     this.transactionTypes = new TransactionTypesResource(this.client);
     this.users = new UsersResource(this.client);
+    this.dashboard = new DashboardResource(this.client);
+    this.reports = new ReportsResource(this.client);
+    this.stockOpnames = new StockOpnamesResource(this.client);
   }
   /**
    * Updates the in-memory bearer token used by the shared client.
@@ -871,11 +1307,20 @@ export {
   AuthenticationApiError,
   AuthorizationApiError,
   CapstoneSdk,
+  DailyPatientsResource,
+  DashboardResource,
+  DishCompositionsResource,
+  DishesResource,
   ItemCategoriesResource,
   ItemUnitsResource,
   ItemsResource,
+  MenuSchedulesResource,
+  MenusResource,
   NotFoundApiError,
+  ReportsResource,
   RolesResource,
+  SpkResource,
+  StockOpnamesResource,
   StockTransactionsResource,
   TransactionTypesResource,
   UsersResource,

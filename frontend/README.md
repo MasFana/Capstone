@@ -27,6 +27,12 @@ Implemented SDK resources:
 - `itemUnits`
 - `transactionTypes`
 - `approvalStatuses`
+- `dailyPatients`
+- `spk`
+- `menus`
+- `dishes`
+- `dishCompositions`
+- `menuSchedules`
 
 ## Folder structure
 
@@ -422,6 +428,43 @@ await sdk.auth.login({
 - restore is explicit through `sdk.users.restore(id)` and is idempotent when the user is already active
 - restore also returns `400` if the user's assigned role is no longer active
 
+### `dailyPatients`
+
+| SDK method | HTTP endpoint | Access |
+|---|---|---|
+| `sdk.dailyPatients.list()` | `GET /api/v1/daily-patients` | `admin`, `gudang` |
+| `sdk.dailyPatients.get(id)` | `GET /api/v1/daily-patients/{id}` | `admin`, `gudang` |
+| `sdk.dailyPatients.create(payload)` | `POST /api/v1/daily-patients` | `admin`, `dapur` |
+
+### `spk`
+
+| SDK method | HTTP endpoint | Access |
+|---|---|---|
+| `sdk.spk.generateBasah(payload)` | `POST /api/v1/spk/basah/generate` | `admin`, `dapur` |
+| `sdk.spk.listBasah()` | `GET /api/v1/spk/basah/history` | `admin`, `gudang` |
+| `sdk.spk.getBasah(id)` | `GET /api/v1/spk/basah/history/{id}` | `admin`, `gudang` |
+| `sdk.spk.generateKeringPengemas(payload)` | `POST /api/v1/spk/kering-pengemas/generate` | `admin`, `dapur` |
+| `sdk.spk.listKeringPengemas()` | `GET /api/v1/spk/kering-pengemas/history` | `admin`, `gudang` |
+| `sdk.spk.getKeringPengemas(id)` | `GET /api/v1/spk/kering-pengemas/history/{id}` | `admin`, `gudang` |
+
+#### SPK Recommendation logic
+
+- **Basah:** `((daily_patients * 1.05) * composition) - stock`. Covers today and day+1 within the same month.
+- **Kering/Pengemas:** `(prev_month_actual_usage * 1.10) - stock`.
+- Recommendations are clamped to 0 (no negative values).
+- **Important:** SPK generation endpoints are calculation helpers; they do not mutate stock. Stock changes must be explicitly saved via `stockTransactions.create`.
+
+### `menus` / `dishes` / `dishCompositions` / `menuSchedules`
+
+These resources provide management for nutrition standards and calendar scheduling.
+
+| Resource | Methods | Access |
+|---|---|---|
+| `menus` | `list`, `slots`, `assignSlot` | `admin`, `dapur` |
+| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
+| `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
+| `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` |
+
 ## List query reference
 
 Most collection endpoints return paginated envelopes and accept resource-specific filters.
@@ -663,6 +706,79 @@ await sdk.stockTransactions.directCorrection({
 ```
 
 In the workflow above, approval corrects the parent transaction's stock effect based on the difference between the parent details and the revision details. It does not replay the revision quantities as an additional standalone movement.
+
+## End-to-end SDK flow example
+
+A common operational flow involving patient input, SPK generation, and stock management:
+
+### 1. Daily Setup & Patient Input
+```ts
+import { createCapstoneSdk } from "./src";
+const sdk = createCapstoneSdk({ baseUrl: "http://127.0.0.1:8080" });
+
+// Authenticate
+const login = await sdk.auth.login({ username: "dapur1", password: "password123" });
+sdk.setAccessToken(login.access_token);
+
+// Input daily patients (canonical source for SPK Basah)
+const patients = await sdk.dailyPatients.create({
+  service_date: "2026-04-14",
+  meal_time: "SIANG",
+  total_patients: 120
+});
+```
+
+### 2. SPK Generation (Calculation Helper)
+```ts
+// Generate SPK Basah recommendation
+const spk = await sdk.spk.generateBasah({
+  daily_patient_id: patients.data.id,
+  target_date: "2026-04-14",
+  category_id: 1 // BASAH
+});
+
+// spk.data.recommendations contains items with:
+// qty = ((120 * 1.05) * composition) - stock (clamped to 0)
+```
+
+### 3. Stock Mutation (Authoritative Action)
+The UI may allow overriding quantities before finalizing. Once ready, the stock mutation must be explicitly saved.
+
+```ts
+// Record stock IN from external purchase based on SPK
+await sdk.stockTransactions.create({
+  type_name: "IN",
+  transaction_date: "2026-04-14",
+  spk_id: spk.data.id,
+  details: [
+    {
+      item_id: 1, // Rice
+      qty: 5000,   // 5kg (base unit)
+      input_unit: "base"
+    }
+  ]
+});
+
+// Record stock OUT based on menu projection (Drafted from menu helper in UI)
+await sdk.stockTransactions.create({
+  type_name: "OUT",
+  transaction_date: "2026-04-14",
+  details: [
+    {
+      item_id: 1,
+      qty: 4800,
+      input_unit: "base"
+    }
+  ]
+});
+```
+
+### 4. History and Printing
+```ts
+// Fetch historical SPK for printing
+const history = await sdk.spk.getBasah(spk.data.id);
+// Use history.data for rendering formal print documents
+```
 
 ## Design rules kept by the SDK
 
