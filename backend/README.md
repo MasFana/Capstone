@@ -102,6 +102,11 @@ The project currently provides these seeders:
 - `DishSeeder`
 - `DishCompositionSeeder`
 - `MenuDishSeeder`
+- `MenuScheduleSeeder`
+- `DailyPatientSeeder`
+- `StockTransactionSeeder`
+- `StockOpnameSeeder`
+- `SpkPersistenceSeeder`
 - `TestSeeder`
 
 To seed the full development baseline in the correct order, run:
@@ -124,6 +129,11 @@ php spark db:seed TestSeeder
 10. `DishSeeder`
 11. `DishCompositionSeeder`
 12. `MenuDishSeeder`
+13. `MenuScheduleSeeder`
+14. `DailyPatientSeeder`
+15. `StockTransactionSeeder`
+16. `StockOpnameSeeder`
+17. `SpkPersistenceSeeder`
 
 ## 6. Run the backend server
 
@@ -169,7 +179,7 @@ Seeded lookup/master baseline also includes:
 - dish compositions: one composition per dish, cycling through the seeded items
 - menu dish slots: every menu (1–11) has all three meal times (Pagi, Siang, Sore) assigned
 
-The default development seeder intentionally does **not** seed `menu_schedules`, `daily_patients`, `stock_transactions`, `stock_transaction_details`, `spk_calculations`, `spk_recommendations`, or `audit_logs`. Those tables stay empty by default so calendar fallback logic, patient intake workflows, stock movement, SPK calculations, and audit trails are not confused by fake historical data.
+The default development seeder now includes deterministic operational baseline rows for `menu_schedules`, `daily_patients`, `stock_transactions`, `stock_transaction_details`, `stock_opnames`, `stock_opname_details`, `spk_calculations`, and `spk_recommendations` so the end-to-end API flow (menu calendar, patient input, stock movement, stock opname lifecycle, and SPK history) can be exercised immediately in development and tests.
 
 ## Full quick start
 

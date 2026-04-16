@@ -1419,7 +1419,7 @@ These endpoints manage meal planning, including dishes, compositions, and cyclic
 
 #### 5.6.1 Access Rules
 
-- `admin`, `dapur`, and `gudang` can read (GET) all menu-related resources.
+- `admin` and `gudang` can read (GET) all menu-related resources.
 - `admin` and `dapur` can write menu-related resources that are mutable at runtime (POST/PUT on dishes, dish compositions, menu slots, and menu schedules).
 - Package headers `Paket 1..11` are fixed identities and are not exposed as create/delete endpoints.
 - `gudang` has no write access to the menu domain.
@@ -1517,13 +1517,13 @@ SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generat
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/spk/basah/menu-calendar` | Projection-only resolver untuk menu + patient context |
+| GET | `/api/v1/spk/basah/menu-calendar` | Projection-only resolver untuk menu calendar context |
 | POST | `/api/v1/spk/basah/operational-stock-preview` | Preview sisa stok untuk tanggal yang sama |
 | POST | `/api/v1/spk/basah/generate` | Generate SPK basah (membuat versi histori baru) |
 | GET | `/api/v1/spk/basah/history` | List histori SPK basah |
 | GET | `/api/v1/spk/basah/history/{id}` | Detail histori SPK basah (termasuk rekomendasi item) |
 | POST | `/api/v1/spk/basah/history/{id}/override` | Override rekomendasi qty per item |
-| POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT) |
+| POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT), finalizes SPK (`is_finish=true`) |
 
 #### 5.7.3 SPK Kering/Pengemas Route Family
 
@@ -1536,7 +1536,7 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 | GET | `/api/v1/spk/kering-pengemas/history` | List histori |
 | GET | `/api/v1/spk/kering-pengemas/history/{id}` | Detail histori |
 | POST | `/api/v1/spk/kering-pengemas/history/{id}/override` | Override rekomendasi qty per item |
-| POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT) |
+| POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT), finalizes SPK (`is_finish=true`) |
 
 #### 5.7.4 Shared SPK Utility
 
@@ -1578,27 +1578,6 @@ Contoh response envelope generate:
   }
 }
 ```
-
-## 6. Planned API Surface
-
-Bagian ini berisi endpoint yang masih merupakan target desain dan **belum tersedia sebagai route aktif**.
-
-### 6.1 Planned Lookup Endpoints
-
-Endpoint berikut saat ini **belum tersedia** di `app/Config/Routes.php`, walaupun tabel lookup-nya sudah ada di schema:
-
-| Method | Endpoint | Description |
-|---|---|---|
-| (None) | | |
-
-### 6.2 Monthly Snapshot Endpoints
-
-Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/v1/monthly-stock-snapshots` | List monthly stock snapshots |
-| POST | `/api/v1/monthly-stock-snapshots` | Create monthly stock snapshot |
 
 ### 5.8 Dashboard Aggregate Endpoint (Minimum SRS Scope)
 
@@ -1736,7 +1715,34 @@ Evaluation semantics:
 
 Summary menyertakan total planned/realization/variance lintas baris hasil.
 
-### 6.3 Planned Audit & Reporting Endpoints
+## 6. Planned API Surface
+
+Bagian ini berisi endpoint yang masih merupakan target desain dan **belum tersedia sebagai route aktif**.
+
+### 6.1 Planned Lookup Endpoints
+
+Endpoint berikut saat ini **belum tersedia** di `app/Config/Routes.php`, walaupun tabel lookup-nya sudah ada di schema:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| (None) | | |
+
+### 6.2 Monthly Snapshot Endpoints
+
+Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/monthly-stock-snapshots` | List monthly stock snapshots |
+| POST | `/api/v1/monthly-stock-snapshots` | Create monthly stock snapshot |
+
+### 6.3 Deferred From Item Module
+
+- `GET /api/v1/items/{id}/stock-summary`
+- stock usage locking rules
+- stock transaction integration
+
+### 6.4 Planned Audit & Reporting Endpoints
 
 Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
