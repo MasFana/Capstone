@@ -8,12 +8,13 @@ Use this guide to set up the backend locally, start the database, run migrations
 
 - **Canonical for:** local backend setup and daily run commands.
 - **Not canonical for:** runtime API behavior, schema rules, or planned-module design.
-- **Read next for runtime/API work:** `docs/project-flow-alignment.md`, `docs/api-design.md`, `docs/data-dictionary.md`, `docs/system-design.md`.
+- **Read next for runtime/API work:** `docs/README.md` (Documentation Index), `docs/reference/api-contract.md`, `docs/reference/schema.md`, `docs/architecture/runtime-status.md`.
 
 For current API/module status after setup, see:
 
-- `docs/api-design.md` for the active API contract
-- `docs/project-flow-alignment.md` for the compact module/API/flow/access alignment matrix
+- [API Contract (Canonical)](./docs/reference/api-contract.md)
+- [Database Schema (Canonical)](./docs/reference/schema.md)
+- [Runtime Status (Canonical)](./docs/architecture/runtime-status.md)
 
 ## Requirements
 

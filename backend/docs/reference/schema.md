@@ -4,7 +4,8 @@
 
 - **Canonical for:** schema structure, foreign keys, uniqueness, soft delete behavior, and persistence constraints.
 - **Read this when:** you are changing migrations, models, lookup rules, or database-backed invariants.
-- **Read next:** `docs/api-design.md` for request/response contract details and `docs/project-flow-alignment.md` for compact runtime status.
+- **Read next:** `docs/reference/api-contract.md` for request/response contract details and `docs/architecture/runtime-status.md` for compact runtime status.
+- **Legacy context (Deprecated):** `docs/api-design.md` and `docs/project-flow-alignment.md`.
 - **Not canonical for:** full endpoint behavior, access rules per route, or planned module contracts.
 
 ## 1. Overview
@@ -90,7 +91,7 @@ Catatan implementasi:
 - Jika nama yang sama hanya ada pada row yang sudah soft-deleted, create akan ditolak dan admin harus memanggil restore endpoint untuk mengaktifkan kembali row lama.
 - Implementasi schema memakai generated column `name_active_lookup` + unique index agar aturan active-only uniqueness kompatibel dengan MariaDB/MySQL, sedangkan perilaku soft delete/restore tetap didefinisikan di model CI4.
 
-Catatan kontrak runtime terkait lookup-by-name dan endpoint write tidak menjadi source utama dokumen ini. Untuk perilaku request/response yang aktif saat ini, lihat `docs/api-design.md` dan gunakan file ini untuk aspek schema, FK, dan constraint-nya.
+Catatan kontrak runtime terkait lookup-by-name dan endpoint write tidak menjadi source utama dokumen ini. Untuk perilaku request/response yang aktif saat ini, lihat `docs/reference/api-contract.md` dan gunakan file ini untuk aspek schema, FK, dan constraint-nya.
 
 ## 3. Master Data & Users
 

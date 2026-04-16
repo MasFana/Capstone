@@ -4,7 +4,8 @@
 
 - **Canonical for:** active runtime API contract, implemented-vs-planned endpoint inventory, and request/response behavior.
 - **Read this when:** you are implementing or consuming a live backend endpoint or SDK surface.
-- **Read next:** `docs/project-flow-alignment.md` for the compact module/status index and `docs/data-dictionary.md` for schema-backed rules.
+- **Read next:** `docs/architecture/runtime-status.md` for the compact module/status index and `docs/reference/schema.md` for schema-backed rules.
+- **Legacy context (Deprecated):** `docs/project-flow-alignment.md` and `docs/data-dictionary.md`.
 - **Not canonical for:** target architecture decisions for modules that are still planned.
 
 ## 1. Overview
@@ -22,7 +23,7 @@ Source of truth untuk endpoint yang sudah berjalan adalah:
 - controller di `app/Controllers/Api/V1/`
 - feature tests di `tests/feature/Api/V1/`
 
-Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `docs/project-flow-alignment.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
+Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `docs/architecture/runtime-status.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
 
 ## 2. API Principles
 

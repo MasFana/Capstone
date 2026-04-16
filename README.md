@@ -24,11 +24,12 @@ The `frontend/` directory now contains a TypeScript SDK for the implemented `/ap
 Use these docs depending on what you need:
 
 - [Frontend SDK guide](./frontend/README.md)
-- [Backend API design](./backend/docs/api-design.md)
-- [Project flow alignment matrix](./backend/docs/project-flow-alignment.md)
+- [Backend Documentation Index](./backend/docs/README.md)
+- [API Contract (Canonical)](./backend/docs/reference/api-contract.md)
+- [Database Schema (Canonical)](./backend/docs/reference/schema.md)
+- [Runtime Status (Canonical)](./backend/docs/architecture/runtime-status.md)
 
 ## Additional backend docs
 
-- [API design](./backend/docs/api-design.md)
-- [System design](./backend/docs/system-design.md)
-- [Data dictionary](./backend/docs/data-dictionary.md)
+- [Backend Documentation Index](./backend/docs/README.md)
+- [Implementation Guides](./backend/docs/guides/README.md)

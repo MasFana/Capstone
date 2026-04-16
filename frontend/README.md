@@ -8,13 +8,13 @@ It is a typed wrapper over the CodeIgniter 4 backend under `/api/v1`, with resou
 
 - **Use this file for:** SDK usage, SDK resource surface, SDK request/response typing, and frontend-facing examples.
 - **Do not use this file as the canonical source for:** backend implementation status, backend schema rules, or route discovery workflow.
-- **Read next before changing SDK contracts:** `../backend/AGENTS.md`, `../backend/docs/project-flow-alignment.md`, `../backend/docs/api-design.md`, `../backend/docs/typescript-sdk-maintenance-guide.md`.
+- **Read next before changing SDK contracts:** `../backend/AGENTS.md`, `../backend/docs/README.md`, `../backend/docs/architecture/runtime-status.md`, `../backend/docs/reference/api-contract.md`.
 
 ## Scope
 
 The SDK only covers the backend routes that are implemented and verified now. It does not expose planned backend modules that do not yet exist as active API routes.
 
-If you need a compact backend-side index of implemented vs planned modules, route groups, key flow rules, and permission notes before wiring new SDK surfaces, see `../backend/docs/project-flow-alignment.md` section **4.2 Compact Runtime Cross-Reference Matrix**.
+If you need a compact backend-side index of implemented vs planned modules, route groups, key flow rules, and permission notes before wiring new SDK surfaces, see `../backend/docs/architecture/runtime-status.md` (Canonical).
 
 Implemented SDK resources:
 
@@ -796,17 +796,16 @@ const history = await sdk.spk.getBasah(spk.data.id);
 
 Do not update the SDK by guessing from one controller or one doc.
 
-Use the canonical backend discovery workflow in `../backend/AGENTS.md` and the deeper maintenance checklist in `../backend/docs/typescript-sdk-maintenance-guide.md`.
+Use the canonical backend discovery workflow in `../backend/AGENTS.md`.
 
 Minimal SDK update read order:
 
 1. `../backend/AGENTS.md`
-2. `../backend/docs/project-flow-alignment.md`
-3. `../backend/docs/api-design.md`
+2. `../backend/docs/architecture/runtime-status.md` (Canonical)
+3. `../backend/docs/reference/api-contract.md` (Canonical)
 4. matching backend code and feature tests
 5. SDK source, SDK tests, then rebuild `dist/`
 
 Supporting references:
 
-- `../backend/docs/typescript-sdk-maintenance-guide.md`
 - `../backend/AGENTS.md`
