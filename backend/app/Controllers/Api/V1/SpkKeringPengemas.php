@@ -8,6 +8,7 @@ use App\Models\SpkRecommendationModel;
 use App\Services\MenuScheduleManagementService;
 use App\Services\SpkKeringPengemasGenerationService;
 use App\Services\SpkOverrideService;
+use App\Services\SpkStockPostingService;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class SpkKeringPengemas extends BaseController
@@ -17,6 +18,7 @@ class SpkKeringPengemas extends BaseController
     protected SpkOverrideService $spkOverrideService;
     protected SpkCalculationModel $spkCalculationModel;
     protected SpkRecommendationModel $spkRecommendationModel;
+    protected SpkStockPostingService $spkStockPostingService;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class SpkKeringPengemas extends BaseController
         $this->spkOverrideService                = new SpkOverrideService();
         $this->spkCalculationModel               = new SpkCalculationModel();
         $this->spkRecommendationModel            = new SpkRecommendationModel();
+        $this->spkStockPostingService            = new SpkStockPostingService();
     }
 
     public function menuCalendarProjection(): ResponseInterface
@@ -224,11 +227,36 @@ class SpkKeringPengemas extends BaseController
 
     public function postStock(int $id): ResponseInterface
     {
+        $user = auth()->user();
+        if ($user === null) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    'message' => 'Unauthorized.',
+                ]);
+        }
+
+        $result = $this->spkStockPostingService->post(
+            $id,
+            SpkCalculationModel::TYPE_KERING_PENGEMAS,
+            (int) $user->id,
+            $this->request->getIPAddress()
+        );
+
+        if (! $result['success']) {
+            return $this->response
+                ->setStatusCode((int) ($result['status_code'] ?? 400))
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
         return $this->response
-            ->setStatusCode(501)
+            ->setStatusCode(200)
             ->setJSON([
-                'message' => 'Not implemented yet.',
-                'id'      => $id,
+                'message' => 'SPK posted to stock transaction successfully.',
+                'data'    => $result['data'],
             ]);
     }
 

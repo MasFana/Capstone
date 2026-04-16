@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\AppUserProvider;
 use App\Models\RoleModel;
+use App\Services\SpkStockPostingService;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -190,6 +191,66 @@ class SpkKeringPengemasTest extends CIUnitTestCase
         $this->assertArrayHasKey('required_qty', $showJson['data']['items'][0]);
         $this->assertArrayHasKey('system_recommended_qty', $showJson['data']['items'][0]);
         $this->assertArrayHasKey('final_recommended_qty', $showJson['data']['items'][0]);
+    }
+
+    public function testPostStockCreatesOutTransactionAndFinalizesSpkKeringPengemas(): void
+    {
+        $db = Database::connect();
+
+        $spkInsert = $db->table('spk_calculations')->insert([
+            'spk_type' => 'kering_pengemas',
+            'calculation_scope' => 'monthly',
+            'scope_key' => 'kering_pengemas|monthly|2026-04|2',
+            'version' => 1,
+            'is_latest' => true,
+            'calculation_date' => '2026-04-01',
+            'target_date_start' => '2026-04-01',
+            'target_date_end' => '2026-04-30',
+            'target_month' => '2026-04',
+            'daily_patient_id' => null,
+            'user_id' => 2,
+            'category_id' => 2,
+            'estimated_patients' => 0,
+            'is_finish' => false,
+        ]);
+        $this->assertTrue($spkInsert);
+        $spkId = (int) $db->insertID();
+
+        $recommendationInsert = $db->table('spk_recommendations')->insert([
+            'spk_id' => $spkId,
+            'item_id' => 1,
+            'target_date' => null,
+            'current_stock_qty' => 80,
+            'required_qty' => 550,
+            'system_recommended_qty' => 470,
+            'recommended_qty' => 470,
+            'is_overridden' => false,
+            'override_reason' => null,
+            'overridden_by' => null,
+            'overridden_at' => null,
+        ]);
+        $this->assertTrue($recommendationInsert);
+
+        $beforeTxCount = $db->table('stock_transactions')->countAllResults();
+
+        $service = new SpkStockPostingService();
+        $result = $service->post($spkId, 'kering_pengemas', 1, '127.0.0.1');
+
+        $this->assertTrue($result['success']);
+
+        $afterTxCount = $db->table('stock_transactions')->countAllResults();
+        $this->assertSame($beforeTxCount + 1, $afterTxCount);
+
+        $spk = $db->table('spk_calculations')->where('id', $spkId)->get()->getRowArray();
+        $this->assertNotNull($spk);
+        $this->assertSame(1, (int) $spk['is_finish']);
+
+        $postedTx = $db->table('stock_transactions')
+            ->where('spk_id', $spkId)
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
+        $this->assertNotNull($postedTx);
     }
 
     protected function seedRoles(): void
