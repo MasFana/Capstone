@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\AppUserProvider;
+use App\Models\ItemCategoryModel;
+use App\Services\SpkStockPostingService;
 use App\Models\RoleModel;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
@@ -168,6 +170,103 @@ class SpkBasahTest extends CIUnitTestCase
         $this->assertSame($beforeCount, $afterCount);
     }
 
+    public function testPostStockCreatesOutTransactionAndFinalizesSpk(): void
+    {
+        $db = Database::connect();
+
+        $basahCategoryId = (new ItemCategoryModel())->getIdByName(ItemCategoryModel::NAME_BASAH);
+        $this->assertNotNull($basahCategoryId);
+
+        $spkInsert = $db->table('spk_calculations')->insert([
+            'spk_type' => 'basah',
+            'calculation_scope' => 'combined_window',
+            'scope_key' => 'basah|combined_window|2026-03-01|2026-03-02|' . $basahCategoryId,
+            'version' => 1,
+            'is_latest' => true,
+            'calculation_date' => '2026-03-01',
+            'target_date_start' => '2026-03-01',
+            'target_date_end' => '2026-03-02',
+            'target_month' => null,
+            'daily_patient_id' => null,
+            'user_id' => 2,
+            'category_id' => (int) $basahCategoryId,
+            'estimated_patients' => 100,
+            'is_finish' => false,
+        ]);
+        $this->assertTrue($spkInsert);
+        $spkId = (int) $db->insertID();
+
+        $recommendationInsert = $db->table('spk_recommendations')->insert([
+            'spk_id' => $spkId,
+            'item_id' => 1,
+            'target_date' => '2026-03-01',
+            'current_stock_qty' => 100,
+            'required_qty' => 210,
+            'system_recommended_qty' => 110,
+            'recommended_qty' => 110,
+            'is_overridden' => false,
+            'override_reason' => null,
+            'overridden_by' => null,
+            'overridden_at' => null,
+        ]);
+        $this->assertTrue($recommendationInsert);
+
+        $beforeTxCount = $db->table('stock_transactions')->countAllResults();
+
+        $service = new SpkStockPostingService();
+        $result = $service->post($spkId, 'basah', 1, '127.0.0.1');
+
+        $this->assertTrue($result['success']);
+
+        $afterTxCount = $db->table('stock_transactions')->countAllResults();
+        $this->assertSame($beforeTxCount + 1, $afterTxCount);
+
+        $spk = $db->table('spk_calculations')->where('id', $spkId)->get()->getRowArray();
+        $this->assertNotNull($spk);
+        $this->assertSame(1, (int) $spk['is_finish']);
+
+        $postedTx = $db->table('stock_transactions')
+            ->where('spk_id', $spkId)
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
+        $this->assertNotNull($postedTx);
+    }
+
+    public function testPostStockRejectsAlreadyPostedSpk(): void
+    {
+        $db = Database::connect();
+
+        $basahCategoryId = (new ItemCategoryModel())->getIdByName(ItemCategoryModel::NAME_BASAH);
+        $this->assertNotNull($basahCategoryId);
+
+        $spkInsert = $db->table('spk_calculations')->insert([
+            'spk_type' => 'basah',
+            'calculation_scope' => 'combined_window',
+            'scope_key' => 'basah|combined_window|2026-03-03|2026-03-04|' . $basahCategoryId,
+            'version' => 1,
+            'is_latest' => true,
+            'calculation_date' => '2026-03-03',
+            'target_date_start' => '2026-03-03',
+            'target_date_end' => '2026-03-04',
+            'target_month' => null,
+            'daily_patient_id' => null,
+            'user_id' => 2,
+            'category_id' => (int) $basahCategoryId,
+            'estimated_patients' => 100,
+            'is_finish' => true,
+        ]);
+        $this->assertTrue($spkInsert);
+        $spkId = (int) $db->insertID();
+
+        $service = new SpkStockPostingService();
+        $result = $service->post($spkId, 'basah', 1, '127.0.0.1');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame(400, (int) $result['status_code']);
+        $this->assertSame('Validation failed.', $result['message']);
+    }
+
     protected function seedRoles(): void
     {
         $roleModel = new RoleModel();
@@ -231,6 +330,18 @@ class SpkBasahTest extends CIUnitTestCase
             ['name' => 'BASAH'],
             ['name' => 'KERING'],
             ['name' => 'PENGEMAS'],
+        ]);
+
+        $db->table('transaction_types')->insertBatch([
+            ['name' => 'IN'],
+            ['name' => 'OUT'],
+            ['name' => 'RETURN_IN'],
+        ]);
+
+        $db->table('approval_statuses')->insertBatch([
+            ['name' => 'APPROVED'],
+            ['name' => 'PENDING'],
+            ['name' => 'REJECTED'],
         ]);
 
         $basahCategoryId = (int) $db->table('item_categories')->where('name', 'BASAH')->get()->getRowArray()['id'];
