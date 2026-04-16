@@ -49,6 +49,10 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "meal-times",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "item-units",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -284,6 +288,7 @@ $routes->group(
                     $routes->get("item-categories/(:num)", 'ItemCategories::show/$1');
                     $routes->get("transaction-types", "TransactionTypes::index");
                     $routes->get("approval-statuses", "ApprovalStatuses::index");
+                    $routes->get("meal-times", "MealTimes::index");
 
                     $routes->get("item-units", "ItemUnits::index");
                     $routes->get("item-units/(:num)", 'ItemUnits::show/$1');

@@ -527,4 +527,67 @@ class LookupsTest extends CIUnitTestCase
         $this->assertFalse($json['meta']['paginated']);
         $this->assertSame(3, $json['meta']['total']);
     }
+
+    public function testMealTimesWithoutAuth(): void
+    {
+        $result = $this->get('api/v1/meal-times');
+        $result->assertStatus(401);
+    }
+
+    public function testMealTimesWithDapurRole(): void
+    {
+        $token = $this->getToken('dapur');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/meal-times');
+
+        $result->assertStatus(403);
+        $result->assertJSONFragment(['message' => 'Insufficient permissions.']);
+    }
+
+    public function testMealTimesWithAdminRole(): void
+    {
+        $this->db->table('meal_times')->insertBatch([
+            ['name' => 'Pagi'],
+            ['name' => 'Siang'],
+            ['name' => 'Sore'],
+        ]);
+
+        $token = $this->getToken('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/meal-times?sortBy=id&sortDir=ASC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('meta', $json);
+        $this->assertArrayHasKey('links', $json);
+        $this->assertCount(3, $json['data']);
+        $this->assertSame('Pagi', $json['data'][0]['name']);
+        $this->assertSame('Siang', $json['data'][1]['name']);
+        $this->assertSame('Sore', $json['data'][2]['name']);
+    }
+
+    public function testMealTimesWithGudangRoleAndPaginateFalse(): void
+    {
+        $this->db->table('meal_times')->insertBatch([
+            ['name' => 'Pagi'],
+            ['name' => 'Siang'],
+            ['name' => 'Sore'],
+        ]);
+
+        $token = $this->getToken('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/meal-times?paginate=false&sortBy=id&sortDir=ASC');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertCount(3, $json['data']);
+        $this->assertFalse($json['meta']['paginated']);
+        $this->assertSame(3, $json['meta']['total']);
+    }
 }
