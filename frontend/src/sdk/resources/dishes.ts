@@ -1,5 +1,6 @@
 import type { ApiClient } from "../client";
 import type {
+  ApiMessageResponse,
   CreateDishRequest,
   Dish,
   DishCreateResponse,
@@ -39,6 +40,13 @@ export class DishesResource {
       method: "PUT",
       path: `/dishes/${id}`,
       body: payload
+    });
+  }
+
+  public delete(id: number): Promise<ApiMessageResponse> {
+    return this.client.request<ApiMessageResponse>({
+      method: "DELETE",
+      path: `/dishes/${id}`
     });
   }
 }

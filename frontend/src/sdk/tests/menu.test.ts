@@ -30,21 +30,31 @@ describe("Menu domain resources", () => {
           status: 201,
           headers: { "content-type": "application/json" }
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Dish deleted successfully." }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
       );
 
     const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
 
     await sdk.dishes.list({ page: 2, perPage: 20, q: "bubur", sortBy: "updated_at", sortDir: "DESC" });
     await sdk.dishes.create({ name: "Bubur" });
+    await sdk.dishes.delete(9);
 
     const [listUrl] = fetchMock.mock.calls[0] ?? [];
     const [, createInit] = fetchMock.mock.calls[1] ?? [];
+    const [deleteUrl, deleteInit] = fetchMock.mock.calls[2] ?? [];
 
     expect(listUrl).toBe(
       "http://127.0.0.1:8080/api/v1/dishes?page=2&perPage=20&q=bubur&sortBy=updated_at&sortDir=DESC"
     );
     expect(createInit?.method).toBe("POST");
     expect(createInit?.body).toBe(JSON.stringify({ name: "Bubur" }));
+    expect(deleteUrl).toBe("http://127.0.0.1:8080/api/v1/dishes/9");
+    expect(deleteInit?.method).toBe("DELETE");
   });
 
   it("preserves dish composition envelopes and validation-friendly payload shapes", async () => {
