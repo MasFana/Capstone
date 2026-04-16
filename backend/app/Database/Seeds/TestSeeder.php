@@ -23,6 +23,7 @@ class TestSeeder extends Seeder
         $this->call('MenuScheduleSeeder');
         $this->call('DailyPatientSeeder');
         $this->call('StockTransactionSeeder');
+        $this->call('StockOpnameSeeder');
         $this->call('SpkPersistenceSeeder');
     }
 }
