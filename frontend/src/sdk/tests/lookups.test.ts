@@ -145,4 +145,26 @@ describe("Lookup resources", () => {
     expect(firstUrl).toBe("http://127.0.0.1:8080/api/v1/transaction-types?q=IN");
     expect(secondUrl).toBe("http://127.0.0.1:8080/api/v1/approval-statuses?q=APP");
   });
+
+  it("calls the meal-times lookup endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [],
+          meta: { page: 1, perPage: 10, total: 0, totalPages: 0 },
+          links: { self: "", first: "", last: "", next: null, previous: null }
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+    await sdk.mealTimes.list({ q: "pagi", sortBy: "id", sortDir: "ASC" });
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/meal-times?q=pagi&sortBy=id&sortDir=ASC");
+  });
 });
