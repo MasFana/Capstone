@@ -11,3 +11,8 @@ export interface LoginResponse {
   token_type: "Bearer";
   user: User;
 }
+
+export interface SelfServiceChangePasswordRequest {
+  current_password: string;
+  password: string;
+}

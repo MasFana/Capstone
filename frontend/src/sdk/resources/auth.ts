@@ -1,4 +1,11 @@
-import type { ApiDataResponse, ApiMessageResponse, LoginRequest, LoginResponse, User } from "../types";
+import type {
+  ApiDataResponse,
+  ApiMessageResponse,
+  LoginRequest,
+  LoginResponse,
+  SelfServiceChangePasswordRequest,
+  User
+} from "../types";
 import type { ApiClient } from "../client";
 
 /**
@@ -44,6 +51,20 @@ export class AuthResource {
     return this.client.request<ApiMessageResponse>({
       method: "POST",
       path: "/auth/logout"
+    });
+  }
+
+  /**
+   * Changes the current authenticated user's password.
+   *
+   * HTTP: `PATCH /api/v1/auth/password`
+   * Access: authenticated `admin`, `dapur`, `gudang`
+   */
+  public changePassword(payload: SelfServiceChangePasswordRequest): Promise<ApiMessageResponse> {
+    return this.client.request<ApiMessageResponse>({
+      method: "PATCH",
+      path: "/auth/password",
+      body: payload
     });
   }
 }

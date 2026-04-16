@@ -40,4 +40,28 @@ describe("AuthResource", () => {
     expect(init?.method).toBe("POST");
     expect(init?.body).toBe(JSON.stringify({ username: "admin", password: "password123" }));
   });
+
+  it("patches self-service password change endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ message: "Password changed successfully. All access tokens have been revoked." }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    await sdk.auth.changePassword({
+      current_password: "password123",
+      password: "newpassword123"
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("http://127.0.0.1:8080/api/v1/auth/password");
+    expect(init?.method).toBe("PATCH");
+    expect(init?.body).toBe(JSON.stringify({
+      current_password: "password123",
+      password: "newpassword123"
+    }));
+  });
 });
