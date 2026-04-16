@@ -85,46 +85,89 @@ class DefaultBaselineCoverageTest extends CIUnitTestCase
         }
     }
 
-    public function testMenuSchedulesIsEmpty(): void
+    public function testMenuSchedulesIsPopulated(): void
     {
         $count = $this->db->table('menu_schedules')->countAllResults();
 
-        $this->assertSame(0, $count, 'menu_schedules must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'menu_schedules should contain deterministic baseline overrides');
     }
 
-    public function testDailyPatientsIsEmpty(): void
+    public function testDailyPatientsIsPopulated(): void
     {
         $count = $this->db->table('daily_patients')->countAllResults();
 
-        $this->assertSame(0, $count, 'daily_patients must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'daily_patients should contain deterministic baseline rows');
     }
 
-    public function testStockTransactionsIsEmpty(): void
+    public function testStockTransactionsIsPopulated(): void
     {
         $count = $this->db->table('stock_transactions')->countAllResults();
 
-        $this->assertSame(0, $count, 'stock_transactions must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'stock_transactions should contain lifecycle baseline rows');
     }
 
-    public function testStockTransactionDetailsIsEmpty(): void
+    public function testStockTransactionDetailsIsPopulated(): void
     {
         $count = $this->db->table('stock_transaction_details')->countAllResults();
 
-        $this->assertSame(0, $count, 'stock_transaction_details must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'stock_transaction_details should contain lifecycle baseline rows');
     }
 
-    public function testSpkCalculationsIsEmpty(): void
+    public function testSpkCalculationsIsPopulated(): void
     {
         $count = $this->db->table('spk_calculations')->countAllResults();
 
-        $this->assertSame(0, $count, 'spk_calculations must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'spk_calculations should contain versioned baseline rows');
     }
 
-    public function testSpkRecommendationsIsEmpty(): void
+    public function testSpkRecommendationsIsPopulated(): void
     {
         $count = $this->db->table('spk_recommendations')->countAllResults();
 
-        $this->assertSame(0, $count, 'spk_recommendations must stay empty in the default baseline');
+        $this->assertGreaterThan(0, $count, 'spk_recommendations should contain baseline rows');
+    }
+
+    public function testStockOpnameLifecycleStatesAreSeeded(): void
+    {
+        $states = $this->db->table('stock_opnames')
+            ->select('state')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $stateNames = array_values(array_unique(array_map(static fn (array $row): string => (string) $row['state'], $states)));
+
+        $this->assertContains('DRAFT', $stateNames);
+        $this->assertContains('SUBMITTED', $stateNames);
+        $this->assertContains('APPROVED', $stateNames);
+        $this->assertContains('REJECTED', $stateNames);
+        $this->assertContains('POSTED', $stateNames);
+    }
+
+    public function testStockTransactionLifecycleRowsAreSeeded(): void
+    {
+        $rows = $this->db->table('stock_transactions')
+            ->select('is_revision, reason, approval_status_id')
+            ->get()
+            ->getResultArray();
+
+        $this->assertNotEmpty($rows);
+
+        $hasRevision = false;
+        $hasDirectCorrection = false;
+
+        foreach ($rows as $row) {
+            if ((int) $row['is_revision'] === 1) {
+                $hasRevision = true;
+            }
+
+            if (is_string($row['reason']) && str_contains($row['reason'], 'direct correction')) {
+                $hasDirectCorrection = true;
+            }
+        }
+
+        $this->assertTrue($hasRevision, 'stock_transactions should include revision lifecycle samples');
+        $this->assertTrue($hasDirectCorrection, 'stock_transactions should include direct correction baseline sample');
     }
 
     public function testAuditLogsIsEmpty(): void
