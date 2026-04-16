@@ -1,5 +1,5 @@
 import type { ApiClient } from "../client";
-import type { GenerateSpkBasahRequest, GenerateSpkKeringPengemasRequest, SpkBasahDetailResponse, SpkBasahGenerateResponse, SpkBasahHistoryListResponse, SpkKeringPengemasDetailResponse, SpkKeringPengemasGenerateResponse, SpkKeringPengemasHistoryListResponse } from "../types";
+import type { GenerateSpkBasahRequest, GenerateSpkKeringPengemasRequest, OperationalStockPreviewRequest, OperationalStockPreviewResponse, SpkBasahDetailResponse, SpkBasahGenerateResponse, SpkBasahHistoryListResponse, SpkMenuCalendarQuery, SpkMenuCalendarResponse, SpkOverrideRequest, SpkOverrideResponse, SpkKeringPengemasDetailResponse, SpkKeringPengemasGenerateResponse, SpkKeringPengemasHistoryListResponse, SpkPostStockResponse, SpkStockInPrefillResponse } from "../types";
 /**
  * SPK generation/history endpoints.
  *
@@ -9,6 +9,8 @@ import type { GenerateSpkBasahRequest, GenerateSpkKeringPengemasRequest, SpkBasa
 export declare class SpkResource {
     private readonly client;
     constructor(client: ApiClient);
+    basahMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse>;
+    operationalStockPreview(payload: OperationalStockPreviewRequest): Promise<OperationalStockPreviewResponse>;
     /**
      * Generates a basah SPK for one requested service date, with backend logic
      * potentially expanding to a same-month combined window (day + next day).
@@ -37,6 +39,9 @@ export declare class SpkResource {
      * Access: `admin`, `gudang`
      */
     getBasah(id: number): Promise<SpkBasahDetailResponse>;
+    overrideBasah(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse>;
+    postBasahStock(id: number): Promise<SpkPostStockResponse>;
+    keringPengemasMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse>;
     /**
      * Generates a monthly SPK for kering/pengemas categories.
      *
@@ -64,4 +69,7 @@ export declare class SpkResource {
      * Access: `admin`, `gudang`
      */
     getKeringPengemas(id: number): Promise<SpkKeringPengemasDetailResponse>;
+    overrideKeringPengemas(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse>;
+    postKeringPengemasStock(id: number): Promise<SpkPostStockResponse>;
+    stockInPrefill(id: number): Promise<SpkStockInPrefillResponse>;
 }

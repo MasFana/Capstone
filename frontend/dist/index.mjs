@@ -195,6 +195,19 @@ var AuthResource = class {
       path: "/auth/logout"
     });
   }
+  /**
+   * Changes the current authenticated user's password.
+   *
+   * HTTP: `PATCH /api/v1/auth/password`
+   * Access: authenticated `admin`, `dapur`, `gudang`
+   */
+  changePassword(payload) {
+    return this.client.request({
+      method: "PATCH",
+      path: "/auth/password",
+      body: payload
+    });
+  }
 };
 
 // src/sdk/resources/approvalStatuses.ts
@@ -303,6 +316,12 @@ var DishesResource = class {
       method: "PUT",
       path: `/dishes/${id}`,
       body: payload
+    });
+  }
+  delete(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/dishes/${id}`
     });
   }
 };
@@ -630,6 +649,36 @@ function buildLookupQuery3(query) {
   return result;
 }
 
+// src/sdk/resources/mealTimes.ts
+var MealTimesResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/meal-times",
+      ...query ? { query: buildLookupQuery4(query) } : {}
+    });
+  }
+};
+function buildLookupQuery4(query) {
+  const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.search !== void 0) result.search = query.search;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.created_at_from !== void 0) result.created_at_from = query.created_at_from;
+  if (query.created_at_to !== void 0) result.created_at_to = query.created_at_to;
+  if (query.updated_at_from !== void 0) result.updated_at_from = query.updated_at_from;
+  if (query.updated_at_to !== void 0) result.updated_at_to = query.updated_at_to;
+  return result;
+}
+
 // src/sdk/resources/menus.ts
 var MenusResource = class {
   constructor(client) {
@@ -748,6 +797,20 @@ var SpkResource = class {
     this.client = client;
   }
   client;
+  basahMenuCalendar(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/spk/basah/menu-calendar",
+      ...query ? { query: buildMenuCalendarQuery2(query) } : {}
+    });
+  }
+  operationalStockPreview(payload) {
+    return this.client.request({
+      method: "POST",
+      path: "/spk/basah/operational-stock-preview",
+      body: payload
+    });
+  }
   /**
    * Generates a basah SPK for one requested service date, with backend logic
    * potentially expanding to a same-month combined window (day + next day).
@@ -790,6 +853,26 @@ var SpkResource = class {
     return this.client.request({
       method: "GET",
       path: `/spk/basah/history/${id}`
+    });
+  }
+  overrideBasah(id, payload) {
+    return this.client.request({
+      method: "POST",
+      path: `/spk/basah/history/${id}/override`,
+      body: payload
+    });
+  }
+  postBasahStock(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/spk/basah/history/${id}/post-stock`
+    });
+  }
+  keringPengemasMenuCalendar(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/spk/kering-pengemas/menu-calendar",
+      ...query ? { query: buildMenuCalendarQuery2(query) } : {}
     });
   }
   /**
@@ -835,7 +918,34 @@ var SpkResource = class {
       path: `/spk/kering-pengemas/history/${id}`
     });
   }
+  overrideKeringPengemas(id, payload) {
+    return this.client.request({
+      method: "POST",
+      path: `/spk/kering-pengemas/history/${id}/override`,
+      body: payload
+    });
+  }
+  postKeringPengemasStock(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/spk/kering-pengemas/history/${id}/post-stock`
+    });
+  }
+  stockInPrefill(id) {
+    return this.client.request({
+      method: "GET",
+      path: `/spk/stock-in-prefill/${id}`
+    });
+  }
 };
+function buildMenuCalendarQuery2(query) {
+  const result = {};
+  if (query.month !== void 0) result.month = query.month;
+  if (query.date !== void 0) result.date = query.date;
+  if (query.start_date !== void 0) result.start_date = query.start_date;
+  if (query.end_date !== void 0) result.end_date = query.end_date;
+  return result;
+}
 
 // src/sdk/resources/stockTransactions.ts
 var StockTransactionsResource = class {
@@ -984,11 +1094,11 @@ var TransactionTypesResource = class {
     return this.client.request({
       method: "GET",
       path: "/transaction-types",
-      ...query ? { query: buildLookupQuery4(query) } : {}
+      ...query ? { query: buildLookupQuery5(query) } : {}
     });
   }
 };
-function buildLookupQuery4(query) {
+function buildLookupQuery5(query) {
   const result = {};
   if (query.paginate !== void 0) result.paginate = query.paginate ? "true" : "false";
   if (query.page !== void 0) result.page = query.page;
@@ -1253,6 +1363,7 @@ var CapstoneSdk = class {
   roles;
   items;
   itemUnits;
+  mealTimes;
   menus;
   menuSchedules;
   spk;
@@ -1273,6 +1384,7 @@ var CapstoneSdk = class {
     this.roles = new RolesResource(this.client);
     this.items = new ItemsResource(this.client);
     this.itemUnits = new ItemUnitsResource(this.client);
+    this.mealTimes = new MealTimesResource(this.client);
     this.menus = new MenusResource(this.client);
     this.menuSchedules = new MenuSchedulesResource(this.client);
     this.spk = new SpkResource(this.client);
@@ -1314,6 +1426,7 @@ export {
   ItemCategoriesResource,
   ItemUnitsResource,
   ItemsResource,
+  MealTimesResource,
   MenuSchedulesResource,
   MenusResource,
   NotFoundApiError,

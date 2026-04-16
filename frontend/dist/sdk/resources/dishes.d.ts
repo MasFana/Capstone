@@ -1,5 +1,5 @@
 import type { ApiClient } from "../client";
-import type { CreateDishRequest, Dish, DishCreateResponse, DishesListResponse, ListDishesQuery, UpdateDishRequest } from "../types";
+import type { ApiMessageResponse, CreateDishRequest, Dish, DishCreateResponse, DishesListResponse, ListDishesQuery, UpdateDishRequest } from "../types";
 export declare class DishesResource {
     private readonly client;
     constructor(client: ApiClient);
@@ -9,4 +9,5 @@ export declare class DishesResource {
     }>;
     create(payload: CreateDishRequest): Promise<DishCreateResponse>;
     update(id: number, payload: UpdateDishRequest): Promise<DishCreateResponse>;
+    delete(id: number): Promise<ApiMessageResponse>;
 }

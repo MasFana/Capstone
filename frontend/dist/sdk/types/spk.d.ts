@@ -167,3 +167,100 @@ export type SpkBasahHistoryListResponse = SpkHistoryListResponse<SpkHistoryEntry
 export type SpkKeringPengemasHistoryListResponse = SpkHistoryListResponse<SpkHistoryEntry>;
 export type SpkBasahDetailResponse = ApiDataResponse<SpkBasahDetail>;
 export type SpkKeringPengemasDetailResponse = ApiDataResponse<SpkKeringPengemasDetail>;
+export interface SpkMenuCalendarQuery {
+    month?: string;
+    date?: string;
+    start_date?: string;
+    end_date?: string;
+}
+export interface SpkMenuCalendarEntry {
+    date: string;
+    day_of_month: number;
+    menu_id: number;
+    menu_name: string;
+}
+export interface SpkMenuCalendarDateResponse extends ApiDataResponse<SpkMenuCalendarEntry> {
+}
+export interface SpkMenuCalendarMonthResponse extends ApiDataResponse<SpkMenuCalendarEntry[]> {
+    meta: {
+        month: string;
+        total: number;
+    };
+}
+export interface SpkMenuCalendarRangeResponse extends ApiDataResponse<SpkMenuCalendarEntry[]> {
+    meta: {
+        start_date: string;
+        end_date: string;
+        total: number;
+    };
+}
+export type SpkMenuCalendarResponse = SpkMenuCalendarDateResponse | SpkMenuCalendarMonthResponse | SpkMenuCalendarRangeResponse;
+export interface SpkOverrideRequest {
+    recommendation_id: number;
+    recommended_qty: number;
+    reason: string;
+}
+export interface SpkOverrideResult {
+    spk_id: number;
+    recommendation_id: number;
+    system_recommended_qty: number;
+    recommended_qty: number;
+    override: {
+        is_overridden: boolean;
+        reason: string;
+        overridden_by: number;
+        overridden_at: string;
+    };
+}
+export type SpkOverrideResponse = ApiMessageDataResponse<SpkOverrideResult>;
+export interface OperationalStockPreviewRequest {
+    service_date: string;
+    meal_time: string;
+    total_patients: number;
+}
+export interface OperationalStockPreviewItem {
+    item_id: number;
+    item_name: string;
+    item_unit_base: string | null;
+    item_unit_convert: string | null;
+    current_stock_qty: number;
+    required_qty: number;
+    projected_stock_out_qty: number;
+    projected_remaining_stock_qty: number;
+    projected_shortage_qty: number;
+}
+export interface OperationalStockPreviewResult {
+    service_date: string;
+    meal_time: string;
+    total_patients: number;
+    menu: {
+        id: number;
+        name: string;
+    };
+    items: OperationalStockPreviewItem[];
+    summary: {
+        total_items: number;
+        total_required_qty: number;
+        total_projected_stock_out_qty: number;
+        total_projected_shortage_qty: number;
+    };
+}
+export type OperationalStockPreviewResponse = ApiDataResponse<OperationalStockPreviewResult>;
+export interface SpkStockInPrefillDetail {
+    item_id: number;
+    qty: number;
+}
+export interface SpkStockInPrefillResult {
+    type_name: "IN";
+    transaction_date: string;
+    spk_id: number;
+    details: SpkStockInPrefillDetail[];
+}
+export type SpkStockInPrefillResponse = ApiDataResponse<SpkStockInPrefillResult>;
+export interface SpkPostStockResult {
+    id: number;
+    version: number;
+    is_finish: boolean;
+    posted_transaction_id: number;
+}
+export type SpkPostStockResponse = ApiMessageDataResponse<SpkPostStockResult>;

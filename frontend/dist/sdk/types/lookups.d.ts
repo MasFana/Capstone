@@ -25,3 +25,4 @@ export type ItemCategory = LookupResource;
 export type ItemUnit = LookupResource;
 export type TransactionType = LookupResource;
 export type ApprovalStatus = LookupResource;
+export type MealTime = LookupResource;
