@@ -25,6 +25,7 @@ Implemented SDK resources:
 - `stockTransactions`
 - `itemCategories`
 - `itemUnits`
+- `mealTimes`
 - `transactionTypes`
 - `approvalStatuses`
 - `dailyPatients`
@@ -33,6 +34,9 @@ Implemented SDK resources:
 - `dishes`
 - `dishCompositions`
 - `menuSchedules`
+- `dashboard`
+- `reports`
+- `stockOpnames`
 
 ## Folder structure
 
