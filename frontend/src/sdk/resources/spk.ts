@@ -2,12 +2,20 @@ import type { ApiClient } from "../client";
 import type {
   GenerateSpkBasahRequest,
   GenerateSpkKeringPengemasRequest,
+  OperationalStockPreviewRequest,
+  OperationalStockPreviewResponse,
   SpkBasahDetailResponse,
   SpkBasahGenerateResponse,
   SpkBasahHistoryListResponse,
+  SpkMenuCalendarQuery,
+  SpkMenuCalendarResponse,
+  SpkOverrideRequest,
+  SpkOverrideResponse,
   SpkKeringPengemasDetailResponse,
   SpkKeringPengemasGenerateResponse,
-  SpkKeringPengemasHistoryListResponse
+  SpkKeringPengemasHistoryListResponse,
+  SpkPostStockResponse,
+  SpkStockInPrefillResponse
 } from "../types";
 
 /**
@@ -18,6 +26,24 @@ import type {
  */
 export class SpkResource {
   public constructor(private readonly client: ApiClient) {}
+
+  public basahMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse> {
+    return this.client.request<SpkMenuCalendarResponse>({
+      method: "GET",
+      path: "/spk/basah/menu-calendar",
+      ...(query ? { query: buildMenuCalendarQuery(query) } : {})
+    });
+  }
+
+  public operationalStockPreview(
+    payload: OperationalStockPreviewRequest
+  ): Promise<OperationalStockPreviewResponse> {
+    return this.client.request<OperationalStockPreviewResponse>({
+      method: "POST",
+      path: "/spk/basah/operational-stock-preview",
+      body: payload
+    });
+  }
 
   /**
    * Generates a basah SPK for one requested service date, with backend logic
@@ -63,6 +89,29 @@ export class SpkResource {
     return this.client.request<SpkBasahDetailResponse>({
       method: "GET",
       path: `/spk/basah/history/${id}`
+    });
+  }
+
+  public overrideBasah(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse> {
+    return this.client.request<SpkOverrideResponse>({
+      method: "POST",
+      path: `/spk/basah/history/${id}/override`,
+      body: payload
+    });
+  }
+
+  public postBasahStock(id: number): Promise<SpkPostStockResponse> {
+    return this.client.request<SpkPostStockResponse>({
+      method: "POST",
+      path: `/spk/basah/history/${id}/post-stock`
+    });
+  }
+
+  public keringPengemasMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse> {
+    return this.client.request<SpkMenuCalendarResponse>({
+      method: "GET",
+      path: "/spk/kering-pengemas/menu-calendar",
+      ...(query ? { query: buildMenuCalendarQuery(query) } : {})
     });
   }
 
@@ -113,4 +162,37 @@ export class SpkResource {
       path: `/spk/kering-pengemas/history/${id}`
     });
   }
+
+  public overrideKeringPengemas(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse> {
+    return this.client.request<SpkOverrideResponse>({
+      method: "POST",
+      path: `/spk/kering-pengemas/history/${id}/override`,
+      body: payload
+    });
+  }
+
+  public postKeringPengemasStock(id: number): Promise<SpkPostStockResponse> {
+    return this.client.request<SpkPostStockResponse>({
+      method: "POST",
+      path: `/spk/kering-pengemas/history/${id}/post-stock`
+    });
+  }
+
+  public stockInPrefill(id: number): Promise<SpkStockInPrefillResponse> {
+    return this.client.request<SpkStockInPrefillResponse>({
+      method: "GET",
+      path: `/spk/stock-in-prefill/${id}`
+    });
+  }
+}
+
+function buildMenuCalendarQuery(query: SpkMenuCalendarQuery): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  if (query.month !== undefined) result.month = query.month;
+  if (query.date !== undefined) result.date = query.date;
+  if (query.start_date !== undefined) result.start_date = query.start_date;
+  if (query.end_date !== undefined) result.end_date = query.end_date;
+
+  return result;
 }

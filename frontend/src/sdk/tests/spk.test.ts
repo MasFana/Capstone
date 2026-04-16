@@ -476,4 +476,53 @@ describe("SpkResource", () => {
     expect("list" in sdk.spk).toBe(false);
     expect("get" in sdk.spk).toBe(false);
   });
+
+  it("covers SPK utility, calendar, override, and post-stock endpoints", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { date: "2026-04-15", day_of_month: 15, menu_id: 5, menu_name: "Paket 5" } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { service_date: "2026-04-15", meal_time: "PAGI", total_patients: 120, menu: { id: 5, name: "Paket 5" }, items: [], summary: { total_items: 0, total_required_qty: 0, total_projected_stock_out_qty: 0, total_projected_shortage_qty: 0 } } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "SPK recommendation item overridden successfully.", data: { spk_id: 10, recommendation_id: 90, system_recommended_qty: 100, recommended_qty: 110, override: { is_overridden: true, reason: "Buffer", overridden_by: 1, overridden_at: "2026-04-15 10:00:00" } } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "SPK posted to stock transaction successfully.", data: { id: 10, version: 1, is_finish: true, posted_transaction_id: 77 } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { date: "2026-04-15", day_of_month: 15, menu_id: 5, menu_name: "Paket 5" } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "SPK recommendation item overridden successfully.", data: { spk_id: 21, recommendation_id: 120, system_recommended_qty: 50, recommended_qty: 55, override: { is_overridden: true, reason: "Monthly buffer", overridden_by: 1, overridden_at: "2026-04-15 10:00:00" } } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "SPK posted to stock transaction successfully.", data: { id: 21, version: 2, is_finish: true, posted_transaction_id: 88 } }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { type_name: "IN", transaction_date: "2026-04-15", spk_id: 21, details: [{ item_id: 1, qty: 42 }] } }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
+
+    await sdk.spk.basahMenuCalendar({ date: "2026-04-15" });
+    await sdk.spk.operationalStockPreview({ service_date: "2026-04-15", meal_time: "PAGI", total_patients: 120 });
+    await sdk.spk.overrideBasah(10, { recommendation_id: 90, recommended_qty: 110, reason: "Buffer" });
+    await sdk.spk.postBasahStock(10);
+    await sdk.spk.keringPengemasMenuCalendar({ date: "2026-04-15" });
+    await sdk.spk.overrideKeringPengemas(21, { recommendation_id: 120, recommended_qty: 55, reason: "Monthly buffer" });
+    await sdk.spk.postKeringPengemasStock(21);
+    await sdk.spk.stockInPrefill(21);
+
+    const [u1, i1] = fetchMock.mock.calls[0] ?? [];
+    const [u2, i2] = fetchMock.mock.calls[1] ?? [];
+    const [u3, i3] = fetchMock.mock.calls[2] ?? [];
+    const [u4, i4] = fetchMock.mock.calls[3] ?? [];
+    const [u5, i5] = fetchMock.mock.calls[4] ?? [];
+    const [u6, i6] = fetchMock.mock.calls[5] ?? [];
+    const [u7, i7] = fetchMock.mock.calls[6] ?? [];
+    const [u8, i8] = fetchMock.mock.calls[7] ?? [];
+
+    expect(u1).toBe("http://127.0.0.1:8080/api/v1/spk/basah/menu-calendar?date=2026-04-15");
+    expect(i1?.method).toBe("GET");
+    expect(u2).toBe("http://127.0.0.1:8080/api/v1/spk/basah/operational-stock-preview");
+    expect(i2?.method).toBe("POST");
+    expect(u3).toBe("http://127.0.0.1:8080/api/v1/spk/basah/history/10/override");
+    expect(i3?.method).toBe("POST");
+    expect(u4).toBe("http://127.0.0.1:8080/api/v1/spk/basah/history/10/post-stock");
+    expect(i4?.method).toBe("POST");
+    expect(u5).toBe("http://127.0.0.1:8080/api/v1/spk/kering-pengemas/menu-calendar?date=2026-04-15");
+    expect(i5?.method).toBe("GET");
+    expect(u6).toBe("http://127.0.0.1:8080/api/v1/spk/kering-pengemas/history/21/override");
+    expect(i6?.method).toBe("POST");
+    expect(u7).toBe("http://127.0.0.1:8080/api/v1/spk/kering-pengemas/history/21/post-stock");
+    expect(i7?.method).toBe("POST");
+    expect(u8).toBe("http://127.0.0.1:8080/api/v1/spk/stock-in-prefill/21");
+    expect(i8?.method).toBe("GET");
+  });
 });
