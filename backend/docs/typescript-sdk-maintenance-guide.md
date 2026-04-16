@@ -55,7 +55,7 @@ When a new backend feature is added, discover its SDK impact using this checklis
 
 - API base path: `/api/v1`
 - Auth header: `Authorization: Bearer <token>`
-- Implemented resources: `auth`, `roles`, `item-categories`, `transaction-types`, `approval-statuses`, `item-units`, `items`, `stock-transactions`, `users`
+- Implemented resources: `auth`, `roles`, `item-categories`, `transaction-types`, `approval-statuses`, `meal-times`, `item-units`, `items`, `stock-transactions`, `users`, `menus`, `dishes`, `dish-compositions`, `menu-schedules`, `daily-patients`, `spk`, `dashboard`, `reports`, `stock-opnames`
 - List envelope: `{ data, meta, links }`
 - Lookup list endpoints may also accept `paginate=false`, but they still return the same `{ data, meta, links }` envelope.
 - Single-resource envelope: `{ data }`
@@ -74,6 +74,7 @@ Use these access notes when documenting SDK methods or deciding whether a fronte
 - `POST /auth/login` — public, no authenticated actor required
 - `GET /auth/me` — any authenticated actor: `admin`, `dapur`, `gudang`
 - `POST /auth/logout` — any authenticated actor: `admin`, `dapur`, `gudang`
+- `PATCH /auth/password` — any authenticated actor: `admin`, `dapur`, `gudang`
 
 ### Roles
 
@@ -89,6 +90,7 @@ Use these access notes when documenting SDK methods or deciding whether a fronte
 - `PATCH /item-categories/{id}/restore` — `admin` only
 - `GET /transaction-types` — `admin`, `gudang`
 - `GET /approval-statuses` — `admin`, `gudang`
+- `GET /meal-times` — `admin`, `gudang`
 - `GET /item-units` — `admin`, `gudang`
 - `GET /item-units/{id}` — `admin`, `gudang`
 - `POST /item-units` — `admin` only
@@ -136,10 +138,20 @@ frontend/src/sdk/
   resources/
     approvalStatuses.ts
     auth.ts
+    dailyPatients.ts
+    dashboard.ts
+    dishCompositions.ts
+    dishes.ts
     itemCategories.ts
     items.ts
     itemUnits.ts
+    mealTimes.ts
+    menus.ts
+    menuSchedules.ts
+    reports.ts
     roles.ts
+    spk.ts
+    stockOpnames.ts
     stockTransactions.ts
     transactionTypes.ts
     users.ts
@@ -147,10 +159,16 @@ frontend/src/sdk/
   types/
     auth.ts
     common.ts
+    dailyPatients.ts
+    dashboard.ts
+    menu.ts
     index.ts
     items.ts
     lookups.ts
+    reports.ts
     roles.ts
+    spk.ts
+    stockOpnames.ts
     stockTransactions.ts
     users.ts
 ```
@@ -211,6 +229,7 @@ Keep the SDK return types aligned to backend contracts:
 - `POST /auth/login`
 - `GET /auth/me`
 - `POST /auth/logout`
+- `PATCH /auth/password`
 
 ### Roles
 
@@ -226,6 +245,7 @@ Keep the SDK return types aligned to backend contracts:
 - `PATCH /item-categories/{id}/restore`
 - `GET /transaction-types`
 - `GET /approval-statuses`
+- `GET /meal-times`
 - `GET /item-units`
 - `GET /item-units/{id}`
 - `POST /item-units`
@@ -247,6 +267,67 @@ Uniqueness policy notes:
 - `GET /items/{id}`
 - `PUT /items/{id}`
 - `DELETE /items/{id}`
+
+### Dashboard
+
+- `GET /dashboard`
+
+### Reports
+
+- `GET /reports/stocks`
+- `GET /reports/transactions`
+- `GET /reports/spk-history`
+- `GET /reports/evaluation`
+
+### Stock opnames
+
+- `POST /stock-opnames`
+- `GET /stock-opnames/{id}`
+- `POST /stock-opnames/{id}/submit`
+- `POST /stock-opnames/{id}/approve`
+- `POST /stock-opnames/{id}/reject`
+- `POST /stock-opnames/{id}/post`
+
+### Menu and nutrition
+
+- `GET /menus`
+- `GET /menu-dishes`
+- `POST /menu-dishes`
+- `GET /dishes`
+- `GET /dishes/{id}`
+- `POST /dishes`
+- `PUT /dishes/{id}`
+- `DELETE /dishes/{id}`
+- `GET /dish-compositions`
+- `GET /dish-compositions/{id}`
+- `POST /dish-compositions`
+- `PUT /dish-compositions/{id}`
+- `DELETE /dish-compositions/{id}`
+- `GET /menu-schedules`
+- `GET /menu-schedules/{id}`
+- `POST /menu-schedules`
+- `PUT /menu-schedules/{id}`
+- `GET /menu-calendar`
+
+### Daily patients and SPK
+
+- `GET /daily-patients`
+- `GET /daily-patients/{id}`
+- `POST /daily-patients`
+- `GET /spk/basah/menu-calendar`
+- `POST /spk/basah/operational-stock-preview`
+- `POST /spk/basah/generate`
+- `GET /spk/basah/history`
+- `GET /spk/basah/history/{id}`
+- `POST /spk/basah/history/{id}/override`
+- `POST /spk/basah/history/{id}/post-stock`
+- `GET /spk/kering-pengemas/menu-calendar`
+- `POST /spk/kering-pengemas/generate`
+- `GET /spk/kering-pengemas/history`
+- `GET /spk/kering-pengemas/history/{id}`
+- `POST /spk/kering-pengemas/history/{id}/override`
+- `POST /spk/kering-pengemas/history/{id}/post-stock`
+- `GET /spk/stock-in-prefill/{id}`
 
 ### Stock transactions
 
