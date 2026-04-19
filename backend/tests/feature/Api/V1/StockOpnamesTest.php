@@ -9,6 +9,7 @@ use App\Models\ItemUnitModel;
 use App\Models\RoleModel;
 use App\Models\StockOpnameModel;
 use App\Models\StockTransactionModel;
+use App\Models\StockTransactionDetailModel;
 use App\Models\ApprovalStatusModel;
 use App\Models\TransactionTypeModel;
 use CodeIgniter\Shield\Entities\User;
@@ -145,6 +146,7 @@ class StockOpnamesTest extends CIUnitTestCase
             ['name' => 'IN'],
             ['name' => 'OUT'],
             ['name' => 'RETURN_IN'],
+            ['name' => TransactionTypeModel::NAME_OPNAME_ADJUSTMENT],
         ]);
     }
 
@@ -237,6 +239,14 @@ class StockOpnamesTest extends CIUnitTestCase
         $showResult->assertStatus(200);
         $showJson = json_decode($showResult->getJSON(), true);
         $this->assertSame(StockOpnameModel::STATE_POSTED, $showJson['data']['header']['state']);
+        $this->assertArrayHasKey('created_by_name', $showJson['data']['header']);
+        $this->assertArrayHasKey('submitted_by_name', $showJson['data']['header']);
+        $this->assertArrayHasKey('approved_by_name', $showJson['data']['header']);
+        $this->assertArrayHasKey('posted_by_name', $showJson['data']['header']);
+        $this->assertSame('Gudang User', $showJson['data']['header']['created_by_name']);
+        $this->assertSame('Gudang User', $showJson['data']['header']['submitted_by_name']);
+        $this->assertSame('Admin User', $showJson['data']['header']['approved_by_name']);
+        $this->assertSame('Admin User', $showJson['data']['header']['posted_by_name']);
         $this->assertCount(2, $showJson['data']['details']);
     }
 
@@ -314,5 +324,186 @@ class StockOpnamesTest extends CIUnitTestCase
         $postResult->assertStatus(403);
 
         $this->assertSame($beforeQty, (float) $itemModel->find(1)['qty']);
+    }
+
+    public function testStockOpnamePostConvertsAbsoluteQtyToOpnameAdjustmentLedgerRows(): void
+    {
+        $gudangToken = $this->login('gudang');
+        $adminToken  = $this->login('admin');
+
+        $itemModel     = new ItemModel();
+        $berasBefore   = (float) $itemModel->find(1)['qty'];
+        $ayamBefore    = (float) $itemModel->find(2)['qty'];
+        $berasActual   = $berasBefore + 120.25;
+        $ayamActual    = $ayamBefore - 80.5;
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames', [
+                'opname_date' => '2026-06-23',
+                'notes'       => 'Delta conversion contract test.',
+                'details'     => [
+                    ['item_id' => 1, 'counted_qty' => $berasActual],
+                    ['item_id' => 2, 'counted_qty' => $ayamActual],
+                ],
+            ]);
+        $createResult->assertStatus(201);
+        $opnameId = (int) json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/submit', [])
+            ->assertStatus(200);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/approve', [])
+            ->assertStatus(200);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/post', [])
+            ->assertStatus(200);
+
+        $this->assertSame($berasActual, (float) $itemModel->find(1)['qty']);
+        $this->assertSame($ayamActual, (float) $itemModel->find(2)['qty']);
+
+        $transactionTypeModel   = new TransactionTypeModel();
+        $opnameAdjustmentTypeId = (int) $transactionTypeModel->getIdByName(TransactionTypeModel::NAME_OPNAME_ADJUSTMENT);
+
+        $stockTransactionModel = new StockTransactionModel();
+        $postedTransactions    = $stockTransactionModel
+            ->like('reason', 'Stock opname #' . $opnameId . ' posting', 'both')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+
+        $this->assertCount(2, $postedTransactions);
+
+        $detailModel = new StockTransactionDetailModel();
+
+        $seen120 = false;
+        $seen80  = false;
+        foreach ($postedTransactions as $transaction) {
+            $details = $detailModel->getDetailsByTransactionId((int) $transaction['id']);
+            $this->assertCount(1, $details);
+            $this->assertSame($opnameAdjustmentTypeId, (int) $transaction['type_id']);
+
+            $detailQty = number_format((float) $details[0]['qty'], 2, '.', '');
+
+            if ($detailQty === '120.25') {
+                $seen120 = true;
+                $this->assertSame('120.25', $detailQty);
+            }
+
+            if ($detailQty === '80.50') {
+                $seen80 = true;
+                $this->assertSame('80.50', $detailQty);
+            }
+        }
+
+        $this->assertTrue($seen120, 'Expected one posting transaction detail with 120.25 delta qty.');
+        $this->assertTrue($seen80, 'Expected one posting transaction detail with 80.50 delta qty.');
+    }
+
+    public function testStockOpnamePostWithStaleExpectedQtyPreservesLegacyValidationEnvelopeAndRollsBackAllWrites(): void
+    {
+        $gudangToken = $this->login('gudang');
+        $adminToken  = $this->login('admin');
+
+        $itemModel   = new ItemModel();
+        $item1Before = (float) $itemModel->find(1)['qty'];
+        $item2Before = (float) $itemModel->find(2)['qty'];
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames', [
+                'opname_date' => '2026-06-25',
+                'details'     => [
+                    ['item_id' => 1, 'counted_qty' => $item1Before + 20],
+                    ['item_id' => 2, 'counted_qty' => $item2Before - 10],
+                ],
+            ]);
+        $createResult->assertStatus(201);
+        $opnameId = (int) json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/submit', [])
+            ->assertStatus(200);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/approve', [])
+            ->assertStatus(200);
+
+        Database::connect()->table('items')->where('id', 2)->update([
+            'qty'        => number_format($item2Before + 5, 2, '.', ''),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $postResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/post', []);
+
+        $postResult->assertStatus(400);
+        $postJson = json_decode($postResult->getJSON(), true);
+        $this->assertSame('Validation failed.', $postJson['message']);
+        $this->assertSame('Insufficient stock to post stock opname variance.', $postJson['errors']['details']);
+
+        $this->assertSame($item1Before, (float) $itemModel->find(1)['qty']);
+        $this->assertSame($item2Before + 5, (float) $itemModel->find(2)['qty']);
+
+        $stockTransactionModel = new StockTransactionModel();
+        $postedTransactions    = $stockTransactionModel
+            ->like('reason', 'Stock opname #' . $opnameId . ' posting', 'both')
+            ->findAll();
+        $this->assertCount(0, $postedTransactions);
+
+        $opnameRow = (new StockOpnameModel())->find($opnameId);
+        $this->assertSame(StockOpnameModel::STATE_APPROVED, $opnameRow['state']);
+    }
+
+    public function testStockOpnamePostRejectsZeroDeltaWithDeterministicMessage(): void
+    {
+        $gudangToken = $this->login('gudang');
+        $adminToken  = $this->login('admin');
+
+        $itemModel = new ItemModel();
+        $current   = (float) $itemModel->find(1)['qty'];
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames', [
+                'opname_date' => '2026-06-24',
+                'details'     => [
+                    ['item_id' => 1, 'counted_qty' => $current],
+                ],
+            ]);
+        $createResult->assertStatus(201);
+        $opnameId = (int) json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/submit', [])
+            ->assertStatus(200);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/approve', [])
+            ->assertStatus(200);
+
+        $postResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-opnames/' . $opnameId . '/post', []);
+
+        $postResult->assertStatus(400);
+        $postJson = json_decode($postResult->getJSON(), true);
+        $this->assertSame('Validation failed.', $postJson['message']);
+        $this->assertSame(
+            'Zero-delta opname lines are not allowed. expected_current_qty must be different from actual_qty for every detail.',
+            $postJson['errors']['details']
+        );
+
+        $this->assertSame($current, (float) $itemModel->find(1)['qty']);
     }
 }

@@ -9,6 +9,7 @@ class TransactionTypeModel extends Model
     public const NAME_IN = 'IN';
     public const NAME_OUT = 'OUT';
     public const NAME_RETURN_IN = 'RETURN_IN';
+    public const NAME_OPNAME_ADJUSTMENT = 'OPNAME_ADJUSTMENT';
 
     protected $table         = 'transaction_types';
     protected $primaryKey    = 'id';

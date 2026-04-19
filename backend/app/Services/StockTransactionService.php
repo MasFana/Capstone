@@ -55,6 +55,7 @@ class StockTransactionService
         TransactionTypeModel::NAME_IN,
         TransactionTypeModel::NAME_OUT,
         TransactionTypeModel::NAME_RETURN_IN,
+        TransactionTypeModel::NAME_OPNAME_ADJUSTMENT,
     ];
 
     protected StockTransactionModel $transactionModel;
@@ -352,8 +353,8 @@ class StockTransactionService
             $escapedQty = $this->db->escape(number_format($changeQty, 2, '.', ''));
 
             // Atomic qty update using DB-side arithmetic with conditional update for OUT
-            if (in_array($type['name'], [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_RETURN_IN], true)) {
-                // IN/RETURN_IN: unconditional increment
+            if (in_array($type['name'], [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_RETURN_IN, TransactionTypeModel::NAME_OPNAME_ADJUSTMENT], true)) {
+                // IN/RETURN_IN/OPNAME_ADJUSTMENT: unconditional increment
                 $builder = $this->db->table('items');
                 $builder->where('id', $itemId);
                 $builder->set('qty', "qty + {$escapedQty}", false);
@@ -751,6 +752,213 @@ class StockTransactionService
                 'id'                 => (int) $transactionId,
                 'approval_status_id' => $approvedStatusId,
                 'is_revision'        => false,
+            ],
+        ];
+    }
+
+    /**
+     * Persist opname-like item corrections inside the caller transaction.
+     *
+     * Caller must own DB transaction boundary to keep stock-opname state changes
+     * and stock-transaction artifacts atomic as one unit.
+     *
+     * @param list<array{item_id:int,expected_current_qty:float,actual_qty:float}> $details
+     */
+    public function createOpnameAdjustmentEntries(
+        array $details,
+        string $transactionDate,
+        int $userId,
+        ?int $sourceOpnameId = null,
+        ?string $ipAddress = null,
+    ): array {
+        if ($details === []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'details' => 'The details field cannot be empty.',
+                ],
+                'status' => 400,
+            ];
+        }
+
+        $approvedStatusId = $this->approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
+        if ($approvedStatusId === null) {
+            return [
+                'success' => false,
+                'message' => 'System error: APPROVED approval status not found.',
+                'errors'  => [],
+                'status'  => 400,
+            ];
+        }
+
+        $opnameAdjustmentTypeId = $this->typeModel->getIdByName(TransactionTypeModel::NAME_OPNAME_ADJUSTMENT);
+        if ($opnameAdjustmentTypeId === null) {
+            return [
+                'success' => false,
+                'message' => 'System error: transaction type not found.',
+                'errors'  => [],
+                'status'  => 400,
+            ];
+        }
+
+        $createdTransactionIds = [];
+
+        foreach ($details as $index => $detail) {
+            $itemId      = (int) ($detail['item_id'] ?? 0);
+            $expectedQty = round((float) ($detail['expected_current_qty'] ?? 0), 2);
+            $actualQty   = round((float) ($detail['actual_qty'] ?? 0), 2);
+            $signedDelta = round($actualQty - $expectedQty, 2);
+
+            if ($itemId <= 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        "details.{$index}.item_id" => 'The item_id field is required and must be numeric.',
+                    ],
+                    'status' => 400,
+                ];
+            }
+
+            if ($actualQty < 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        "details.{$index}.actual_qty" => 'The actual_qty field must be a non-negative number.',
+                    ],
+                    'status' => 400,
+                ];
+            }
+
+            if (abs($signedDelta) < 0.005) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'details' => 'Zero-delta opname lines are not allowed. expected_current_qty must be different from actual_qty for every detail.',
+                    ],
+                    'status' => 400,
+                ];
+            }
+
+            $item = $this->itemModel->find($itemId);
+            if ($item === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        "details.{$index}.item_id" => 'The selected item is invalid.',
+                    ],
+                    'status' => 400,
+                ];
+            }
+
+            $escapedExpectedQty = $this->db->escape(number_format($expectedQty, 2, '.', ''));
+            $itemBuilder        = $this->db->table('items');
+            $itemBuilder->where('id', $itemId);
+            $itemBuilder->where("qty = {$escapedExpectedQty}", null, false);
+            $itemBuilder->set('qty', number_format($actualQty, 2, '.', ''));
+            $itemBuilder->set('updated_at', date('Y-m-d H:i:s'));
+
+            if (! $itemBuilder->update()) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to update item quantity.',
+                    'errors'  => [],
+                    'status'  => 400,
+                ];
+            }
+
+            if ($this->db->affectedRows() === 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Stock conflict detected.',
+                    'errors'  => [
+                        "details.{$index}.expected_current_qty" => 'Current stock no longer matches expected_current_qty. Reload the item and retry posting.',
+                    ],
+                    'status'  => 409,
+                ];
+            }
+
+            $reason = $sourceOpnameId !== null
+                ? sprintf('Stock opname #%d posting for item #%d', $sourceOpnameId, $itemId)
+                : sprintf('Stock opname posting for item #%d', $itemId);
+
+            $transactionData = [
+                'type_id'               => $opnameAdjustmentTypeId,
+                'transaction_date'      => $transactionDate,
+                'is_revision'           => false,
+                'parent_transaction_id' => null,
+                'approval_status_id'    => $approvedStatusId,
+                'approved_by'           => null,
+                'user_id'               => $userId,
+                'spk_id'                => null,
+                'reason'                => $reason,
+            ];
+
+            $transactionId = $this->transactionModel->insert($transactionData, true);
+            if ($transactionId === false) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to create stock transaction.',
+                    'errors'  => $this->transactionModel->errors(),
+                    'status'  => 400,
+                ];
+            }
+
+            $detailData = [
+                'transaction_id' => (int) $transactionId,
+                'item_id'        => $itemId,
+                'qty'            => number_format(abs($signedDelta), 2, '.', ''),
+                'input_qty'      => number_format(abs($signedDelta), 2, '.', ''),
+                'input_unit'     => 'base',
+            ];
+
+            if ($this->detailModel->insert($detailData) === false) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to create transaction details.',
+                    'errors'  => $this->detailModel->errors(),
+                    'status'  => 400,
+                ];
+            }
+
+            $auditLogged = $this->auditService->log(
+                $userId,
+                'stock_transaction_opname_adjustment_create',
+                'stock_transactions',
+                (int) $transactionId,
+                'Stock transaction created from stock opname posting.',
+                null,
+                array_merge($transactionData, [
+                    'item_id'              => $itemId,
+                    'expected_current_qty' => number_format($expectedQty, 2, '.', ''),
+                    'actual_qty'           => number_format($actualQty, 2, '.', ''),
+                    'delta_qty'            => number_format($signedDelta, 2, '.', ''),
+                    'detail_qty'           => number_format(abs($signedDelta), 2, '.', ''),
+                ]),
+                $ipAddress,
+            );
+
+            if (! $auditLogged) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to write audit log.',
+                    'errors'  => [],
+                    'status'  => 400,
+                ];
+            }
+
+            $createdTransactionIds[] = (int) $transactionId;
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Stock opname posting transactions created successfully.',
+            'data'    => [
+                'transaction_ids' => $createdTransactionIds,
             ],
         ];
     }

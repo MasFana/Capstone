@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use DateTimeImmutable;
-use InvalidArgumentException;
 
 class MenuCalendarContract
 {
@@ -19,14 +18,6 @@ class MenuCalendarContract
             return 9;
         }
 
-        if ($day >= 1 && $day <= 9) {
-            return $day;
-        }
-
-        if ($day >= 10 && $day <= 30) {
-            return $day % 10 === 0 ? 10 : $day % 10;
-        }
-
-        throw new InvalidArgumentException('Unsupported day-of-month for menu package resolution.');
+        return (($day - 1) % 11) + 1;
     }
 }

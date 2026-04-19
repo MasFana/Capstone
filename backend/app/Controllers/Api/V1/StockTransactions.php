@@ -3,6 +3,7 @@
 namespace App\Controllers\Api\V1;
 
 use App\Controllers\BaseController;
+use App\Models\AppUserProvider;
 use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Services\StockTransactionService;
@@ -13,12 +14,14 @@ class StockTransactions extends BaseController
     protected StockTransactionService $transactionService;
     protected StockTransactionModel $transactionModel;
     protected StockTransactionDetailModel $detailModel;
+    protected AppUserProvider $userProvider;
 
     public function __construct()
     {
         $this->transactionService = new StockTransactionService();
         $this->transactionModel   = new StockTransactionModel();
         $this->detailModel        = new StockTransactionDetailModel();
+        $this->userProvider       = new AppUserProvider();
     }
 
     public function index(): ResponseInterface
@@ -81,10 +84,18 @@ class StockTransactions extends BaseController
             $updatedAtFrom, $updatedAtTo
         );
 
+        $userMap = $this->buildUserNameMapFromTransactions($result['transactions']);
+        $enrichedTransactions = array_map(function (array $transaction) use ($userMap): array {
+            $transaction['user_name'] = $this->resolveUserName($transaction['user_id'] ?? null, $userMap);
+            $transaction['approved_by_name'] = $this->resolveUserName($transaction['approved_by'] ?? null, $userMap);
+
+            return $transaction;
+        }, $result['transactions']);
+
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'data'  => $result['transactions'],
+                'data'  => $enrichedTransactions,
                 'meta'  => [
                     'page'       => $result['page'],
                     'perPage'    => $result['perPage'],
@@ -176,6 +187,10 @@ class StockTransactions extends BaseController
                     'message' => 'Stock transaction not found.',
                 ]);
         }
+
+        $userMap = $this->buildUserNameMapFromTransactions([$transaction]);
+        $transaction['user_name'] = $this->resolveUserName($transaction['user_id'] ?? null, $userMap);
+        $transaction['approved_by_name'] = $this->resolveUserName($transaction['approved_by'] ?? null, $userMap);
 
         return $this->response
             ->setStatusCode(200)
@@ -378,5 +393,59 @@ class StockTransactions extends BaseController
         }
 
         return $errors;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $transactions
+     *
+     * @return array<int,string>
+     */
+    private function buildUserNameMapFromTransactions(array $transactions): array
+    {
+        $userIds = [];
+
+        foreach ($transactions as $transaction) {
+            if (isset($transaction['user_id']) && is_numeric((string) $transaction['user_id'])) {
+                $userIds[] = (int) $transaction['user_id'];
+            }
+
+            if (isset($transaction['approved_by']) && is_numeric((string) $transaction['approved_by'])) {
+                $userIds[] = (int) $transaction['approved_by'];
+            }
+        }
+
+        $userIds = array_values(array_unique(array_filter($userIds, static fn(int $id): bool => $id > 0)));
+        if ($userIds === []) {
+            return [];
+        }
+
+        $rows = $this->userProvider
+            ->select(['id', 'name'])
+            ->whereIn('id', $userIds)
+            ->where('deleted_at', null)
+            ->asArray()
+            ->findAll();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row['id']] = (string) $row['name'];
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param mixed $userId
+     * @param array<int,string> $userMap
+     */
+    private function resolveUserName($userId, array $userMap): ?string
+    {
+        if (! is_numeric((string) $userId)) {
+            return null;
+        }
+
+        $id = (int) $userId;
+
+        return $id > 0 ? ($userMap[$id] ?? null) : null;
     }
 }

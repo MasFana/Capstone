@@ -87,6 +87,7 @@ class StockTransactionsTest extends CIUnitTestCase
             ['name' => 'IN'],
             ['name' => 'OUT'],
             ['name' => 'RETURN_IN'],
+            ['name' => TransactionTypeModel::NAME_OPNAME_ADJUSTMENT],
         ]);
     }
 
@@ -382,6 +383,54 @@ class StockTransactionsTest extends CIUnitTestCase
         $qtyAfter  = (float) $itemAfter['qty'];
 
         $this->assertSame($qtyBefore + 50, $qtyAfter);
+    }
+
+    public function testCreateValidOpnameAdjustmentTransactionByTypeNameIncreasesQty(): void
+    {
+        $token = $this->login('gudang');
+
+        $itemModel  = new ItemModel();
+        $itemBefore = $itemModel->find(1);
+        $qtyBefore  = (float) $itemBefore['qty'];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => TransactionTypeModel::NAME_OPNAME_ADJUSTMENT,
+                'transaction_date' => '2026-04-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 40],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        $itemAfter = $itemModel->find(1);
+        $qtyAfter  = (float) $itemAfter['qty'];
+
+        $this->assertSame($qtyBefore + 40, $qtyAfter);
+    }
+
+    public function testCreateTransactionWithUnknownTypeNameReturnsValidationError(): void
+    {
+        $token = $this->login('admin');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'        => 'FOO_BAR',
+                'transaction_date' => '2026-04-06',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $result->assertStatus(400);
+        $result->assertJSONFragment(['message' => 'Validation failed.']);
+
+        $json = json_decode($result->getJSON(), true);
+        $this->assertArrayHasKey('type_name', $json['errors']);
+        $this->assertSame('The selected transaction type is invalid.', $json['errors']['type_name']);
     }
 
     public function testNormalTransactionTypesAreAutoApprovedAndNonRevision(): void
@@ -968,7 +1017,58 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertSame($id, $showJson['data']['id']);
         $this->assertArrayHasKey('type_id', $showJson['data']);
         $this->assertArrayHasKey('transaction_date', $showJson['data']);
+        $this->assertArrayHasKey('user_name', $showJson['data']);
+        $this->assertArrayHasKey('approved_by_name', $showJson['data']);
         $this->assertArrayNotHasKey('details', $showJson['data']);
+    }
+
+    public function testListAndShowExposeUserActionHistoryFields(): void
+    {
+        $token = $this->login('gudang');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-04-17',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $transactionId = (int) json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $listResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions?sortBy=id&sortDir=DESC');
+        $listResult->assertStatus(200);
+
+        $listJson = json_decode($listResult->getJSON(), true);
+        $targetRow = null;
+        foreach ($listJson['data'] as $row) {
+            if ((int) $row['id'] === $transactionId) {
+                $targetRow = $row;
+                break;
+            }
+        }
+
+        $this->assertNotNull($targetRow);
+        $this->assertArrayHasKey('user_name', $targetRow);
+        $this->assertArrayHasKey('approved_by_name', $targetRow);
+        $this->assertSame('Gudang User', $targetRow['user_name']);
+        $this->assertNull($targetRow['approved_by_name']);
+
+        $showResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/stock-transactions/' . $transactionId);
+        $showResult->assertStatus(200);
+
+        $showJson = json_decode($showResult->getJSON(), true);
+        $this->assertArrayHasKey('user_name', $showJson['data']);
+        $this->assertArrayHasKey('approved_by_name', $showJson['data']);
+        $this->assertSame('Gudang User', $showJson['data']['user_name']);
+        $this->assertNull($showJson['data']['approved_by_name']);
     }
 
     public function testShowMissingTransactionReturnsNotFound(): void
@@ -1287,6 +1387,43 @@ class StockTransactionsTest extends CIUnitTestCase
         $savedTransaction = $transactionModel->find((int) $json['data']['id']);
         $this->assertNotNull($savedTransaction);
         $this->assertSame((int) $spkId, (int) $savedTransaction['spk_id']);
+    }
+
+    public function testCreateTransactionKeepsHistoricalBackfillMarkersNullByDefault(): void
+    {
+        $token = $this->login('admin');
+
+        $db = Database::connect();
+        $columns = $db->getFieldNames('stock_transactions');
+        $this->assertContains('legacy_source_table', $columns);
+        $this->assertContains('legacy_source_id', $columns);
+        $this->assertContains('legacy_source_detail_id', $columns);
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-04-23',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+        $transactionId = (int) json_decode($result->getJSON(), true)['data']['id'];
+
+        $saved = $db->table('stock_transactions')
+            ->where('id', $transactionId)
+            ->get()
+            ->getRowArray();
+
+        $this->assertNotNull($saved);
+        $this->assertNull($saved['legacy_source_table']);
+        $this->assertNull($saved['legacy_source_id']);
+        $this->assertNull($saved['legacy_source_detail_id']);
     }
 
     public function testDirectCorrectionRejectsGudangRoleWithForbiddenResponse(): void

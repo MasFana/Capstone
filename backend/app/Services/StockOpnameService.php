@@ -7,12 +7,14 @@ use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Models\StockOpnameDetailModel;
 use App\Models\StockOpnameModel;
-use App\Models\TransactionTypeModel;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
 
 class StockOpnameService
 {
+    private const ZERO_DELTA_ERROR_MESSAGE = 'Zero-delta opname lines are not allowed. expected_current_qty must be different from actual_qty for every detail.';
+    private const LEGACY_POST_CONFLICT_ERROR_MESSAGE = 'Insufficient stock to post stock opname variance.';
+
     private const ALLOWED_CREATE_FIELDS = [
         'opname_date',
         'notes',
@@ -29,7 +31,7 @@ class StockOpnameService
     protected StockTransactionModel $stockTransactionModel;
     protected StockTransactionDetailModel $stockTransactionDetailModel;
     protected ItemModel $itemModel;
-    protected TransactionTypeModel $transactionTypeModel;
+    protected StockTransactionService $stockTransactionService;
     protected AuditService $auditService;
     protected BaseConnection $db;
 
@@ -40,7 +42,7 @@ class StockOpnameService
         $this->stockTransactionModel  = new StockTransactionModel();
         $this->stockTransactionDetailModel = new StockTransactionDetailModel();
         $this->itemModel              = new ItemModel();
-        $this->transactionTypeModel   = new TransactionTypeModel();
+        $this->stockTransactionService = new StockTransactionService();
         $this->auditService           = new AuditService();
         $this->db                     = Database::connect();
     }
@@ -519,113 +521,64 @@ class StockOpnameService
             ];
         }
 
-        $inTypeId  = $this->transactionTypeModel->getIdByName(TransactionTypeModel::NAME_IN);
-        $outTypeId = $this->transactionTypeModel->getIdByName(TransactionTypeModel::NAME_OUT);
-        if ($inTypeId === null || $outTypeId === null) {
-            return [
-                'success' => false,
-                'message' => 'System error: transaction type not found.',
-                'errors'  => [],
-                'status'  => 400,
-            ];
-        }
+        $postingPayload = [];
+        foreach ($details as $detail) {
+            $itemId       = (int) $detail['item_id'];
+            $expectedQty  = round((float) $detail['system_qty'], 2);
+            $actualQty    = round((float) $detail['counted_qty'], 2);
+            $signedDelta  = round($actualQty - $expectedQty, 2);
 
-        $approvedStatusId = (new \App\Models\ApprovalStatusModel())->getIdByName(\App\Models\ApprovalStatusModel::NAME_APPROVED);
-        if ($approvedStatusId === null) {
-            return [
-                'success' => false,
-                'message' => 'System error: APPROVED approval status not found.',
-                'errors'  => [],
-                'status'  => 400,
+            if (abs($signedDelta) < 0.005) {
+                return [
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'details' => self::ZERO_DELTA_ERROR_MESSAGE,
+                    ],
+                    'status'  => 400,
+                ];
+            }
+
+            $postingPayload[] = [
+                'item_id'              => $itemId,
+                'expected_current_qty' => $expectedQty,
+                'actual_qty'           => $actualQty,
             ];
         }
 
         $this->db->transStart();
 
-        foreach ($details as $detail) {
-            $itemId    = (int) $detail['item_id'];
-            $variance  = round((float) $detail['variance_qty'], 2);
+        $coreResult = $this->stockTransactionService->createOpnameAdjustmentEntries(
+            $postingPayload,
+            $stockOpname['opname_date'],
+            $userId,
+            $id,
+            $ipAddress,
+        );
 
-            if (abs($variance) < 0.005) {
-                continue;
-            }
+        if (! $coreResult['success']) {
+            $this->db->transRollback();
 
-            $typeId = $variance > 0 ? $inTypeId : $outTypeId;
-            $qty    = abs($variance);
+            $coreStatus = (int) ($coreResult['status'] ?? 400);
+            $coreErrors = $coreResult['errors'] ?? [];
 
-            $transactionId = $this->stockTransactionModel->insert([
-                'type_id'               => $typeId,
-                'transaction_date'      => $stockOpname['opname_date'],
-                'is_revision'           => false,
-                'parent_transaction_id' => null,
-                'approval_status_id'    => $approvedStatusId,
-                'approved_by'           => null,
-                'user_id'               => $userId,
-                'spk_id'                => null,
-                'reason'                => sprintf('Stock opname #%d posting for item #%d', $id, $itemId),
-            ], true);
-
-            if ($transactionId === false) {
-                $this->db->transRollback();
-
+            if ($coreStatus === 409 && $this->hasOpnameExpectedQtyConflict($coreErrors)) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to create posting transaction.',
-                    'errors'  => $this->stockTransactionModel->errors(),
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'details' => self::LEGACY_POST_CONFLICT_ERROR_MESSAGE,
+                    ],
                     'status'  => 400,
                 ];
             }
 
-            if ($this->stockTransactionDetailModel->insert([
-                'transaction_id' => (int) $transactionId,
-                'item_id'        => $itemId,
-                'qty'            => number_format($qty, 2, '.', ''),
-                'input_qty'      => number_format($qty, 2, '.', ''),
-                'input_unit'     => 'base',
-            ]) === false) {
-                $this->db->transRollback();
-
-                return [
-                    'success' => false,
-                    'message' => 'Failed to create posting transaction detail.',
-                    'errors'  => $this->stockTransactionDetailModel->errors(),
-                    'status'  => 400,
-                ];
-            }
-
-            $escapedQty = $this->db->escape(number_format($qty, 2, '.', ''));
-            $itemBuilder = $this->db->table('items');
-            $itemBuilder->where('id', $itemId);
-            $itemBuilder->set('updated_at', date('Y-m-d H:i:s'));
-
-            if ($variance > 0) {
-                $itemBuilder->set('qty', "qty + {$escapedQty}", false);
-                if (! $itemBuilder->update()) {
-                    $this->db->transRollback();
-
-                    return [
-                        'success' => false,
-                        'message' => 'Failed to update item quantity.',
-                        'errors'  => [],
-                        'status'  => 400,
-                    ];
-                }
-            } else {
-                $itemBuilder->where("qty >= {$escapedQty}", null, false);
-                $itemBuilder->set('qty', "qty - {$escapedQty}", false);
-                if (! $itemBuilder->update() || $this->db->affectedRows() === 0) {
-                    $this->db->transRollback();
-
-                    return [
-                        'success' => false,
-                        'message' => 'Validation failed.',
-                        'errors'  => [
-                            'details' => 'Insufficient stock to post stock opname variance.',
-                        ],
-                        'status'  => 400,
-                    ];
-                }
-            }
+            return [
+                'success' => false,
+                'message' => $coreResult['message'],
+                'errors'  => $coreErrors,
+                'status'  => $coreStatus,
+            ];
         }
 
         $oldValues = $stockOpname;
@@ -703,5 +656,16 @@ class StockOpnameService
             'header'  => $header,
             'details' => $details,
         ];
+    }
+
+    private function hasOpnameExpectedQtyConflict(array $errors): bool
+    {
+        foreach (array_keys($errors) as $errorKey) {
+            if (preg_match('/^details\.\d+\.expected_current_qty$/', (string) $errorKey) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

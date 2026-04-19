@@ -104,7 +104,7 @@ class ReportingService
 
         $builder = $this->db
             ->table('stock_transactions st')
-            ->select('st.id AS transaction_id, st.transaction_date, st.type_id, tt.name AS type_name, st.approval_status_id, aps.name AS status_name, st.user_id, st.spk_id, std.item_id, i.name AS item_name, std.qty')
+            ->select('st.id AS transaction_id, st.transaction_date, st.type_id, tt.name AS type_name, st.approval_status_id, aps.name AS status_name, st.user_id, st.spk_id, st.reason, std.item_id, i.name AS item_name, std.qty')
             ->join('stock_transaction_details std', 'std.transaction_id = st.id', 'inner')
             ->join('transaction_types tt', 'tt.id = st.type_id', 'inner')
             ->join('approval_statuses aps', 'aps.id = st.approval_status_id', 'inner')
@@ -131,6 +131,8 @@ class ReportingService
             ->orderBy('std.item_id', 'ASC')
             ->get()
             ->getResultArray();
+
+        $rows = $this->applyTransactionCompatibilityAggregationRules($rows);
 
         $totalQty = 0.0;
         foreach ($rows as $row) {
@@ -165,6 +167,64 @@ class ReportingService
                 ], $rows),
             ],
         ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function applyTransactionCompatibilityAggregationRules(array $rows): array
+    {
+        $legacySignatures = [];
+
+        foreach ($rows as $row) {
+            if (! in_array((string) ($row['type_name'] ?? ''), [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_OUT], true)) {
+                continue;
+            }
+
+            $legacySignatures[$this->buildTransactionCompatibilitySignature($row)] = true;
+        }
+
+        $filtered = [];
+
+        foreach ($rows as $row) {
+            $typeName = (string) ($row['type_name'] ?? '');
+            $reason   = (string) ($row['reason'] ?? '');
+
+            if (
+                $typeName === TransactionTypeModel::NAME_OPNAME_ADJUSTMENT
+                && $this->isOpnamePostingAdjustmentReason($reason)
+                && isset($legacySignatures[$this->buildTransactionCompatibilitySignature($row)])
+            ) {
+                continue;
+            }
+
+            $filtered[] = $row;
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function buildTransactionCompatibilitySignature(array $row): string
+    {
+        return implode('|', [
+            (string) ($row['transaction_date'] ?? ''),
+            (string) ((int) ($row['approval_status_id'] ?? 0)),
+            (string) ((int) ($row['user_id'] ?? 0)),
+            (string) ((int) ($row['item_id'] ?? 0)),
+            number_format((float) ($row['qty'] ?? 0), 2, '.', ''),
+        ]);
+    }
+
+    private function isOpnamePostingAdjustmentReason(string $reason): bool
+    {
+        $trimmed = trim($reason);
+
+        return preg_match('/^Stock opname(?: #\d+)? posting for item #\d+$/', $trimmed) === 1;
     }
 
     public function getSpkHistoryReport(array $query): array

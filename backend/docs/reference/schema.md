@@ -41,7 +41,7 @@ Fungsi: Menyimpan tipe transaksi stok. Mendukung soft delete.
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | `id` | bigint | PK, increment | ID tipe transaksi |
-| `name` | varchar(50) | not null, unique | Nilai bisnis: IN, OUT, RETURN_IN |
+| `name` | varchar(50) | not null, unique | Nilai bisnis: IN, OUT, RETURN_IN, OPNAME_ADJUSTMENT |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
@@ -309,7 +309,10 @@ Fungsi: Header transaksi stok, termasuk transaksi normal dan revisi.
 | `approved_by` | bigint | nullable, FK | User Admin yang menyetujui |
 | `user_id` | bigint | not null, FK | User pembuat transaksi |
 | `spk_id` | bigint | nullable | Relasi opsional ke `spk_calculations.id` pada fase integrasi SPK |
-| `reason` | text | nullable | Alasan transaksi (digunakan pada koreksi stok langsung) |
+| `reason` | text | nullable | Alasan transaksi (digunakan pada koreksi stok langsung atau backfill) |
+| `legacy_source_table` | varchar(100) | nullable | Table name for historical backfill linkage (e.g. `stock_opname_details`) |
+| `legacy_source_id` | bigint | nullable | Header ID from the legacy source table |
+| `legacy_source_detail_id` | bigint | nullable | Detail row ID from the legacy source table |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |

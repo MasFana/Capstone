@@ -37,8 +37,19 @@ class StockOpnameModel extends Model
     public function findById(int $id): ?array
     {
         $builder = $this->builder();
-        $builder->where('id', $id);
-        $builder->where('deleted_at', null);
+        $builder->select('stock_opnames.*, '
+            . 'creator.name as created_by_name, '
+            . 'submitter.name as submitted_by_name, '
+            . 'approver.name as approved_by_name, '
+            . 'rejector.name as rejected_by_name, '
+            . 'poster.name as posted_by_name');
+        $builder->join('users creator', 'creator.id = stock_opnames.created_by AND creator.deleted_at IS NULL', 'left');
+        $builder->join('users submitter', 'submitter.id = stock_opnames.submitted_by AND submitter.deleted_at IS NULL', 'left');
+        $builder->join('users approver', 'approver.id = stock_opnames.approved_by AND approver.deleted_at IS NULL', 'left');
+        $builder->join('users rejector', 'rejector.id = stock_opnames.rejected_by AND rejector.deleted_at IS NULL', 'left');
+        $builder->join('users poster', 'poster.id = stock_opnames.posted_by AND poster.deleted_at IS NULL', 'left');
+        $builder->where('stock_opnames.id', $id);
+        $builder->where('stock_opnames.deleted_at', null);
 
         $row = $builder->get()->getRowArray();
 

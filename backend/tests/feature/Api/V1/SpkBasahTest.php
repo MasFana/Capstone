@@ -170,6 +170,80 @@ class SpkBasahTest extends CIUnitTestCase
         $this->assertSame($beforeCount, $afterCount);
     }
 
+    public function testMenuCalendarProjectionMatchesCanonicalResolverShape(): void
+    {
+        $token = $this->login('admin');
+        $date  = '2026-03-12';
+
+        $canonicalResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/menu-calendar?date=' . $date);
+        $canonicalResult->assertStatus(200);
+        $canonicalJson = json_decode($canonicalResult->getJSON(), true);
+
+        $projectionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/spk/basah/menu-calendar?date=' . $date);
+        $projectionResult->assertStatus(200);
+        $projectionJson = json_decode($projectionResult->getJSON(), true);
+
+        $this->assertSame($canonicalJson['data'], $projectionJson['data']);
+        $this->assertSame($canonicalJson['meta'] ?? null, $projectionJson['meta'] ?? null);
+    }
+
+    public function testMenuCalendarProjectionMatchesCanonicalResolverForMonthAndRangeModes(): void
+    {
+        $token = $this->login('admin');
+
+        if (! function_exists('cal_days_in_month')) {
+            $this->markTestSkipped('calendar extension is unavailable in this runtime.');
+        }
+
+        $month = '2026-03';
+        $canonicalMonthResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/menu-calendar?month=' . $month);
+        $canonicalMonthResult->assertStatus(200);
+        $canonicalMonthJson = json_decode($canonicalMonthResult->getJSON(), true);
+
+        $projectionMonthResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/spk/basah/menu-calendar?month=' . $month);
+        $projectionMonthResult->assertStatus(200);
+        $projectionMonthJson = json_decode($projectionMonthResult->getJSON(), true);
+
+        $this->assertSame($canonicalMonthJson['data'], $projectionMonthJson['data']);
+        $this->assertSame($canonicalMonthJson['meta'] ?? null, $projectionMonthJson['meta'] ?? null);
+
+        $rangeQuery = 'start_date=2026-03-12&end_date=2026-03-15';
+        $canonicalRangeResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/menu-calendar?' . $rangeQuery);
+        $canonicalRangeResult->assertStatus(200);
+        $canonicalRangeJson = json_decode($canonicalRangeResult->getJSON(), true);
+
+        $projectionRangeResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/spk/basah/menu-calendar?' . $rangeQuery);
+        $projectionRangeResult->assertStatus(200);
+        $projectionRangeJson = json_decode($projectionRangeResult->getJSON(), true);
+
+        $this->assertSame($canonicalRangeJson['data'], $projectionRangeJson['data']);
+        $this->assertSame($canonicalRangeJson['meta'] ?? null, $projectionRangeJson['meta'] ?? null);
+    }
+
+    public function testMenuCalendarProjectionRejectsConflictingResolverModesLikeCanonicalEndpoint(): void
+    {
+        $token = $this->login('admin');
+
+        $canonicalResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/menu-calendar?date=2026-03-12&month=2026-03');
+        $canonicalResult->assertStatus(400);
+        $canonicalJson = json_decode($canonicalResult->getJSON(), true);
+
+        $projectionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/spk/basah/menu-calendar?date=2026-03-12&month=2026-03');
+        $projectionResult->assertStatus(400);
+        $projectionJson = json_decode($projectionResult->getJSON(), true);
+
+        $this->assertSame($canonicalJson['message'] ?? null, $projectionJson['message'] ?? null);
+        $this->assertSame($canonicalJson['errors']['query'] ?? null, $projectionJson['errors']['query'] ?? null);
+    }
+
     public function testPostStockCreatesOutTransactionAndFinalizesSpk(): void
     {
         $db = Database::connect();

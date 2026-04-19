@@ -18,6 +18,9 @@ class StockTransactionModel extends Model
         'user_id',
         'spk_id',
         'reason',
+        'legacy_source_table',
+        'legacy_source_id',
+        'legacy_source_detail_id',
     ];
     protected $useTimestamps  = true;
     protected $useSoftDeletes = true;
@@ -143,8 +146,8 @@ class StockTransactionModel extends Model
     public function findById(int $id): ?array
     {
         $builder = $this->builder();
-        $builder->where('id', $id);
-        $builder->where('deleted_at', null);
+        $builder->where('stock_transactions.id', $id);
+        $builder->where('stock_transactions.deleted_at', null);
 
         $transaction = $builder->get()->getRowArray();
 

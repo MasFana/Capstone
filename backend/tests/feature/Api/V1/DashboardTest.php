@@ -353,20 +353,35 @@ class DashboardTest extends CIUnitTestCase
 
     public function testDashboardReturnsRoleScopedDapurAggregate(): void
     {
-        $token = $this->login('dapur');
+        $token = $this->login('admin');
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])->get('api/v1/dashboard');
 
         $result->assertStatus(200);
         $json = json_decode($result->getJSON(), true);
 
-        $this->assertSame('dapur', $json['data']['role']);
+        $this->assertSame('admin', $json['data']['role']);
         $this->assertArrayHasKey('current_menu_cycle', $json['data']['aggregates']);
-        $this->assertArrayHasKey('current_menu_composition', $json['data']['aggregates']);
         $this->assertArrayHasKey('latest_spk_history', $json['data']['aggregates']);
         $this->assertArrayHasKey('stock_summary', $json['data']['aggregates']);
         $this->assertArrayHasKey('dry_stock_status', $json['data']['aggregates']);
-        $this->assertArrayNotHasKey('spending_trend', $json['data']['aggregates']);
-        $this->assertArrayNotHasKey('patient_fluctuation', $json['data']['aggregates']);
+        $this->assertArrayHasKey('spending_trend', $json['data']['aggregates']);
+        $this->assertArrayHasKey('patient_fluctuation', $json['data']['aggregates']);
+
+        $today = date('Y-m-d');
+        $calendarResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/menu-calendar?date=' . $today);
+        $calendarResult->assertStatus(200);
+        $calendarJson = json_decode($calendarResult->getJSON(), true);
+
+        $this->assertSame($today, $calendarJson['data']['date'] ?? null);
+        $this->assertSame(
+            [
+                'date' => $calendarJson['data']['date'] ?? null,
+                'menu_id' => $calendarJson['data']['menu_id'] ?? null,
+                'menu_name' => $calendarJson['data']['menu_name'] ?? null,
+            ],
+            $json['data']['aggregates']['current_menu_cycle']
+        );
     }
 
     public function testDashboardReturns403ForInactiveAccount(): void

@@ -1075,7 +1075,16 @@ Creating a new item with the name of a deleted item returns `400` with `errors.r
 - `dapur` tidak memiliki akses ke endpoint transaksi stok.
 - Stock transactions intentionally have **no DELETE route**. Transactions are permanent audit records and cannot be soft-deleted or hard-deleted through the API. Any DELETE request to `/api/v1/stock-transactions/{id}` returns `404`.
 
-#### 5.5.3 List Stock Transactions
+#### 5.5.3 Unified Opname Semantics
+
+Stock opname results are now unified into the transaction ledger using the `OPNAME_ADJUSTMENT` transaction type. This provides a single source of truth for all stock movements while preserving the dedicated opname workflow for drafting and approval.
+
+- **Transaction Type:** `OPNAME_ADJUSTMENT`
+- **Behavior:** Acts as a targeted adjustment to align system stock with physical count.
+- **Posting:** When a dedicated stock opname is posted, it generates one or more `OPNAME_ADJUSTMENT` transactions in the ledger.
+- **Historical Linkage:** Backfilled historical opnames are linked via `legacy_source_table`, `legacy_source_id`, and `legacy_source_detail_id`.
+
+#### 5.5.4 List Stock Transactions
 
 Supported query parameters:
 
@@ -1360,59 +1369,20 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 - reject revision tidak mengubah `items.qty`;
 - parent transaction tetap dipertahankan sebagai histori asal.
 
-#### 5.5.9 Dedicated Stock Opname Workflow
+#### 5.5.10 Stock Opname Compatibility Facade
 
-Stock opname sekarang memiliki domain workflow tersendiri yang eksplisit, terpisah dari direct correction ad-hoc:
+The `/api/v1/stock-opnames/*` routes are preserved as a compatibility facade. While the underlying implementation now unifies with the transaction ledger, the dedicated workflow for opname management remains available.
 
-- `DRAFT -> SUBMITTED -> APPROVED -> POSTED`
-- `DRAFT -> SUBMITTED -> REJECTED`
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/stock-opnames` | Create dedicated stock opname draft |
+| GET | `/api/v1/stock-opnames/{id}` | Get stock opname header and details |
+| POST | `/api/v1/stock-opnames/{id}/submit` | Submit stock opname draft for approval |
+| POST | `/api/v1/stock-opnames/{id}/approve` | Approve submitted stock opname |
+| POST | `/api/v1/stock-opnames/{id}/reject` | Reject submitted stock opname |
+| POST | `/api/v1/stock-opnames/{id}/post` | Post approved stock opname variances as `OPNAME_ADJUSTMENT` transactions |
 
-State transitions bersifat deterministik dan hanya transition valid yang diperbolehkan.
-
-Role policy:
-
-- `admin` dan `gudang`: create draft, show, submit
-- `admin` only: approve, reject, post
-
-##### Create Draft
-
-`POST /api/v1/stock-opnames`
-
-Request fields:
-
-- `opname_date` (required, date)
-- `notes` (optional)
-- `details` (required, non-empty array)
-  - `item_id` (required)
-  - `counted_qty` (required, non-negative)
-
-`system_qty` dan `variance_qty` dihitung server saat draft dibuat.
-
-##### Submit
-
-`POST /api/v1/stock-opnames/{id}/submit`
-
-- hanya valid jika state saat ini `DRAFT`
-- jika state bukan `DRAFT`, response `400` dengan domain validation error
-
-##### Approve / Reject
-
-`POST /api/v1/stock-opnames/{id}/approve`
-`POST /api/v1/stock-opnames/{id}/reject`
-
-- hanya valid jika state saat ini `SUBMITTED`
-- reject butuh body `{ "reason": "..." }`
-
-##### Post / Finalize
-
-`POST /api/v1/stock-opnames/{id}/post`
-
-- hanya valid jika state saat ini `APPROVED`
-- setiap detail variance diposting tepat sekali:
-  - variance positif -> mutasi stok `IN`
-  - variance negatif -> mutasi stok `OUT`
-- setelah sukses, state menjadi `POSTED`
-- endpoint ini tidak mengubah behavior existing `direct-corrections`; keduanya coexist
+This facade ensures that existing clients can continue to use the structured opname workflow while the system maintains a unified transaction ledger for all stock movements.
 
 ### 5.6 Menu & Nutrition Endpoints
 

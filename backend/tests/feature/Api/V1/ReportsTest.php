@@ -88,6 +88,7 @@ class ReportsTest extends CIUnitTestCase
             ['name' => 'IN'],
             ['name' => 'OUT'],
             ['name' => 'RETURN_IN'],
+            ['name' => 'OPNAME_ADJUSTMENT'],
         ]);
 
         (new ApprovalStatusModel())->insertBatch([
@@ -240,6 +241,7 @@ class ReportsTest extends CIUnitTestCase
 
         $outTypeId = $typeModel->getIdByName('OUT');
         $inTypeId = $typeModel->getIdByName('IN');
+        $opnameAdjustmentTypeId = $typeModel->getIdByName('OPNAME_ADJUSTMENT');
         $approvedId = $statusModel->getIdByName('APPROVED');
         $pendingId = $statusModel->getIdByName('PENDING');
 
@@ -303,12 +305,54 @@ class ReportsTest extends CIUnitTestCase
         ]);
         $txFive = (int) $db->insertID();
 
+        $db->table('stock_transactions')->insert([
+            'type_id' => $opnameAdjustmentTypeId,
+            'transaction_date' => '2026-04-14',
+            'is_revision' => 0,
+            'parent_transaction_id' => null,
+            'approval_status_id' => $approvedId,
+            'approved_by' => null,
+            'user_id' => 1,
+            'spk_id' => null,
+            'reason' => 'Manual stock correction outside opname posting',
+        ]);
+        $txSix = (int) $db->insertID();
+
+        $db->table('stock_transactions')->insert([
+            'type_id' => $outTypeId,
+            'transaction_date' => '2026-04-16',
+            'is_revision' => 0,
+            'parent_transaction_id' => null,
+            'approval_status_id' => $approvedId,
+            'approved_by' => null,
+            'user_id' => 1,
+            'spk_id' => null,
+            'reason' => 'Legacy opname posting line',
+        ]);
+        $txSeven = (int) $db->insertID();
+
+        $db->table('stock_transactions')->insert([
+            'type_id' => $opnameAdjustmentTypeId,
+            'transaction_date' => '2026-04-16',
+            'is_revision' => 0,
+            'parent_transaction_id' => null,
+            'approval_status_id' => $approvedId,
+            'approved_by' => null,
+            'user_id' => 1,
+            'spk_id' => null,
+            'reason' => 'Stock opname #99 posting for item #1',
+        ]);
+        $txEight = (int) $db->insertID();
+
         $db->table('stock_transaction_details')->insertBatch([
             ['transaction_id' => $txOne, 'item_id' => 1, 'qty' => 120, 'input_qty' => 120, 'input_unit' => 'base'],
             ['transaction_id' => $txTwo, 'item_id' => 1, 'qty' => 80, 'input_qty' => 80, 'input_unit' => 'base'],
             ['transaction_id' => $txThree, 'item_id' => 1, 'qty' => 260, 'input_qty' => 260, 'input_unit' => 'base'],
             ['transaction_id' => $txFour, 'item_id' => 1, 'qty' => 999, 'input_qty' => 999, 'input_unit' => 'base'],
             ['transaction_id' => $txFive, 'item_id' => 1, 'qty' => 500, 'input_qty' => 500, 'input_unit' => 'base'],
+            ['transaction_id' => $txSix, 'item_id' => 1, 'qty' => 30, 'input_qty' => 30, 'input_unit' => 'base'],
+            ['transaction_id' => $txSeven, 'item_id' => 1, 'qty' => 40, 'input_qty' => 40, 'input_unit' => 'base'],
+            ['transaction_id' => $txEight, 'item_id' => 1, 'qty' => 40, 'input_qty' => 40, 'input_unit' => 'base'],
         ]);
     }
 
@@ -353,8 +397,34 @@ class ReportsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
 
         $this->assertSame('transactions', $json['data']['report_type']);
-        $this->assertSame(4, $json['data']['summary']['total_rows']);
-        $this->assertEquals(960.0, $json['data']['summary']['total_qty']);
+        $this->assertSame(6, $json['data']['summary']['total_rows']);
+        $this->assertEquals(1030.0, $json['data']['summary']['total_qty']);
+
+        $rows = $json['data']['rows'];
+        $opnameRows = array_values(array_filter($rows, static fn(array $row): bool => $row['type_name'] === 'OPNAME_ADJUSTMENT'));
+        $this->assertCount(1, $opnameRows);
+        $this->assertEquals(30.0, $opnameRows[0]['qty']);
+        $this->assertSame('2026-04-14', $opnameRows[0]['transaction_date']);
+    }
+
+    public function testTransactionReportDeduplicatesOpnamePostingAdjustmentsWhenLegacyOverlapExists(): void
+    {
+        $token = $this->login('gudang');
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('api/v1/reports/transactions?period_start=2026-04-16&period_end=2026-04-16');
+
+        $result->assertStatus(200);
+        $json = json_decode($result->getJSON(), true);
+
+        $this->assertSame('transactions', $json['data']['report_type']);
+        $this->assertSame(1, $json['data']['summary']['total_rows']);
+        $this->assertEquals(40.0, $json['data']['summary']['total_qty']);
+
+        $row = $json['data']['rows'][0];
+        $this->assertSame('OUT', $row['type_name']);
+        $this->assertEquals(40.0, $row['qty']);
+        $this->assertSame('2026-04-16', $row['transaction_date']);
     }
 
     public function testSpkHistoryReportReturnsDeterministicTotalsForSeededPeriod(): void
