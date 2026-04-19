@@ -12,6 +12,7 @@ class TransactionTypeSeeder extends Seeder
             ['name' => 'IN'],
             ['name' => 'OUT'],
             ['name' => 'RETURN_IN'],
+            ['name' => 'OPNAME_ADJUSTMENT'],
         ]);
     }
 }

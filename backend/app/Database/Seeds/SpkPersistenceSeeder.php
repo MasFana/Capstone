@@ -11,6 +11,13 @@ use RuntimeException;
 
 class SpkPersistenceSeeder extends Seeder
 {
+    /**
+     * Deterministic baseline date for all seeded operational data.
+     * All date-bearing seeders (MenuScheduleSeeder, DailyPatientSeeder, SpkPersistenceSeeder)
+     * use this as the anchor point to ensure reproducible, stable seeding across fresh runs.
+     */
+    private const BASELINE_DATE = '2026-04-15';
+
     public function run(): void
     {
         $roleModel = new RoleModel();
@@ -34,18 +41,19 @@ class SpkPersistenceSeeder extends Seeder
 
         $basahCategoryId = $categoryModel->getIdByName(ItemCategoryModel::NAME_BASAH);
         $keringCategoryId = $categoryModel->getIdByName(ItemCategoryModel::NAME_KERING);
+        $pengemasCategoryId = $categoryModel->getIdByName('PENGEMAS');
 
-        if ($basahCategoryId === null || $keringCategoryId === null) {
-            throw new RuntimeException('SpkPersistenceSeeder requires BASAH and KERING categories.');
+        if ($basahCategoryId === null || $keringCategoryId === null || $pengemasCategoryId === null) {
+            throw new RuntimeException('SpkPersistenceSeeder requires BASAH, KERING, and PENGEMAS categories.');
         }
 
         $dailyPatient = $this->db->table('daily_patients')
-            ->where('service_date', '2026-04-15')
+            ->where('service_date', self::BASELINE_DATE)
             ->get()
             ->getRowArray();
 
         if ($dailyPatient === null) {
-            throw new RuntimeException('SpkPersistenceSeeder requires baseline daily_patients row (2026-04-15).');
+            throw new RuntimeException('SpkPersistenceSeeder requires baseline daily_patients row (' . self::BASELINE_DATE . ').');
         }
 
         $allItems = $itemModel
@@ -59,20 +67,32 @@ class SpkPersistenceSeeder extends Seeder
 
         $basahItems = array_values(array_filter($allItems, static fn(array $item): bool => (int) $item['item_category_id'] === (int) $basahCategoryId));
         $keringItems = array_values(array_filter($allItems, static fn(array $item): bool => (int) $item['item_category_id'] === (int) $keringCategoryId));
+        $pengemasItems = array_values(array_filter($allItems, static fn(array $item): bool => (int) $item['item_category_id'] === (int) $pengemasCategoryId));
+        $keringPengemasItems = array_values(array_filter(
+            $allItems,
+            static fn(array $item): bool => in_array((int) $item['item_category_id'], [(int) $keringCategoryId, (int) $pengemasCategoryId], true)
+        ));
 
-        if ($basahItems === [] || $keringItems === []) {
-            throw new RuntimeException('SpkPersistenceSeeder requires at least one BASAH item and one KERING item.');
+        if ($basahItems === [] || $keringItems === [] || $pengemasItems === []) {
+            throw new RuntimeException('SpkPersistenceSeeder requires at least one BASAH item, one KERING item, and one PENGEMAS item.');
         }
+
+        if ($keringPengemasItems === []) {
+            throw new RuntimeException('SpkPersistenceSeeder requires at least one KERING/PENGEMAS item for monthly SPK recommendations.');
+        }
+
+        $baselineDate = self::BASELINE_DATE;
+        $nextDate = date('Y-m-d', strtotime($baselineDate . ' +1 day'));
 
         $basahInserted = $this->db->table('spk_calculations')->insert([
             'spk_type' => 'basah',
             'calculation_scope' => 'combined_window',
-            'scope_key' => 'basah|combined_window|2026-04-15|2026-04-16|' . $basahCategoryId,
+            'scope_key' => 'basah|combined_window|' . $baselineDate . '|' . $nextDate . '|' . $basahCategoryId,
             'version' => 1,
             'is_latest' => false,
-            'calculation_date' => '2026-04-15',
-            'target_date_start' => '2026-04-15',
-            'target_date_end' => '2026-04-16',
+            'calculation_date' => $baselineDate,
+            'target_date_start' => $baselineDate,
+            'target_date_end' => $nextDate,
             'target_month' => null,
             'daily_patient_id' => (int) $dailyPatient['id'],
             'user_id' => (int) $spkUser['id'],
@@ -98,7 +118,7 @@ class SpkPersistenceSeeder extends Seeder
             $basahRecommendations[] = [
                 'spk_id' => (int) $basahSpkId,
                 'item_id' => (int) $item['id'],
-                'target_date' => '2026-04-15',
+                'target_date' => $baselineDate,
                 'current_stock_qty' => (float) $item['qty'],
                 'required_qty' => $required,
                 'system_recommended_qty' => $system,
@@ -110,17 +130,20 @@ class SpkPersistenceSeeder extends Seeder
             ];
         }
 
-        $this->db->table('spk_recommendations')->insertBatch($basahRecommendations);
+        $basahRecInserted = $this->db->table('spk_recommendations')->insertBatch($basahRecommendations);
+        if ($basahRecInserted === false) {
+            throw new RuntimeException('SpkPersistenceSeeder failed to insert basah SPK recommendation rows.');
+        }
 
         $basahV2Inserted = $this->db->table('spk_calculations')->insert([
             'spk_type' => 'basah',
             'calculation_scope' => 'combined_window',
-            'scope_key' => 'basah|combined_window|2026-04-15|2026-04-16|' . $basahCategoryId,
+            'scope_key' => 'basah|combined_window|' . $baselineDate . '|' . $nextDate . '|' . $basahCategoryId,
             'version' => 2,
             'is_latest' => true,
-            'calculation_date' => '2026-04-16',
-            'target_date_start' => '2026-04-15',
-            'target_date_end' => '2026-04-16',
+            'calculation_date' => $nextDate,
+            'target_date_start' => $baselineDate,
+            'target_date_end' => $nextDate,
             'target_month' => null,
             'daily_patient_id' => (int) $dailyPatient['id'],
             'user_id' => (int) $spkUser['id'],
@@ -146,7 +169,7 @@ class SpkPersistenceSeeder extends Seeder
             $basahV2Recommendations[] = [
                 'spk_id' => (int) $basahSpkV2Id,
                 'item_id' => (int) $item['id'],
-                'target_date' => '2026-04-15',
+                'target_date' => $baselineDate,
                 'current_stock_qty' => (float) $item['qty'],
                 'required_qty' => $required,
                 'system_recommended_qty' => $system,
@@ -158,18 +181,23 @@ class SpkPersistenceSeeder extends Seeder
             ];
         }
 
-        $this->db->table('spk_recommendations')->insertBatch($basahV2Recommendations);
+        $basahV2RecInserted = $this->db->table('spk_recommendations')->insertBatch($basahV2Recommendations);
+        if ($basahV2RecInserted === false) {
+            throw new RuntimeException('SpkPersistenceSeeder failed to insert basah SPK recommendation rows version 2.');
+        }
+
+        $keringMonth = date('Y-m', strtotime($baselineDate));
 
         $keringInserted = $this->db->table('spk_calculations')->insert([
             'spk_type' => 'kering_pengemas',
             'calculation_scope' => 'monthly',
-            'scope_key' => 'kering_pengemas|monthly|2026-04|' . $keringCategoryId,
+            'scope_key' => 'kering_pengemas|monthly|' . $keringMonth . '|' . $keringCategoryId,
             'version' => 1,
             'is_latest' => false,
-            'calculation_date' => '2026-04-15',
-            'target_date_start' => '2026-04-01',
-            'target_date_end' => '2026-04-30',
-            'target_month' => '2026-04',
+            'calculation_date' => $baselineDate,
+            'target_date_start' => date('Y-m-01', strtotime($baselineDate)),
+            'target_date_end' => date('Y-m-t', strtotime($baselineDate)),
+            'target_month' => $keringMonth,
             'daily_patient_id' => null,
             'user_id' => (int) $spkUser['id'],
             'category_id' => (int) $keringCategoryId,
@@ -187,7 +215,7 @@ class SpkPersistenceSeeder extends Seeder
         }
 
         $keringRecommendations = [];
-        foreach ($keringItems as $idx => $item) {
+        foreach ($keringPengemasItems as $idx => $item) {
             $required = 1200.00 + ($idx * 200.00);
             $system = max($required - (float) $item['qty'], 0.0);
 
@@ -202,7 +230,7 @@ class SpkPersistenceSeeder extends Seeder
                 $isOverridden = true;
                 $overrideReason = 'Buffer stok awal bulan untuk antisipasi lonjakan permintaan.';
                 $overriddenBy = (int) $spkUser['id'];
-                $overriddenAt = '2026-04-15 09:30:00';
+                $overriddenAt = $baselineDate . ' 09:30:00';
             }
 
             $keringRecommendations[] = [
@@ -220,18 +248,21 @@ class SpkPersistenceSeeder extends Seeder
             ];
         }
 
-        $this->db->table('spk_recommendations')->insertBatch($keringRecommendations);
+        $keringRecInserted = $this->db->table('spk_recommendations')->insertBatch($keringRecommendations);
+        if ($keringRecInserted === false) {
+            throw new RuntimeException('SpkPersistenceSeeder failed to insert kering/pengemas SPK recommendation rows.');
+        }
 
         $keringV2Inserted = $this->db->table('spk_calculations')->insert([
             'spk_type' => 'kering_pengemas',
             'calculation_scope' => 'monthly',
-            'scope_key' => 'kering_pengemas|monthly|2026-04|' . $keringCategoryId,
+            'scope_key' => 'kering_pengemas|monthly|' . $keringMonth . '|' . $keringCategoryId,
             'version' => 2,
             'is_latest' => true,
-            'calculation_date' => '2026-04-16',
-            'target_date_start' => '2026-04-01',
-            'target_date_end' => '2026-04-30',
-            'target_month' => '2026-04',
+            'calculation_date' => $nextDate,
+            'target_date_start' => date('Y-m-01', strtotime($baselineDate)),
+            'target_date_end' => date('Y-m-t', strtotime($baselineDate)),
+            'target_month' => $keringMonth,
             'daily_patient_id' => null,
             'user_id' => (int) $spkUser['id'],
             'category_id' => (int) $keringCategoryId,
@@ -249,7 +280,7 @@ class SpkPersistenceSeeder extends Seeder
         }
 
         $keringV2Recommendations = [];
-        foreach ($keringItems as $idx => $item) {
+        foreach ($keringPengemasItems as $idx => $item) {
             $required = 1300.00 + ($idx * 220.00);
             $system = max($required - (float) $item['qty'], 0.0);
 
@@ -264,7 +295,7 @@ class SpkPersistenceSeeder extends Seeder
                 $isOverridden = true;
                 $overrideReason = 'Adjusted monthly reserve based on updated demand forecast.';
                 $overriddenBy = (int) $spkUser['id'];
-                $overriddenAt = '2026-04-16 09:45:00';
+                $overriddenAt = $nextDate . ' 09:45:00';
             }
 
             $keringV2Recommendations[] = [
@@ -282,6 +313,9 @@ class SpkPersistenceSeeder extends Seeder
             ];
         }
 
-        $this->db->table('spk_recommendations')->insertBatch($keringV2Recommendations);
+        $keringV2RecInserted = $this->db->table('spk_recommendations')->insertBatch($keringV2Recommendations);
+        if ($keringV2RecInserted === false) {
+            throw new RuntimeException('SpkPersistenceSeeder failed to insert kering/pengemas SPK recommendation rows version 2.');
+        }
     }
 }

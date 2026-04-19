@@ -20,16 +20,39 @@ class StockTransactionSeeder extends Seeder
         $userModel = new UserModel();
         $roleModel = new RoleModel();
 
-        $inTypeId = $typeModel->getIdByName(TransactionTypeModel::NAME_IN);
-        $outTypeId = $typeModel->getIdByName(TransactionTypeModel::NAME_OUT);
-        $returnInTypeId = $typeModel->getIdByName(TransactionTypeModel::NAME_RETURN_IN);
-        $approvedStatusId = $statusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
-        $pendingStatusId = $statusModel->getIdByName(ApprovalStatusModel::NAME_PENDING);
-        $rejectedStatusId = $statusModel->getIdByName(ApprovalStatusModel::NAME_REJECTED);
+        $requiredTypeIds = [
+            TransactionTypeModel::NAME_IN => $typeModel->getIdByName(TransactionTypeModel::NAME_IN),
+            TransactionTypeModel::NAME_OUT => $typeModel->getIdByName(TransactionTypeModel::NAME_OUT),
+            TransactionTypeModel::NAME_RETURN_IN => $typeModel->getIdByName(TransactionTypeModel::NAME_RETURN_IN),
+            TransactionTypeModel::NAME_OPNAME_ADJUSTMENT => $typeModel->getIdByName(TransactionTypeModel::NAME_OPNAME_ADJUSTMENT),
+        ];
 
-        if ($inTypeId === null || $outTypeId === null || $returnInTypeId === null || $approvedStatusId === null || $pendingStatusId === null || $rejectedStatusId === null) {
-            throw new RuntimeException('StockTransactionSeeder requires IN/OUT/RETURN_IN types and APPROVED/PENDING/REJECTED statuses.');
+        foreach ($requiredTypeIds as $name => $id) {
+            if ($id === null) {
+                throw new RuntimeException("StockTransactionSeeder requires transaction type '{$name}' to be seeded and active.");
+            }
         }
+
+        $inTypeId = (int) $requiredTypeIds[TransactionTypeModel::NAME_IN];
+        $outTypeId = (int) $requiredTypeIds[TransactionTypeModel::NAME_OUT];
+        $returnInTypeId = (int) $requiredTypeIds[TransactionTypeModel::NAME_RETURN_IN];
+        $opnameAdjustmentTypeId = (int) $requiredTypeIds[TransactionTypeModel::NAME_OPNAME_ADJUSTMENT];
+
+        $requiredStatusIds = [
+            ApprovalStatusModel::NAME_APPROVED => $statusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED),
+            ApprovalStatusModel::NAME_PENDING => $statusModel->getIdByName(ApprovalStatusModel::NAME_PENDING),
+            ApprovalStatusModel::NAME_REJECTED => $statusModel->getIdByName(ApprovalStatusModel::NAME_REJECTED),
+        ];
+
+        foreach ($requiredStatusIds as $name => $id) {
+            if ($id === null) {
+                throw new RuntimeException("StockTransactionSeeder requires approval status '{$name}' to be seeded and active.");
+            }
+        }
+
+        $approvedStatusId = (int) $requiredStatusIds[ApprovalStatusModel::NAME_APPROVED];
+        $pendingStatusId = (int) $requiredStatusIds[ApprovalStatusModel::NAME_PENDING];
+        $rejectedStatusId = (int) $requiredStatusIds[ApprovalStatusModel::NAME_REJECTED];
 
         $gudangRole = $roleModel->findByName('gudang');
         if ($gudangRole === null) {
@@ -117,6 +140,22 @@ class StockTransactionSeeder extends Seeder
         }
         $returnInTransactionId = (int) $this->db->insertID();
 
+        $opnameAdjustmentInserted = $this->db->table('stock_transactions')->insert([
+            'type_id' => $opnameAdjustmentTypeId,
+            'transaction_date' => '2026-03-27',
+            'is_revision' => false,
+            'parent_transaction_id' => null,
+            'approval_status_id' => $approvedStatusId,
+            'approved_by' => (int) $adminUser['id'],
+            'user_id' => (int) $gudangUser['id'],
+            'spk_id' => null,
+            'reason' => 'Baseline OPNAME_ADJUSTMENT sample for unified opname posting compatibility.',
+        ]);
+        if ($opnameAdjustmentInserted === false) {
+            throw new RuntimeException('StockTransactionSeeder failed to insert OPNAME_ADJUSTMENT transaction header.');
+        }
+        $opnameAdjustmentTransactionId = (int) $this->db->insertID();
+
         $pendingRevisionInserted = $this->db->table('stock_transactions')->insert([
             'type_id' => $outTypeId,
             'transaction_date' => '2026-03-24',
@@ -202,6 +241,14 @@ class StockTransactionSeeder extends Seeder
                 ];
 
                 $details[] = [
+                    'transaction_id' => (int) $opnameAdjustmentTransactionId,
+                    'item_id' => $itemId,
+                    'qty' => 150.00,
+                    'input_qty' => 150.00,
+                    'input_unit' => 'base',
+                ];
+
+                $details[] = [
                     'transaction_id' => (int) $pendingRevisionId,
                     'item_id' => $itemId,
                     'qty' => 5000.00,
@@ -227,6 +274,9 @@ class StockTransactionSeeder extends Seeder
             }
         }
 
-        $this->db->table('stock_transaction_details')->insertBatch($details);
+        $detailsInserted = $this->db->table('stock_transaction_details')->insertBatch($details);
+        if ($detailsInserted === false) {
+            throw new RuntimeException('StockTransactionSeeder failed to insert stock transaction detail rows.');
+        }
     }
 }

@@ -177,13 +177,17 @@ class StockOpnameSeeder extends Seeder
         $firstItem = $items[0];
         $secondItem = $items[1];
 
-        $firstSystemQty = round((float) $firstItem['qty'], 2);
-        $secondSystemQty = round((float) $secondItem['qty'], 2);
+        // Keep deterministic non-zero variance fixtures for POSTED rows.
+        // Baseline item qty can be 0.00 in fresh seeds, so we enforce a stable
+        // minimum system snapshot to preserve negative/positive delta coverage
+        // required by unified OPNAME_ADJUSTMENT + historical backfill semantics.
+        $firstSystemQty = max(round((float) $firstItem['qty'], 2), 150.00);
+        $secondSystemQty = max(round((float) $secondItem['qty'], 2), 200.00);
 
         $firstVariance = -120.0;
         $secondVariance = 80.0;
 
-        $firstCounted = max($firstSystemQty + $firstVariance, 0.0);
+        $firstCounted = $firstSystemQty + $firstVariance;
         $secondCounted = $secondSystemQty + $secondVariance;
 
         $this->db->table('stock_opname_details')->insertBatch([

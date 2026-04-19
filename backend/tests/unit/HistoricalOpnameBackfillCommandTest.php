@@ -63,6 +63,7 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
             static fn (array $row): int => (int) $row['detail_id'],
             $sourceDetails,
         ));
+        $expectedRowCount = count($expectedDetailIds);
 
         $rowsAfterFirst = $db->table('stock_transactions st')
             ->select('st.id, st.type_id, st.approval_status_id, st.reason, st.legacy_source_table, st.legacy_source_id, st.legacy_source_detail_id')
@@ -72,7 +73,7 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
             ->get()
             ->getResultArray();
 
-        $this->assertCount(2, $rowsAfterFirst);
+        $this->assertCount($expectedRowCount, $rowsAfterFirst);
         $typeId = (new TransactionTypeModel())->getIdByName(TransactionTypeModel::NAME_OPNAME_ADJUSTMENT);
         $statusId = (new ApprovalStatusModel())->getIdByName(ApprovalStatusModel::NAME_APPROVED);
         $this->assertNotNull($typeId);
@@ -127,13 +128,13 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
             ->where('legacy_source_table', 'stock_opname_details')
             ->whereIn('legacy_source_detail_id', $expectedDetailIds)
             ->countAllResults();
-        $this->assertSame(2, $afterSecond, 'Second command run must create zero additional rows.');
+        $this->assertSame($expectedRowCount, $afterSecond, 'Second command run must create zero additional rows.');
 
         $service = new \App\Services\HistoricalOpnameBackfillService();
         $thirdRun = $service->backfill('2026-01-01', '2026-01-31');
         $this->assertTrue($thirdRun['success']);
         $this->assertSame(0, (int) $thirdRun['data']['created_rows']);
-        $this->assertSame(2, (int) $thirdRun['data']['skipped_rows']);
+        $this->assertSame($expectedRowCount, (int) $thirdRun['data']['skipped_rows']);
     }
 
     public function testBackfillServiceRejectsNonStrictDatesAndChronologicalRange(): void
@@ -156,11 +157,12 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
     public function testBackfillDoesNotRecreateMarkerWhenSoftDeleted(): void
     {
         $db = Database::connect();
+        $expectedRowCount = $this->countBackfillableDetails('2026-01-01', '2026-01-31');
 
         $service = new \App\Services\HistoricalOpnameBackfillService();
         $firstRun = $service->backfill('2026-01-01', '2026-01-31');
         $this->assertTrue($firstRun['success']);
-        $this->assertSame(2, (int) $firstRun['data']['created_rows']);
+        $this->assertSame($expectedRowCount, (int) $firstRun['data']['created_rows']);
 
         $firstCreatedRow = $db->table('stock_transactions')
             ->select('id')
@@ -178,18 +180,18 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
         $secondRun = $service->backfill('2026-01-01', '2026-01-31');
         $this->assertTrue($secondRun['success']);
         $this->assertSame(0, (int) $secondRun['data']['created_rows']);
-        $this->assertSame(2, (int) $secondRun['data']['skipped_rows']);
+        $this->assertSame($expectedRowCount, (int) $secondRun['data']['skipped_rows']);
 
         $allMarkerRows = $db->table('stock_transactions')
             ->where('legacy_source_table', 'stock_opname_details')
             ->countAllResults();
-        $this->assertSame(2, $allMarkerRows);
+        $this->assertSame($expectedRowCount, $allMarkerRows);
 
         $activeMarkerRows = $db->table('stock_transactions')
             ->where('legacy_source_table', 'stock_opname_details')
             ->where('deleted_at', null)
             ->countAllResults();
-        $this->assertSame(1, $activeMarkerRows);
+        $this->assertSame($expectedRowCount - 1, $activeMarkerRows);
     }
 
     private function seedRoles(): void
@@ -361,5 +363,18 @@ class HistoricalOpnameBackfillCommandTest extends CIUnitTestCase
             'counted_qty'     => '900.00',
             'variance_qty'    => '-50.00',
         ]);
+    }
+
+    private function countBackfillableDetails(string $fromDate, string $toDate): int
+    {
+        $db = Database::connect();
+
+        return $db->table('stock_opname_details sod')
+            ->join('stock_opnames so', 'so.id = sod.stock_opname_id', 'inner')
+            ->where('so.state', 'POSTED')
+            ->where('so.opname_date >=', $fromDate)
+            ->where('so.opname_date <=', $toDate)
+            ->where('sod.variance_qty !=', 0)
+            ->countAllResults();
     }
 }
