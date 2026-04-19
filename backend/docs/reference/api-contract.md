@@ -4,8 +4,8 @@
 
 - **Canonical for:** active runtime API contract, implemented-vs-planned endpoint inventory, and request/response behavior.
 - **Read this when:** you are implementing or consuming a live backend endpoint or SDK surface.
-- **Read next:** `docs/architecture/runtime-status.md` for the compact module/status index and `docs/reference/schema.md` for schema-backed rules.
-- **Legacy context (Deprecated):** `docs/project-flow-alignment.md` and `docs/data-dictionary.md`.
+- **Read next:** `../architecture/runtime-status.md` for the compact module/status index and `schema.md` for schema-backed rules.
+- **Legacy context (Deprecated):** See `../governance/changelog.md` and `../governance/migration-map.md` for removed files.
 - **Not canonical for:** target architecture decisions for modules that are still planned.
 
 ## 1. Overview
@@ -23,7 +23,7 @@ Source of truth untuk endpoint yang sudah berjalan adalah:
 - controller di `app/Controllers/Api/V1/`
 - feature tests di `tests/feature/Api/V1/`
 
-Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `docs/architecture/runtime-status.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
+Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `../architecture/runtime-status.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
 
 ## 2. API Principles
 
@@ -77,9 +77,17 @@ Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, fl
 }
 ```
 
-## 4. Authentication Notes
+## 4. Authentication & Authorization Notes
 
 Authentication runtime contract is documented in the implemented API surface under **5.1 Authentication & Access Endpoints**. Bagian ini hanya menyimpan contoh login dan format auth header yang dipakai lintas endpoint.
+
+### 4.0 Authorization Architecture (Actor Model)
+
+Sistem ini memisahkan otorisasi menjadi dua layer:
+1.  **Shield Groups** (`admin`, `developer`, `user`, `beta`): Didefinisikan di `app/Config/AuthGroups.php`. Menangani otorisasi dasar tingkat sistem dan token Shield.
+2.  **App Roles** (`admin`, `dapur`, `gudang`): Didefinisikan di `app/Database/Seeds/RoleSeeder.php` dan disimpan di tabel `roles`. Ini adalah peran operasional utama yang menentukan akses fitur di API.
+
+Enforcement role operasional dilakukan oleh `App\Filters\RoleFilter` yang dikonfigurasi pada route group di `app/Config/Routes.php`.
 
 ### 4.1 Login Example
 
@@ -1494,7 +1502,7 @@ SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generat
 | GET | `/api/v1/spk/basah/history` | List histori SPK basah |
 | GET | `/api/v1/spk/basah/history/{id}` | Detail histori SPK basah (termasuk rekomendasi item) |
 | POST | `/api/v1/spk/basah/history/{id}/override` | Override rekomendasi qty per item |
-| POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT), finalizes SPK (`is_finish=true`) |
+| POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (membukukan rekomendasi SPK sebagai transaksi stok `IN`), finalizes SPK (`is_finish=true`) |
 
 #### 5.7.3 SPK Kering/Pengemas Route Family
 
@@ -1507,7 +1515,7 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 | GET | `/api/v1/spk/kering-pengemas/history` | List histori |
 | GET | `/api/v1/spk/kering-pengemas/history/{id}` | Detail histori |
 | POST | `/api/v1/spk/kering-pengemas/history/{id}/override` | Override rekomendasi qty per item |
-| POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (mutasi OUT), finalizes SPK (`is_finish=true`) |
+| POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (membukukan rekomendasi SPK sebagai transaksi stok `IN`), finalizes SPK (`is_finish=true`) |
 
 #### 5.7.4 Shared SPK Utility
 

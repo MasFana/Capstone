@@ -3,6 +3,8 @@
 ## Your Role
 The Dapur role is responsible for meal planning, dish management, and generating Surat Perintah Kerja (SPK) for nutritional operations. Your primary goals are to maintain an accurate menu cycle, manage dish compositions (recipes), and provide the daily patient counts that drive stock requirements. You bridge the gap between clinical nutrition needs and warehouse inventory.
 
+Akses fitur Anda dikelola oleh App Role `dapur` melalui `app/Filters/RoleFilter.php` pada route API. Meskipun Shield Group Anda mungkin `user` di `app/Config/AuthGroups.php`, App Role `dapur` adalah yang memberikan Anda akses ke modul menu dan SPK.
+
 ## Can/Can’t
 - **Can:**
   - Create and update dishes and their ingredient compositions.

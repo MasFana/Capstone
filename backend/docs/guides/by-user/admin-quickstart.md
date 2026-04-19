@@ -3,6 +3,12 @@
 ## Your Role
 The Admin role serves as the system overseer with full authority over organizational data, user management, and high-level stock governance. Your primary objectives include maintaining data integrity across lookup tables, managing user access, and performing final approvals or direct corrections on stock movements.
 
+Aplikasi menggunakan otorisasi dua lapis:
+1.  **Shield Groups** (`admin`, `developer`, `user`): Menentukan kredensial dasar tingkat sistem di `app/Config/AuthGroups.php`.
+2.  **App Roles** (`admin`, `dapur`, `gudang`): Menentukan izin akses fitur aplikasi yang didefinisikan di `app/Database/Seeds/RoleSeeder.php` dan ditegakkan oleh `app/Filters/RoleFilter.php`.
+
+Sebagai `admin`, Anda bertanggung jawab menetapkan App Role yang tepat saat membuat akun user baru.
+
 ## Can/Can’t
 - **Can:**
   - Create, update, and soft-delete users.

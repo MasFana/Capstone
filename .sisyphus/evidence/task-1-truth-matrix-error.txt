@@ -1,0 +1,30 @@
+Command: rtk grep -R "Compact Runtime Cross-Reference Matrix" backend/docs
+backend/docs/reference/api-contract.md:Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `docs/architecture/runtime-status.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.
+backend/docs/architecture/runtime-status.md:## 4.2 Compact Runtime Cross-Reference Matrix
+
+Command: rtk grep -R "project-flow-alignment\|api-design.md\|data-dictionary.md\|system-design.md" backend/docs
+backend/docs/reference/api-contract.md:- **Legacy context (Deprecated):** `docs/project-flow-alignment.md` and `docs/data-dictionary.md`.
+backend/docs/reference/schema.md:- **Legacy context (Deprecated):** `docs/api-design.md` and `docs/project-flow-alignment.md`.
+backend/docs/architecture/runtime-status.md:- **Legacy context (Deprecated):** `docs/api-design.md`, `docs/data-dictionary.md`, `docs/system-design.md`.
+backend/docs/governance/migration-map.md:| `api-design.md` | **REMOVED** | `backend/docs/reference/api-contract.md` | API | 2 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:| `data-dictionary.md` | **REMOVED** | `backend/docs/reference/schema.md` | Data | 2 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:| `project-flow-alignment.md` | **REMOVED** | `backend/docs/architecture/runtime-status.md` | Core | 1 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:| `system-design.md` | **REMOVED** | `backend/docs/architecture/runtime-status.md` | Architecture | 3 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:- `api-design.md`: Superseded by `backend/docs/reference/api-contract.md`.
+backend/docs/governance/migration-map.md:- `data-dictionary.md`: Superseded by `backend/docs/reference/schema.md`.
+backend/docs/governance/migration-map.md:- `project-flow-alignment.md`: Superseded by `backend/docs/architecture/runtime-status.md`.
+backend/docs/governance/migration-map.md:- `system-design.md`: Superseded by `backend/docs/architecture/runtime-status.md`.
+backend/docs/governance/changelog.md:- `backend/docs/api-design.md`
+backend/docs/governance/changelog.md:- `backend/docs/data-dictionary.md`
+backend/docs/governance/changelog.md:- `backend/docs/project-flow-alignment.md`
+backend/docs/governance/changelog.md:- `backend/docs/system-design.md`
+backend/docs/governance/changelog.md:- `backend/docs/reference/api-contract.md` - Canonical API contract (moved from `api-design.md`)
+backend/docs/governance/changelog.md:- `backend/docs/reference/schema.md` - Canonical database schema (moved from `data-dictionary.md`)
+backend/docs/governance/changelog.md:- `backend/docs/architecture/runtime-status.md` - Canonical runtime status (moved from `project-flow-alignment.md`)
+backend/docs/governance/changelog.md:- `backend/docs/api-design.md` - (Removed 2026-04-16)
+backend/docs/governance/changelog.md:- `backend/docs/data-dictionary.md` - (Removed 2026-04-16)
+backend/docs/governance/changelog.md:- `backend/docs/project-flow-alignment.md` - (Removed 2026-04-16)
+backend/docs/governance/changelog.md:- `backend/docs/system-design.md` - (Removed 2026-04-16)
+
+NOTE: Legacy-file mentions are present only as deprecated/migration context and changelog history.
+RESULT: PASS - anchor target is valid and legacy mentions are documented context, not broken runtime links.

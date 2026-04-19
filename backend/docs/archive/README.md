@@ -34,16 +34,8 @@ A document is eligible for hard removal from the archive when:
 
 ## Current Archive Contents
 
-The archive directory is currently empty except for this README file. No documents have been moved to the archive yet.
-
-### Planned Archive Candidates (Not Yet Moved)
-
-The following documents are candidates for future archival based on the migration plan, but remain in their current locations:
-
-- **`backend/docs/system-design-plan.md`** - Original system design planning document. Planned to be superseded by `backend/docs/architecture/runtime-status.md`. Planned removal target: v1.2.0
-- **`backend/docs/use-case-diagram.md`** - Original use-case diagram and narrative. Planned for historical reference. Planned removal target: v1.2.0
-- **`backend/docs/migration-baseline-audit-task-1.md`** - Initial documentation audit and baseline assessment. Planned for historical reference. Planned retention: Indefinite
-- **`backend/docs/fr-traceability-matrix.md`** - Functional requirements traceability matrix. Planned for historical reference. Planned retention: Indefinite
+- **`Software Requirements Specification (SRS).md`** - Original software requirements specification. Superseded by canonical documentation in `backend/docs/`. Planned retention: Indefinite.
+- **`System Request.md`** - Original system request and business requirements. Superseded by canonical documentation in `backend/docs/`. Planned retention: Indefinite.
 
 ## Archive Access
 

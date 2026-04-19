@@ -11,6 +11,16 @@ This document defines the mandatory templates and style requirements for backend
 - **No AI Slop:** Avoid "delve", "it's important to note", "leverage", etc. Use plain words like "use", "check", "start".
 - **Formatting:** Use standard Markdown. No em-dashes (—) or en-dashes (–); use commas, periods, or line breaks instead.
 
+## 1.1 Governance Requirements
+
+All documentation must include:
+
+- **Ownership**: Identify the owner and reviewer roles (see `backend/docs/governance/source-of-truth-map.md` Ownership table).
+- **Canonical Status**: Explicitly state if this doc is canonical or archived. Canonical docs live in `backend/docs/`; archived docs live in `backend/docs/archive/`.
+- **Implementation Grounding**: Every doc must reference concrete implementation sources (routes, controllers, services, models, tests). No speculative or planned-only content in canonical docs.
+- **Review Cadence**: Specify when this doc is reviewed (per-release, per-feature, quarterly, or on-demand).
+- **Last Updated**: Include a date or version reference to indicate freshness.
+
 ---
 
 ## 2. By-User Quickstart Template
@@ -133,3 +143,8 @@ When creating a doc from these templates, ensure:
 2. [ ] Placeholders (like `Replacement:`) are filled or explicitly marked as TBD.
 3. [ ] Paths are correct and follow the `backend/docs/` hierarchy.
 4. [ ] Style contract (no AI slop, no em-dashes) is respected.
+5. [ ] Ownership and reviewer roles are identified (per `source-of-truth-map.md`).
+6. [ ] Canonical status is explicitly stated (canonical in `backend/docs/` or archived in `backend/docs/archive/`).
+7. [ ] All claims are grounded in implementation sources (routes, controllers, services, models, tests).
+8. [ ] Review cadence is specified (per-release, per-feature, quarterly, or on-demand).
+9. [ ] Last updated date or version reference is included.

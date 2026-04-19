@@ -2,6 +2,72 @@
 
 This changelog records significant changes to the documentation structure, migrations, and governance policies.
 
+## Archive: SRS moved to Archive (2026-04-19)
+
+### Summary
+
+Archived the original Software Requirements Specification (SRS) document to the `/docs/archive` directory. The SRS is now marked as ARCHIVED and historical, superseded by the canonical documentation in `backend/docs/`. Canonical redirects have been added to the archived SRS to point to the current sources of truth.
+
+**Scope**: Documentation archival only.
+
+**Date**: 2026-04-19
+
+### Actions Taken
+
+1. **Moved**: `Software Requirements Specification (SRS).md` from project root to `backend/docs/archive/`.
+2. **Updated**: Added ARCHIVED banner and Canonical Redirects to `backend/docs/archive/Software Requirements Specification (SRS).md`.
+3. **Updated**: `backend/docs/archive/README.md` to include SRS in the archive contents.
+4. **Verified**: No active navigation references SRS as a canonical source of truth.
+
+---
+
+## Governance Policy: Ownership, Review Cadence, and Canonical Precedence (2026-04-19)
+
+### Summary
+
+Established explicit governance policies for documentation ownership, review cadence, and canonical precedence. All canonical documentation now has defined owners, reviewers, and review schedules. Canonical precedence rules clarify that implementation sources (routes, controllers, services, models) are the source of truth, and all docs must be grounded in concrete code.
+
+**Scope**: Governance policy only. No content changes to existing docs.
+
+**Date**: 2026-04-19
+
+### Policies Established
+
+1. **Ownership and Review Responsibilities** (see `backend/docs/governance/source-of-truth-map.md`):
+   - API Contract: Backend Lead (owner), System Architect (reviewer)
+   - Database Schema: DB Admin / Backend Lead (owner), System Architect (reviewer)
+   - Runtime Status: System Architect (owner), Backend Lead (reviewer)
+   - Error Reference: Backend Lead (owner), System Architect (reviewer)
+   - By-User/Workflow/Feature Guides: Technical Writer / QA (owner), Backend Lead (reviewer)
+   - Governance Docs: System Architect (owner), Backend Lead (reviewer)
+
+2. **Review Cadence**:
+   - Per-Release: All canonical docs reviewed and updated before each release.
+   - Per-Feature: Corresponding canonical docs reviewed and updated before feature merge.
+   - Quarterly: Governance docs reviewed to ensure alignment with project practices.
+   - Spot-Check Verification: Task 4 Spot-Check Matrix re-verified quarterly.
+
+3. **Canonical Precedence Rules**:
+   - Implementation is source of truth (code > docs).
+   - Runtime docs override planned docs.
+   - Canonical docs (`backend/docs/`) override legacy/archived docs.
+   - Governance docs are binding.
+   - No duplicate truth (canonical location is single source).
+
+4. **Governance Requirements for All Docs** (see `backend/docs/governance/doc-templates.md`):
+   - Ownership and reviewer roles must be identified.
+   - Canonical status must be explicitly stated.
+   - All claims must be grounded in implementation sources.
+   - Review cadence must be specified.
+   - Last updated date or version reference must be included.
+
+### Related Documentation
+
+- **Source-of-Truth Map**: `backend/docs/governance/source-of-truth-map.md` - Ownership table, review cadence, and canonical precedence rules.
+- **Doc Templates**: `backend/docs/governance/doc-templates.md` - Updated verification checklist with governance requirements.
+
+---
+
 ## Removal: Deprecated Docs (2026-04-16)
 
 ### Summary

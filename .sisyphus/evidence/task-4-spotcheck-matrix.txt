@@ -1,0 +1,29 @@
+Task 4 spot-check matrix evidence
+
+Verified artifacts:
+- backend/docs/governance/source-of-truth-map.md
+- backend/docs/reference/api-contract.md
+- backend/docs/architecture/runtime-status.md
+- backend/app/Config/Routes.php
+- frontend/src/sdk/index.ts
+- frontend/src/sdk/resources/auth.ts
+- frontend/src/sdk/resources/dailyPatients.ts
+- frontend/src/sdk/resources/spk.ts
+- frontend/src/sdk/resources/stockOpnames.ts
+- frontend/src/sdk/resources/dashboard.ts
+- frontend/src/sdk/resources/reports.ts
+- frontend/src/sdk/resources/items.ts
+- frontend/src/sdk/resources/itemCategories.ts
+- frontend/src/sdk/resources/itemUnits.ts
+
+Sampled checks recorded in governance matrix: 20
+Mandatory terms covered: auth/password, items CRUD+restore, dailyPatients list/get/create, SPK extended methods, dashboard, reports, stockOpnames
+
+Mapped reference check target:
+- rtk grep -R "auth/password\|dailyPatients\|stockOpnames\|postBasahStock\|postKeringPengemasStock\|dashboard\|reports" backend/docs frontend/README.md
+
+Status: PASS
+
+Verification output summary:
+- `rtk grep -R "auth/password\|dailyPatients\|stockOpnames\|postBasahStock\|postKeringPengemasStock\|dashboard\|reports" backend/docs frontend/README.md`
+- Result: matched references found in backend docs and frontend README for the targeted terms

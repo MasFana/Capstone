@@ -3,6 +3,8 @@
 ## Your Role
 The Gudang (Warehouse) role is responsible for the physical and digital management of all items in the inventory. Your primary objectives are to record stock movements, maintain accurate item data, and perform regular stock counts (opname) to ensure the system reflects real-world availability.
 
+Otorisasi Anda didasarkan pada App Role `gudang` yang dikelola oleh `app/Filters/RoleFilter.php` di route API. Sistem membedakan grup otorisasi Shield (`admin`, `developer`, `user`) dari App Role operasional (`admin`, `dapur`, `gudang`) untuk keamanan dan fleksibilitas kredensial.
+
 ## Can/Can’t
 - **Can:**
   - Create and update Items and their conversion rules.

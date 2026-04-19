@@ -1,0 +1,17 @@
+backend/docs/archive/README.md:1. **Superseded by Canonical**: The document has been replaced by a newer canonical version in the active documentation tree (e.g., `system-design-plan.md` superseded by `backend/docs/architecture/runtime-status.md`).
+backend/docs/archive/README.md:- **`backend/docs/system-design-plan.md`** - Original system design planning document. Planned to be superseded by `backend/docs/architecture/runtime-status.md`. Planned removal target: v1.2.0
+backend/docs/archive/Software Requirements Specification (SRS).md:# ARCHIVED: Software Requirements Specification (SRS)
+backend/docs/archive/Software Requirements Specification (SRS).md:> **ARCHIVED DOCUMENT**
+backend/docs/archive/Software Requirements Specification (SRS).md:## Canonical Redirects
+backend/docs/archive/Software Requirements Specification (SRS).md:- **API Contract**: [backend/docs/reference/api-contract.md](../reference/api-contract.md)
+backend/docs/archive/Software Requirements Specification (SRS).md:- **Runtime Status**: [backend/docs/architecture/runtime-status.md](../architecture/runtime-status.md)
+backend/docs/archive/System Request.md:# ARCHIVED: System Request
+backend/docs/archive/System Request.md:> **ARCHIVED DOCUMENT**
+backend/docs/archive/System Request.md:## Canonical Redirects
+backend/docs/archive/System Request.md:- **API Contract**: [backend/docs/reference/api-contract.md](../reference/api-contract.md)
+backend/docs/archive/System Request.md:- **Runtime Status**: [backend/docs/architecture/runtime-status.md](../architecture/runtime-status.md)
+.//
+..//
+README.md  4.1K
+Software Requirements Specification (SRS).md  1.5M
+System Request.md  10.6K

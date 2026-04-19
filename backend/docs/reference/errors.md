@@ -45,7 +45,7 @@ Common validation keys used in the `errors` object:
 ### 3.2 Domain-Specific Errors
 - **Uniqueness**: `name` or `username` errors when a value already exists.
 - **Soft Delete Restore**: If a deleted resource owns a unique name, create returns `400` with `errors.restore_id`.
-- **Reference Integrity**: `item_category_id`, `item_unit_id`, etc., must point to active, existing records.
+- **Reference Integrity**: `item_category_id`, `item_unit_base_id` / `item_unit_convert_id` resolution targets (via `unit_base` / `unit_convert`), and other FK-backed inputs must point to active, existing records.
 - **Stock Rules**: `OUT` transactions are rejected with a `400` if they result in negative stock.
 - **Direct Correction**: Rejected with a `400` if `expected_current_qty` does not match the actual current stock.
 

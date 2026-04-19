@@ -1,0 +1,2 @@
+- **Read next:** `../architecture/runtime-status.md` for the compact module/status index and `schema.md` for schema-backed rules.
+Untuk indeks ringkas lintas modul yang merangkum status runtime, surface API, flow utama, ringkasan query/request, dan akses per modul, lihat `../architecture/runtime-status.md` bagian **4.2 Compact Runtime Cross-Reference Matrix**.

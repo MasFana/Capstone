@@ -1,5 +1,22 @@
 
 
+# ARCHIVED: Software Requirements Specification (SRS)
+
+> [!CAUTION]
+> **ARCHIVED DOCUMENT**
+> This document is historical and has been superseded by the canonical documentation in `backend/docs/`.
+> It is retained for reference and traceability only.
+
+## Canonical Redirects
+
+For the current source of truth, please refer to:
+- **Documentation Index**: [backend/docs/README.md](../README.md)
+- **API Contract**: [backend/docs/reference/api-contract.md](../reference/api-contract.md)
+- **Runtime Status**: [backend/docs/architecture/runtime-status.md](../architecture/runtime-status.md)
+- **Database Schema**: [backend/docs/reference/schema.md](../reference/schema.md)
+
+---
+
 # **Software Requirements Specification**
 
 # **for**

@@ -1,0 +1,42 @@
+backend/docs/governance/source-of-truth-map.md:This matrix maps planned documentation domains to implementation sources in the current backend runtime. Use these paths as canonical verification points before authoring or revising docs.
+backend/docs/governance/source-of-truth-map.md:**Canonical documentation lives in `backend/docs/` only.** Legacy or root-level documentation is archived and non-canonical.
+backend/docs/governance/source-of-truth-map.md:- **Non-canonical (archived)**: Any docs in `backend/docs/archive/` or root-level legacy files are historical reference only and must not be used for implementation decisions.
+backend/docs/governance/source-of-truth-map.md:When docs conflict, prefer the implementation source (routes, controllers, services, models) and then update the canonical doc to match.
+backend/docs/governance/source-of-truth-map.md:- **Per-Release Review**: All canonical docs must be reviewed and updated before each release to ensure API contract, schema, and runtime status reflect the shipped implementation.
+backend/docs/governance/source-of-truth-map.md:- **Per-Feature Review**: When a new feature is implemented, the corresponding canonical docs (API contract, schema, runtime status, and relevant guides) must be reviewed and updated before the feature is merged.
+backend/docs/governance/source-of-truth-map.md:- **Quarterly Governance Review**: The governance docs (source-of-truth map, doc templates, changelog) are reviewed quarterly to ensure they remain aligned with project practices and ownership structure.
+backend/docs/governance/source-of-truth-map.md:- **Spot-Check Verification**: The Task 4 Spot-Check Matrix (rows 1-20 above) is re-verified quarterly to ensure canonical docs remain traceable to implementation sources.
+backend/docs/governance/source-of-truth-map.md:1. **Implementation is source of truth**: If code and docs disagree, the implementation (routes, controllers, services, models, tests) is correct. Update the docs to match.
+backend/docs/governance/source-of-truth-map.md:3. **Canonical docs override legacy docs**: Any doc in `backend/docs/` is canonical. Any doc in `backend/docs/archive/` or root-level legacy files is non-canonical and must not be used for implementation decisions.
+backend/docs/governance/source-of-truth-map.md:4. **Governance docs are binding**: Policies in `backend/docs/governance/` (ownership, review cadence, templates, changelog) are binding for all documentation work. Deviations require explicit approval from System Architect.
+backend/docs/governance/source-of-truth-map.md:5. **No duplicate truth**: If a concept is documented in multiple places, the canonical location (per the ownership table above) is the source of truth. Other locations must link to the canonical doc and not duplicate content.
+backend/docs/governance/doc-templates.md:- **Ownership**: Identify the owner and reviewer roles (see `backend/docs/governance/source-of-truth-map.md` Ownership table).
+backend/docs/governance/doc-templates.md:- **Canonical Status**: Explicitly state if this doc is canonical or archived. Canonical docs live in `backend/docs/`; archived docs live in `backend/docs/archive/`.
+backend/docs/governance/doc-templates.md:- **Implementation Grounding**: Every doc must reference concrete implementation sources (routes, controllers, services, models, tests). No speculative or planned-only content in canonical docs.
+backend/docs/governance/doc-templates.md:6. [ ] Canonical status is explicitly stated (canonical in `backend/docs/` or archived in `backend/docs/archive/`).
+backend/docs/governance/migration-map.md:This document maps legacy top-level documentation to the new canonical structure. Use this map to track migration progress, identify ownership scopes, and locate replacements for deprecated docs.
+backend/docs/governance/migration-map.md:| `fr-traceability-matrix.md` | **REMOVED** | Superseded by canonical docs | PM / QA | 3 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:| `migration-baseline-audit-task-1.md` | **REMOVED** | Superseded by canonical docs | Core | 3 | Removed (2026-04-16) |
+backend/docs/governance/migration-map.md:The following files have been removed from the repository. They are superseded by the canonical documentation:
+backend/docs/governance/migration-map.md:- `fr-traceability-matrix.md`: Superseded by canonical docs.
+backend/docs/governance/migration-map.md:- `migration-baseline-audit-task-1.md`: Superseded by canonical docs.
+backend/docs/governance/migration-map.md:- [x] Every entry has a status, destination, and owner scope.
+backend/docs/governance/changelog.md:Established explicit governance policies for documentation ownership, review cadence, and canonical precedence. All canonical documentation now has defined owners, reviewers, and review schedules. Canonical precedence rules clarify that implementation sources (routes, controllers, services, models) are the source of truth, and all docs must be grounded in concrete code.
+backend/docs/governance/changelog.md:   - API Contract: Backend Lead (owner), System Architect (reviewer)
+backend/docs/governance/changelog.md:   - Database Schema: DB Admin / Backend Lead (owner), System Architect (reviewer)
+backend/docs/governance/changelog.md:   - Runtime Status: System Architect (owner), Backend Lead (reviewer)
+backend/docs/governance/changelog.md:   - Error Reference: Backend Lead (owner), System Architect (reviewer)
+backend/docs/governance/changelog.md:   - By-User/Workflow/Feature Guides: Technical Writer / QA (owner), Backend Lead (reviewer)
+backend/docs/governance/changelog.md:   - Governance Docs: System Architect (owner), Backend Lead (reviewer)
+backend/docs/governance/changelog.md:   - Per-Release: All canonical docs reviewed and updated before each release.
+backend/docs/governance/changelog.md:   - Per-Feature: Corresponding canonical docs reviewed and updated before feature merge.
+backend/docs/governance/changelog.md:   - Implementation is source of truth (code > docs).
+backend/docs/governance/changelog.md:   - No duplicate truth (canonical location is single source).
+backend/docs/governance/changelog.md:- **Source-of-Truth Map**: `backend/docs/governance/source-of-truth-map.md` - Ownership table, review cadence, and canonical precedence rules.
+backend/docs/governance/changelog.md:- `backend/docs/governance/migration-map.md` - Master migration map with ownership index and deprecation schedule
+backend/docs/governance/changelog.md:- Updated `backend/docs/README.md` - New documentation index with canonical structure
+backend/docs/governance/changelog.md:- Updated `backend/README.md` - Links to canonical docs paths
+backend/docs/governance/changelog.md:- Updated `README.md` (project root) - Links to canonical docs paths
+backend/docs/governance/changelog.md:1. Developers should update bookmarks to point to new canonical paths in `backend/docs/reference/`, `backend/docs/architecture/`, and `backend/docs/guides/`.
+backend/docs/governance/changelog.md:- All canonical docs are grounded in implementation sources (routes, controllers, services, models).
+backend/docs/governance/changelog.md:- **Migration Map**: `backend/docs/governance/migration-map.md` - Full mapping of old → new paths, ownership, and removal schedule

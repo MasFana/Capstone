@@ -254,6 +254,7 @@ await sdk.users.create({
 | `sdk.auth.login(payload)` | `POST /api/v1/auth/login` | public |
 | `sdk.auth.me()` | `GET /api/v1/auth/me` | authenticated |
 | `sdk.auth.logout()` | `POST /api/v1/auth/logout` | authenticated |
+| `sdk.auth.changePassword(payload)` | `PATCH /api/v1/auth/password` | authenticated |
 
 #### Login request
 
@@ -447,9 +448,11 @@ await sdk.auth.login({
 | `sdk.spk.generateBasah(payload)` | `POST /api/v1/spk/basah/generate` | `admin`, `dapur` |
 | `sdk.spk.listBasah()` | `GET /api/v1/spk/basah/history` | `admin`, `gudang` |
 | `sdk.spk.getBasah(id)` | `GET /api/v1/spk/basah/history/{id}` | `admin`, `gudang` |
+| `sdk.spk.postBasahStock(id)` | `POST /api/v1/spk/basah/history/{id}/post-stock` | `admin` only |
 | `sdk.spk.generateKeringPengemas(payload)` | `POST /api/v1/spk/kering-pengemas/generate` | `admin`, `dapur` |
 | `sdk.spk.listKeringPengemas()` | `GET /api/v1/spk/kering-pengemas/history` | `admin`, `gudang` |
 | `sdk.spk.getKeringPengemas(id)` | `GET /api/v1/spk/kering-pengemas/history/{id}` | `admin`, `gudang` |
+| `sdk.spk.postKeringPengemasStock(id)` | `POST /api/v1/spk/kering-pengemas/history/{id}/post-stock` | `admin` only |
 
 #### SPK Recommendation logic
 
@@ -468,6 +471,16 @@ These resources provide management for nutrition standards and calendar scheduli
 | `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
 | `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
 | `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` |
+
+### `dashboard` / `reports` / `stockOpnames`
+
+These resources provide analytical views and auditing tools.
+
+| Resource | Methods | Access |
+|---|---|---|
+| `dashboard` | `getAggregate` | `admin`, `dapur`, `gudang` |
+| `reports` | `getStocks`, `getTransactions`, `getSpkHistory`, `getEvaluation` | `admin`, `gudang` |
+| `stockOpnames` | `create`, `get`, `submit`, `approve`, `reject`, `post` | `admin`, `gudang` |
 
 ## List query reference
 

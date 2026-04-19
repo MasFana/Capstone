@@ -4,8 +4,8 @@
 
 - **Canonical for:** schema structure, foreign keys, uniqueness, soft delete behavior, and persistence constraints.
 - **Read this when:** you are changing migrations, models, lookup rules, or database-backed invariants.
-- **Read next:** `docs/reference/api-contract.md` for request/response contract details and `docs/architecture/runtime-status.md` for compact runtime status.
-- **Legacy context (Deprecated):** `docs/api-design.md` and `docs/project-flow-alignment.md`.
+- **Read next:** `api-contract.md` for request/response contract details and `../architecture/runtime-status.md` for compact runtime status.
+- **Legacy context (Deprecated):** See `../governance/changelog.md` and `../governance/migration-map.md` for removed-file history.
 - **Not canonical for:** full endpoint behavior, access rules per route, or planned module contracts.
 
 ## 1. Overview
@@ -91,7 +91,7 @@ Catatan implementasi:
 - Jika nama yang sama hanya ada pada row yang sudah soft-deleted, create akan ditolak dan admin harus memanggil restore endpoint untuk mengaktifkan kembali row lama.
 - Implementasi schema memakai generated column `name_active_lookup` + unique index agar aturan active-only uniqueness kompatibel dengan MariaDB/MySQL, sedangkan perilaku soft delete/restore tetap didefinisikan di model CI4.
 
-Catatan kontrak runtime terkait lookup-by-name dan endpoint write tidak menjadi source utama dokumen ini. Untuk perilaku request/response yang aktif saat ini, lihat `docs/reference/api-contract.md` dan gunakan file ini untuk aspek schema, FK, dan constraint-nya.
+Catatan kontrak runtime terkait lookup-by-name dan endpoint write tidak menjadi source utama dokumen ini. Untuk perilaku request/response yang aktif saat ini, lihat `api-contract.md` dan gunakan file ini untuk aspek schema, FK, dan constraint-nya.
 
 ## 3. Master Data & Users
 
@@ -577,7 +577,7 @@ Index utama:
 
 ## 10. Open Questions
 
-1. Apakah `stock_transactions.spk_id` memang wajib untuk semua transaksi, termasuk transaksi manual.
-2. Apakah perlu penanda tanggal eksplisit pada `daily_patients` selain `created_at`.
+1. Bagaimana kebijakan rekonsiliasi jika laporan evaluasi perlu menggabungkan mutasi `OPNAME_ADJUSTMENT` dengan transaksi `OUT` SPK pada periode yang sama.
+2. Apakah perlu kebijakan arsip/retensi khusus untuk histori SPK multi-versi (`is_latest=false`) ketika volume data meningkat.
 3. Apakah menu historis perlu dibekukan saat dish composition berubah.
 4. Bagaimana aturan koreksi transaksi setelah snapshot bulanan terbentuk.

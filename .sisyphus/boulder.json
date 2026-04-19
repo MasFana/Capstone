@@ -1,0 +1,103 @@
+{
+  "active_plan": "/workspace/PHP/Capstone/.sisyphus/plans/docs-alignment-audit.md",
+  "started_at": "2026-04-19T16:52:16.611Z",
+  "session_ids": [
+    "ses_25aae5652ffeO1n06HJ1VSKvDe",
+    "ses_25955eb20ffeWXWlCp2ZI8pT5z",
+    "ses_25955ea7cffeZWa2beKYlv3kMz",
+    "ses_25955ea75ffeQ0ykFd6iGgMrcX",
+    "ses_25955ea18ffepNzoLNIuSF9NFY"
+  ],
+  "session_origins": {
+    "ses_25aae5652ffeO1n06HJ1VSKvDe": "direct",
+    "ses_25955eb20ffeWXWlCp2ZI8pT5z": "appended",
+    "ses_25955ea7cffeZWa2beKYlv3kMz": "appended",
+    "ses_25955ea75ffeQ0ykFd6iGgMrcX": "appended",
+    "ses_25955ea18ffepNzoLNIuSF9NFY": "appended"
+  },
+  "plan_name": "docs-alignment-audit",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Build Runtime + SDK Truth Matrix",
+      "session_id": "ses_25953ec75ffeldflPf4MsB8t61",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-19T17:01:12.853Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Normalize Actor Model Documentation",
+      "session_id": "ses_2594b6d38ffeMyd2FexZ2qJqC0",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T17:07:38.890Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Correct Runtime Status and Remove Stale Anchors/Links",
+      "session_id": "ses_25946deb7ffe8O33rNdvacQW41",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T17:12:19.482Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Add Dedicated Item CRUD Lifecycle Documentation",
+      "session_id": "ses_259440e9cffez8biIVf6DmDW2h",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T17:18:24.163Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Update Governance for Ownership, Review Cadence, and Canonical Map",
+      "session_id": "ses_2593c0811ffe8J6QxVUj9H6Dn4",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-04-19T17:24:38.872Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "Align Frontend SDK README to Actual Exported Surface",
+      "session_id": "ses_25938f520ffeXSn8SHrs249Z1E",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T17:26:41.330Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "Archive SRS into `/docs/archive` with Canonical Redirects",
+      "session_id": "ses_259376f29ffe9AREcxrTym8KYf",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T17:28:46.285Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Run Full Documentation Consistency + Link Integrity Sweep",
+      "session_id": "ses_25933ef6fffePZOB45Z6wD4nFa",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-19T17:33:27.583Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_2592921acffe46y5Ns10TbFeVd",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-19T17:45:24.548Z"
+    }
+  }
+}
