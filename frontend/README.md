@@ -465,12 +465,13 @@ await sdk.auth.login({
 
 These resources provide management for nutrition standards and calendar scheduling.
 
-| Resource | Methods | Access |
-|---|---|---|
-| `menus` | `list`, `slots`, `assignSlot` | `admin`, `dapur` |
-| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
-| `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` |
-| `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` |
+| Resource | Methods | Access (Write) | Access (Read) |
+|---|---|---|---|
+| `menus` | `list` | None (Fixed) | `admin`, `gudang` |
+| `menus` (slots) | `slots`, `assignSlot`, `updateSlot`, `deleteSlot` | `admin`, `dapur` | `admin`, `gudang` |
+| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `gudang` |
+| `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `gudang` |
+| `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` | `admin`, `gudang` |
 
 ### `dashboard` / `reports` / `stockOpnames`
 

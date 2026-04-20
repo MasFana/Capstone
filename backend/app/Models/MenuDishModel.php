@@ -27,6 +27,22 @@ class MenuDishModel extends Model
             ->getResultArray();
     }
 
+    public function getByIdWithRelations(int $id): ?array
+    {
+        $row = $this->builder()
+            ->select(
+                'menu_dishes.*, menus.name AS menu_name, meal_times.name AS meal_time_name, dishes.name AS dish_name'
+            )
+            ->join('menus', 'menus.id = menu_dishes.menu_id')
+            ->join('meal_times', 'meal_times.id = menu_dishes.meal_time_id')
+            ->join('dishes', 'dishes.id = menu_dishes.dish_id')
+            ->where('menu_dishes.id', $id)
+            ->get()
+            ->getFirstRow('array');
+
+        return $row ?: null;
+    }
+
     public function findBySlot(int $menuId, int $mealTimeId): ?array
     {
         $row = $this->where('menu_id', $menuId)

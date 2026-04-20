@@ -132,6 +132,18 @@ describe("Menu domain resources", () => {
         })
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Menu slot updated successfully.", data: { id: 8 } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Menu slot deleted successfully." }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: { date: "2024-02-29", day_of_month: 29, menu_id: 9, menu_name: "Paket 9" } }), {
           status: 200,
           headers: { "content-type": "application/json" }
@@ -144,19 +156,27 @@ describe("Menu domain resources", () => {
     await sdk.menus.slots();
     await sdk.menus.assignSlot({ menu_id: 1, meal_time_id: 1, dish_id: 2 });
     await sdk.menuSchedules.update(5, { menu_id: 7 });
+    await sdk.menus.updateSlot(8, { dish_id: 3 });
+    await sdk.menus.deleteSlot(8);
     await sdk.menuSchedules.calendarProjection({ date: "2024-02-29" });
 
     const [menusUrl] = fetchMock.mock.calls[0] ?? [];
     const [slotUrl] = fetchMock.mock.calls[1] ?? [];
     const [, assignInit] = fetchMock.mock.calls[2] ?? [];
     const [updateUrl, updateInit] = fetchMock.mock.calls[3] ?? [];
-    const [calendarUrl] = fetchMock.mock.calls[4] ?? [];
+    const [menuUpdateUrl, menuUpdateInit] = fetchMock.mock.calls[4] ?? [];
+    const [menuDeleteUrl, menuDeleteInit] = fetchMock.mock.calls[5] ?? [];
+    const [calendarUrl] = fetchMock.mock.calls[6] ?? [];
 
     expect(menusUrl).toBe("http://127.0.0.1:8080/api/v1/menus");
     expect(slotUrl).toBe("http://127.0.0.1:8080/api/v1/menu-dishes");
     expect(assignInit?.method).toBe("POST");
     expect(updateUrl).toBe("http://127.0.0.1:8080/api/v1/menu-schedules/5");
     expect(updateInit?.method).toBe("PUT");
+    expect(menuUpdateUrl).toBe("http://127.0.0.1:8080/api/v1/menu-dishes/8");
+    expect(menuUpdateInit?.method).toBe("PUT");
+    expect(menuDeleteUrl).toBe("http://127.0.0.1:8080/api/v1/menu-dishes/8");
+    expect(menuDeleteInit?.method).toBe("DELETE");
     expect(calendarUrl).toBe("http://127.0.0.1:8080/api/v1/menu-calendar?date=2024-02-29");
   });
 

@@ -115,40 +115,36 @@ class MenuDishesTest extends CIUnitTestCase
         return $json['access_token'];
     }
 
-    public function testSlotAssignmentHappyPathForPagiSiangSore(): void
+    protected function assignSlot(string $token, int $menuId, int $mealTimeId, int $dishId): array
     {
-        $token = $this->login('dapur');
-
-        $firstAssignResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->withBodyFormat('json')
             ->post('api/v1/menu-dishes', [
-                'menu_id'      => 1,
-                'meal_time_id' => 1,
-                'dish_id'      => 1,
+                'menu_id'      => $menuId,
+                'meal_time_id' => $mealTimeId,
+                'dish_id'      => $dishId,
             ]);
 
-        $firstAssignResult->assertStatus(201);
-        $firstAssignResult->assertJSONFragment(['message' => 'Menu slot assigned successfully.']);
+        $result->assertStatus(201);
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->withBodyFormat('json')
-            ->post('api/v1/menu-dishes', [
-                'menu_id'      => 1,
-                'meal_time_id' => 2,
-                'dish_id'      => 2,
-            ])
-            ->assertStatus(201);
+        $json = json_decode($result->getJSON(), true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('id', $json['data']);
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->withBodyFormat('json')
-            ->post('api/v1/menu-dishes', [
-                'menu_id'      => 1,
-                'meal_time_id' => 3,
-                'dish_id'      => 3,
-            ])
-            ->assertStatus(201);
+        return $json['data'];
+    }
 
-        $listResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+    public function testSlotAssignmentHappyPathForPagiSiangSore(): void
+    {
+        $writeToken = $this->login('dapur');
+        $readToken = $this->login('gudang');
+
+        $this->assignSlot($writeToken, 1, 1, 1);
+        $this->assignSlot($writeToken, 1, 2, 2);
+        $this->assignSlot($writeToken, 1, 3, 3);
+
+        $listResult = $this->withHeaders(['Authorization' => 'Bearer ' . $readToken])
             ->get('api/v1/menu-dishes');
 
         $listResult->assertStatus(200);
@@ -164,14 +160,7 @@ class MenuDishesTest extends CIUnitTestCase
     {
         $token = $this->login('admin');
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->withBodyFormat('json')
-            ->post('api/v1/menu-dishes', [
-                'menu_id'      => 2,
-                'meal_time_id' => 1,
-                'dish_id'      => 1,
-            ])
-            ->assertStatus(201);
+        $this->assignSlot($token, 2, 1, 1);
 
         $duplicateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->withBodyFormat('json')
@@ -185,5 +174,102 @@ class MenuDishesTest extends CIUnitTestCase
         $json = json_decode($duplicateResult->getJSON(), true);
         $this->assertSame('Validation failed.', $json['message']);
         $this->assertArrayHasKey('menu_id,meal_time_id', $json['errors']);
+    }
+
+    public function testUpdateExistingSlotSuccess(): void
+    {
+        $token = $this->login('admin');
+        $slot = $this->assignSlot($token, 3, 1, 1);
+
+        $updateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/menu-dishes/' . $slot['id'], [
+                'dish_id' => 2,
+            ]);
+
+        $updateResult->assertStatus(200);
+        $json = json_decode($updateResult->getJSON(), true);
+        $this->assertSame('Menu slot updated successfully.', $json['message']);
+        $this->assertSame($slot['id'], $json['data']['id']);
+        $this->assertSame(2, $json['data']['dish_id']);
+    }
+
+    public function testUpdateNonExistentSlotReturns404(): void
+    {
+        $token = $this->login('admin');
+
+        $updateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/menu-dishes/9999', [
+                'dish_id' => 2,
+            ]);
+
+        $updateResult->assertStatus(404);
+        $json = json_decode($updateResult->getJSON(), true);
+        $this->assertSame('Menu slot not found.', $json['message']);
+    }
+
+    public function testUpdateCollisionReturnsDuplicateKeyError(): void
+    {
+        $token = $this->login('admin');
+        $slot = $this->assignSlot($token, 4, 1, 1);
+        $this->assignSlot($token, 4, 2, 2);
+
+        $updateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/menu-dishes/' . $slot['id'], [
+                'meal_time_id' => 2,
+            ]);
+
+        $updateResult->assertStatus(400);
+        $json = json_decode($updateResult->getJSON(), true);
+        $this->assertSame('Validation failed.', $json['message']);
+        $this->assertArrayHasKey('menu_id,meal_time_id', $json['errors']);
+        $this->assertSame(
+            'The menu_id and meal_time_id combination has already been taken.',
+            $json['errors']['menu_id,meal_time_id'],
+        );
+    }
+
+    public function testDeleteExistingSlotReturns200(): void
+    {
+        $token = $this->login('admin');
+        $slot = $this->assignSlot($token, 5, 1, 1);
+
+        $deleteResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/menu-dishes/' . $slot['id']);
+
+        $deleteResult->assertStatus(200);
+        $json = json_decode($deleteResult->getJSON(), true);
+        $this->assertSame('Menu slot deleted successfully.', $json['message']);
+    }
+
+    public function testDeleteNonExistentSlotReturns404(): void
+    {
+        $token = $this->login('admin');
+
+        $deleteResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/menu-dishes/9999');
+
+        $deleteResult->assertStatus(404);
+        $json = json_decode($deleteResult->getJSON(), true);
+        $this->assertSame('Menu slot not found.', $json['message']);
+    }
+
+    public function testGudangForbiddenForUpdateAndDelete(): void
+    {
+        $token = $this->login('gudang');
+        $slot = $this->assignSlot($this->login('admin'), 6, 1, 1);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->put('api/v1/menu-dishes/' . $slot['id'], [
+                'dish_id' => 2,
+            ])
+            ->assertStatus(403);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->delete('api/v1/menu-dishes/' . $slot['id'])
+            ->assertStatus(403);
     }
 }

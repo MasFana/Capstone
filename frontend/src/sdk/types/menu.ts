@@ -150,6 +150,12 @@ export interface CreateMenuSlotRequest {
   dish_id: number;
 }
 
+export interface UpdateMenuSlotRequest {
+  menu_id?: number;
+  meal_time_id?: number;
+  dish_id?: number;
+}
+
 export interface CreateMenuScheduleRequest {
   day_of_month: number;
   menu_id: number;

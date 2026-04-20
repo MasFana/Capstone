@@ -1409,7 +1409,9 @@ These endpoints manage meal planning, including dishes, compositions, and cyclic
 |---|---|---|
 | GET | `/api/v1/menus` | List all menus (Packages 1-11) |
 | GET | `/api/v1/menu-dishes` | List meal time slots for menus |
-| POST | `/api/v1/menu-dishes` | Assign a dish to a menu and meal time slot |
+| POST | `/api/v1/menu-dishes` | Assign a dish to a menu and meal time slot (rejects occupied slot) |
+| PUT | `/api/v1/menu-dishes/{id}` | Update/replace dish or slot metadata |
+| DELETE | `/api/v1/menu-dishes/{id}` | Delete a slot assignment |
 | GET | `/api/v1/dishes` | List dishes |
 | GET | `/api/v1/dishes/{id}` | Get dish detail |
 | POST | `/api/v1/dishes` | Create a dish |
@@ -1455,6 +1457,59 @@ The `/api/v1/menu-calendar` endpoint requires exactly one of these query paramet
    - Day 10 maps to Package 10.
    - Days 11-20 map to Package % 10 (e.g., 14 -> Package 4, 20 -> Package 10).
    - Days 21-30 map to Package % 10 (e.g., 27 -> Package 7, 30 -> Package 10).
+
+#### 5.6.5 Slot Assignment Detail & Examples
+
+**POST /api/v1/menu-dishes**
+Assign a dish to a menu slot. Fails with 400 if the slot (`menu_id`, `meal_time_id`) is already occupied. This is not an upsert endpoint.
+
+**PUT /api/v1/menu-dishes/{id}**
+Update an existing slot assignment. Use this to replace a dish in a slot or reassign the slot to a different menu/meal time.
+
+**DELETE /api/v1/menu-dishes/{id}**
+Remove a slot assignment.
+
+**Example Update Success (200):**
+```json
+{
+  "message": "Menu slot updated successfully.",
+  "data": {
+    "id": 1,
+    "menu_id": 1,
+    "meal_time_id": 1,
+    "dish_id": 2,
+    "created_at": "2026-04-20 10:00:00",
+    "updated_at": "2026-04-20 10:05:00",
+    "menu": { "id": 1, "name": "Paket 1" },
+    "meal_time": { "id": 1, "name": "Pagi" },
+    "dish": { "id": 2, "name": "Nasi Tim" }
+  }
+}
+```
+
+**Example Delete Success (200):**
+```json
+{
+  "message": "Menu slot deleted successfully."
+}
+```
+
+**Example Not Found (404):**
+```json
+{
+  "message": "Menu slot not found."
+}
+```
+
+**Example Conflict/Validation Failure (400):**
+```json
+{
+  "message": "Validation failed.",
+  "errors": {
+    "menu_id,meal_time_id": "The menu_id and meal_time_id combination has already been taken."
+  }
+}
+```
 
 ### 5.7 Daily Patients & SPK Runtime Contract Freeze
 

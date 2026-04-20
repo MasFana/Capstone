@@ -63,6 +63,60 @@ class Menus extends BaseController
             ]);
     }
 
+    public function updateSlot(int $id): ResponseInterface
+    {
+        $data = $this->request->getJSON(true) ?? [];
+        $result = $this->menuService->updateSlotAssignment($id, $data);
+
+        if (! $result['success']) {
+            $statusCode = match ($result['message']) {
+                'Menu slot not found.' => 404,
+                'Failed to update menu slot.' => 422,
+                default => 400,
+            };
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => $result['message'],
+                'data'    => $result['data'],
+            ]);
+    }
+
+    public function deleteSlot(int $id): ResponseInterface
+    {
+        $result = $this->menuService->deleteSlotAssignment($id);
+
+        if (! $result['success']) {
+            $statusCode = match ($result['message']) {
+                'Menu slot not found.' => 404,
+                'Failed to delete menu slot.' => 422,
+                default => 400,
+            };
+
+            return $this->response
+                ->setStatusCode($statusCode)
+                ->setJSON([
+                    'message' => $result['message'],
+                    'errors'  => $result['errors'] ?? [],
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'message' => $result['message'],
+            ]);
+    }
+
     private function buildStaticLinks(): array
     {
         $self = current_url();

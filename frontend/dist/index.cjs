@@ -757,6 +757,19 @@ var MenusResource = class {
       body: payload
     });
   }
+  updateSlot(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/menu-dishes/${id}`,
+      body: payload
+    });
+  }
+  deleteSlot(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/menu-dishes/${id}`
+    });
+  }
 };
 
 // src/sdk/resources/menuSchedules.ts

@@ -146,6 +146,173 @@ class MenuPackageManagementService
         ];
     }
 
+    public function updateSlotAssignment(int $id, array $data): array
+    {
+        // Check if slot exists
+        $existing = $this->menuDishModel->find($id);
+        if ($existing === null) {
+            return [
+                'success' => false,
+                'message' => 'Menu slot not found.',
+            ];
+        }
+
+        // Validate that at least one updatable field is present
+        $hasUpdatableField = isset($data['menu_id']) || isset($data['meal_time_id']) || isset($data['dish_id']);
+        if (! $hasUpdatableField) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'data' => 'At least one of menu_id, meal_time_id, or dish_id must be provided.',
+                ],
+            ];
+        }
+
+        // Validate individual fields if provided
+        $validation = service('validation');
+        $rules = [];
+        if (isset($data['menu_id'])) {
+            $rules['menu_id'] = 'is_natural_no_zero';
+        }
+        if (isset($data['meal_time_id'])) {
+            $rules['meal_time_id'] = 'is_natural_no_zero';
+        }
+        if (isset($data['dish_id'])) {
+            $rules['dish_id'] = 'is_natural_no_zero';
+        }
+
+        if ($rules !== [] && ! $validation->setRules($rules)->run($data)) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $validation->getErrors(),
+            ];
+        }
+
+        $errors = [];
+
+        // Validate menu_id if provided
+        if (isset($data['menu_id'])) {
+            $menuId = (int) $data['menu_id'];
+            if ($menuId < 1 || $menuId > 11) {
+                $errors['menu_id'] = 'The selected menu is invalid.';
+            } else {
+                $menu = $this->menuModel->find($menuId);
+                if ($menu === null) {
+                    $errors['menu_id'] = 'The selected menu is invalid.';
+                }
+            }
+        } else {
+            $menuId = (int) $existing['menu_id'];
+        }
+
+        // Validate meal_time_id if provided
+        if (isset($data['meal_time_id'])) {
+            $mealTimeId = (int) $data['meal_time_id'];
+            $mealTime = $this->mealTimeModel->find($mealTimeId);
+            if ($mealTime === null) {
+                $errors['meal_time_id'] = 'The selected meal time is invalid.';
+            }
+        } else {
+            $mealTimeId = (int) $existing['meal_time_id'];
+        }
+
+        // Validate dish_id if provided
+        if (isset($data['dish_id'])) {
+            $dishId = (int) $data['dish_id'];
+            $dish = $this->dishModel->findById($dishId);
+            if ($dish === null) {
+                $errors['dish_id'] = 'The selected dish is invalid.';
+            }
+        } else {
+            $dishId = (int) $existing['dish_id'];
+        }
+
+        if ($errors !== []) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $errors,
+            ];
+        }
+
+        // Check for collision with another row (excluding current row)
+        $collision = $this->menuDishModel
+            ->where('menu_id', $menuId)
+            ->where('meal_time_id', $mealTimeId)
+            ->where('id !=', $id)
+            ->first();
+
+        if ($collision !== null) {
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => [
+                    'menu_id,meal_time_id' => 'The menu_id and meal_time_id combination has already been taken.',
+                ],
+            ];
+        }
+
+        // Prepare update data
+        $updateData = [];
+        if (isset($data['menu_id'])) {
+            $updateData['menu_id'] = $menuId;
+        }
+        if (isset($data['meal_time_id'])) {
+            $updateData['meal_time_id'] = $mealTimeId;
+        }
+        if (isset($data['dish_id'])) {
+            $updateData['dish_id'] = $dishId;
+        }
+
+        // Perform update
+        $updated = $this->menuDishModel->update($id, $updateData);
+        if ($updated === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update menu slot.',
+                'errors'  => $this->menuDishModel->errors(),
+            ];
+        }
+
+        // Fetch updated row with relations
+        $row = $this->menuDishModel->getByIdWithRelations($id);
+
+        return [
+            'success' => true,
+            'message' => 'Menu slot updated successfully.',
+            'data'    => $this->formatSlot($row),
+        ];
+    }
+
+    public function deleteSlotAssignment(int $id): array
+    {
+        // Check if slot exists
+        $existing = $this->menuDishModel->find($id);
+        if ($existing === null) {
+            return [
+                'success' => false,
+                'message' => 'Menu slot not found.',
+            ];
+        }
+
+        // Perform delete
+        $deleted = $this->menuDishModel->delete($id);
+        if ($deleted === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete menu slot.',
+                'errors'  => $this->menuDishModel->errors(),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Menu slot deleted successfully.',
+        ];
+    }
+
     private function formatSlot(array $row): array
     {
         return [

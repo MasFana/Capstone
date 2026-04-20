@@ -85,6 +85,10 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "menu-dishes/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "menu-schedules",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -358,6 +362,8 @@ $routes->group(
                 $routes->put("dish-compositions/(:num)", 'DishCompositions::update/$1');
                 $routes->delete("dish-compositions/(:num)", 'DishCompositions::delete/$1');
                 $routes->post("menu-dishes", "Menus::assignSlot");
+                $routes->put("menu-dishes/(:num)", 'Menus::updateSlot/$1');
+                $routes->delete("menu-dishes/(:num)", 'Menus::deleteSlot/$1');
                 $routes->post("menu-schedules", "MenuSchedules::create");
                 $routes->put("menu-schedules/(:num)", 'MenuSchedules::update/$1');
                 $routes->post("daily-patients", "DailyPatients::create");
