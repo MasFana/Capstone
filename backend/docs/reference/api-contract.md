@@ -1398,7 +1398,7 @@ These endpoints manage meal planning, including dishes, compositions, and cyclic
 
 #### 5.6.1 Access Rules
 
-- `admin` and `gudang` can read (GET) all menu-related resources.
+- `admin`, `dapur`, and `gudang` can read (GET) all menu-related resources.
 - `admin` and `dapur` can write menu-related resources that are mutable at runtime (POST/PUT on dishes, dish compositions, menu slots, and menu schedules).
 - Package headers `Paket 1..11` are fixed identities and are not exposed as create/delete endpoints.
 - `gudang` has no write access to the menu domain.
@@ -1429,6 +1429,8 @@ Compositions define the items and quantities required for each dish per patient.
 | POST | `/api/v1/dish-compositions` | Create a composition |
 | PUT | `/api/v1/dish-compositions/{id}` | Update a composition |
 | DELETE | `/api/v1/dish-compositions/{id}` | Delete a composition |
+
+Access note: semua endpoint `GET` pada domain menu & nutrition (`menus`, `menu-dishes`, `dishes`, `dish-compositions`, `menu-schedules`, `menu-calendar`) dapat diakses oleh `admin`, `dapur`, dan `gudang`.
 
 #### 5.6.4 Menu Schedules & Calendar
 
@@ -1525,6 +1527,8 @@ Bagian ini membekukan kontrak route, boundary, dan lifecycle untuk fondasi imple
 | POST | `/api/v1/daily-patients` | Create daily patient row |
 | GET | `/api/v1/daily-patients/{id}` | Get daily patient detail |
 
+Access note: `GET` daily-patients tersedia untuk `admin`, `dapur`, dan `gudang`; `POST` daily-patients tersedia untuk `admin` dan `dapur`.
+
 Collection response contract mengikuti envelope standar (`data`, `meta`, `links`).
 
 Create/detail response contract menggunakan `data` object.
@@ -1577,6 +1581,8 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/v1/spk/stock-in-prefill/{id}` | Prefill data untuk transaksi IN berdasarkan SPK |
+
+Access note: endpoint read untuk SPK history/calendar (`GET /spk/basah/menu-calendar`, `GET /spk/basah/history*`, `GET /spk/kering-pengemas/menu-calendar`, `GET /spk/kering-pengemas/history*`) tersedia untuk `admin`, `dapur`, dan `gudang`.
 
 #### 5.7.5 Controller/Service Boundary Freeze
 

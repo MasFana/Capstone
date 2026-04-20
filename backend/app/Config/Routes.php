@@ -250,9 +250,10 @@ $routes->group(
                 },
             );
 
+            // Shared operational read access.
             $routes->group(
                 "",
-                ["filter" => "role:admin,gudang"],
+                ["filter" => "role:admin,dapur,gudang"],
                 static function ($routes) {
                     $routes->get("dishes", "Dishes::index");
                     $routes->get("dishes/(:num)", 'Dishes::show/$1');
@@ -287,13 +288,19 @@ $routes->group(
                         "spk/kering-pengemas/history/(:num)",
                         'SpkKeringPengemas::show/$1',
                     );
+                },
+            );
 
+            // Inventory and stock domain access (gudang-focused).
+            $routes->group(
+                "",
+                ["filter" => "role:admin,gudang"],
+                static function ($routes) {
                     $routes->get("item-categories", "ItemCategories::index");
                     $routes->get("item-categories/(:num)", 'ItemCategories::show/$1');
                     $routes->get("transaction-types", "TransactionTypes::index");
                     $routes->get("approval-statuses", "ApprovalStatuses::index");
                     $routes->get("meal-times", "MealTimes::index");
-
                     $routes->get("item-units", "ItemUnits::index");
                     $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
 

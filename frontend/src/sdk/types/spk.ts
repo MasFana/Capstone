@@ -148,7 +148,9 @@ export interface SpkKeringPengemasDetail {
 }
 
 export interface GenerateSpkBasahRequest {
+  daily_patient_id: number;
   service_date: string;
+  category_id: number;
 }
 
 export interface GenerateSpkKeringPengemasRequest {

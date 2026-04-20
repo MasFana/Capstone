@@ -898,7 +898,7 @@ var SpkResource = class {
    * (intentionally no pagination `links` contract).
    *
    * HTTP: `GET /api/v1/spk/basah/history`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   listBasah() {
     return this.client.request({
@@ -913,7 +913,7 @@ var SpkResource = class {
    * item rows with non-null day-level `target_date` fields.
    *
    * HTTP: `GET /api/v1/spk/basah/history/{id}`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   getBasah(id) {
     return this.client.request({
@@ -961,7 +961,7 @@ var SpkResource = class {
    * (intentionally no pagination `links` contract).
    *
    * HTTP: `GET /api/v1/spk/kering-pengemas/history`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   listKeringPengemas() {
     return this.client.request({
@@ -976,7 +976,7 @@ var SpkResource = class {
    * keep `target_date = null` and print payload includes `target_month`.
    *
    * HTTP: `GET /api/v1/spk/kering-pengemas/history/{id}`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   getKeringPengemas(id) {
     return this.client.request({

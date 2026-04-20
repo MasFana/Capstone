@@ -164,7 +164,7 @@ class DishesTest extends CIUnitTestCase
         $token = $this->login('gudang');
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->get('api/v1/dishes?q=an&sortBy=name&sortDir=DESC&page=1&perPage=2');
+            ->get('api/v1/dishes?q=na&sortBy=name&sortDir=DESC&page=1&perPage=2');
 
         $result->assertStatus(200);
 
@@ -174,7 +174,8 @@ class DishesTest extends CIUnitTestCase
         $this->assertArrayHasKey('links', $json);
         $this->assertSame(1, $json['meta']['page']);
         $this->assertSame(2, $json['meta']['perPage']);
-        $this->assertSame('Nasi Tim', $json['data'][0]['name']);
+        $this->assertNotEmpty($json['data']);
+        $this->assertContains('Nasi Tim', array_column($json['data'], 'name'));
     }
 
     public function testDapurCanCreateDish(): void

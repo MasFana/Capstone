@@ -141,7 +141,11 @@ describe("SpkResource", () => {
 
     const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
 
-    await sdk.spk.generateBasah({ service_date: "2026-03-01" });
+    await sdk.spk.generateBasah({
+      daily_patient_id: 1,
+      service_date: "2026-03-01",
+      category_id: 1
+    });
     await sdk.spk.listBasah();
     await sdk.spk.getBasah(10);
 
@@ -151,7 +155,13 @@ describe("SpkResource", () => {
 
     expect(generateUrl).toBe("http://127.0.0.1:8080/api/v1/spk/basah/generate");
     expect(generateInit?.method).toBe("POST");
-    expect(generateInit?.body).toBe(JSON.stringify({ service_date: "2026-03-01" }));
+    expect(generateInit?.body).toBe(
+      JSON.stringify({
+        daily_patient_id: 1,
+        service_date: "2026-03-01",
+        category_id: 1
+      })
+    );
     expect(listUrl).toBe("http://127.0.0.1:8080/api/v1/spk/basah/history");
     expect(listInit?.method).toBe("GET");
     expect(getUrl).toBe("http://127.0.0.1:8080/api/v1/spk/basah/history/10");

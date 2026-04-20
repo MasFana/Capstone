@@ -437,8 +437,8 @@ await sdk.auth.login({
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.dailyPatients.list()` | `GET /api/v1/daily-patients` | `admin`, `gudang` |
-| `sdk.dailyPatients.get(id)` | `GET /api/v1/daily-patients/{id}` | `admin`, `gudang` |
+| `sdk.dailyPatients.list()` | `GET /api/v1/daily-patients` | `admin`, `dapur`, `gudang` |
+| `sdk.dailyPatients.get(id)` | `GET /api/v1/daily-patients/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.dailyPatients.create(payload)` | `POST /api/v1/daily-patients` | `admin`, `dapur` |
 
 ### `spk`
@@ -446,12 +446,12 @@ await sdk.auth.login({
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
 | `sdk.spk.generateBasah(payload)` | `POST /api/v1/spk/basah/generate` | `admin`, `dapur` |
-| `sdk.spk.listBasah()` | `GET /api/v1/spk/basah/history` | `admin`, `gudang` |
-| `sdk.spk.getBasah(id)` | `GET /api/v1/spk/basah/history/{id}` | `admin`, `gudang` |
+| `sdk.spk.listBasah()` | `GET /api/v1/spk/basah/history` | `admin`, `dapur`, `gudang` |
+| `sdk.spk.getBasah(id)` | `GET /api/v1/spk/basah/history/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.spk.postBasahStock(id)` | `POST /api/v1/spk/basah/history/{id}/post-stock` | `admin` only |
 | `sdk.spk.generateKeringPengemas(payload)` | `POST /api/v1/spk/kering-pengemas/generate` | `admin`, `dapur` |
-| `sdk.spk.listKeringPengemas()` | `GET /api/v1/spk/kering-pengemas/history` | `admin`, `gudang` |
-| `sdk.spk.getKeringPengemas(id)` | `GET /api/v1/spk/kering-pengemas/history/{id}` | `admin`, `gudang` |
+| `sdk.spk.listKeringPengemas()` | `GET /api/v1/spk/kering-pengemas/history` | `admin`, `dapur`, `gudang` |
+| `sdk.spk.getKeringPengemas(id)` | `GET /api/v1/spk/kering-pengemas/history/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.spk.postKeringPengemasStock(id)` | `POST /api/v1/spk/kering-pengemas/history/{id}/post-stock` | `admin` only |
 
 #### SPK Recommendation logic
@@ -467,11 +467,11 @@ These resources provide management for nutrition standards and calendar scheduli
 
 | Resource | Methods | Access (Write) | Access (Read) |
 |---|---|---|---|
-| `menus` | `list` | None (Fixed) | `admin`, `gudang` |
-| `menus` (slots) | `slots`, `assignSlot`, `updateSlot`, `deleteSlot` | `admin`, `dapur` | `admin`, `gudang` |
-| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `gudang` |
-| `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `gudang` |
-| `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` | `admin`, `gudang` |
+| `menus` | `list` | None (Fixed) | `admin`, `dapur`, `gudang` |
+| `menus` (slots) | `slots`, `assignSlot`, `updateSlot`, `deleteSlot` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
+| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
+| `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
+| `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
 
 ### `dashboard` / `reports` / `stockOpnames`
 

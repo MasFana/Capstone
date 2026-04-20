@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\AppUserProvider;
 use App\Models\RoleModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -116,13 +117,18 @@ class MenusTest extends CIUnitTestCase
     {
         $token = $this->login('admin');
 
-        $db = Database::connect();
-        $this->assertSame(11, $db->table('menus')->countAllResults());
+        $db          = Database::connect();
+        $initialRows = $db->table('menus')->countAllResults();
+        $this->assertSame(11, $initialRows);
 
-        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->delete('api/v1/menus/11');
+        try {
+            $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->delete('api/v1/menus/11');
+            $this->fail('Expected PageNotFoundException was not thrown.');
+        } catch (PageNotFoundException) {
+            $this->assertTrue(true);
+        }
 
-        $result->assertStatus(404);
         $this->assertSame(11, $db->table('menus')->countAllResults());
     }
 
@@ -130,8 +136,17 @@ class MenusTest extends CIUnitTestCase
     {
         $token = $this->login('dapur');
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $token])
-            ->delete('api/v1/menus/5')
-            ->assertStatus(404);
+        $db          = Database::connect();
+        $initialRows = $db->table('menus')->countAllResults();
+
+        try {
+            $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->delete('api/v1/menus/5');
+            $this->fail('Expected PageNotFoundException was not thrown.');
+        } catch (PageNotFoundException) {
+            $this->assertTrue(true);
+        }
+
+        $this->assertSame($initialRows, $db->table('menus')->countAllResults());
     }
 }

@@ -67,7 +67,7 @@ export class SpkResource {
    * (intentionally no pagination `links` contract).
    *
    * HTTP: `GET /api/v1/spk/basah/history`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   public listBasah(): Promise<SpkBasahHistoryListResponse> {
     return this.client.request<SpkBasahHistoryListResponse>({
@@ -83,7 +83,7 @@ export class SpkResource {
    * item rows with non-null day-level `target_date` fields.
    *
    * HTTP: `GET /api/v1/spk/basah/history/{id}`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   public getBasah(id: number): Promise<SpkBasahDetailResponse> {
     return this.client.request<SpkBasahDetailResponse>({
@@ -138,7 +138,7 @@ export class SpkResource {
    * (intentionally no pagination `links` contract).
    *
    * HTTP: `GET /api/v1/spk/kering-pengemas/history`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   public listKeringPengemas(): Promise<SpkKeringPengemasHistoryListResponse> {
     return this.client.request<SpkKeringPengemasHistoryListResponse>({
@@ -154,7 +154,7 @@ export class SpkResource {
    * keep `target_date = null` and print payload includes `target_month`.
    *
    * HTTP: `GET /api/v1/spk/kering-pengemas/history/{id}`
-   * Access: `admin`, `gudang`
+   * Access: `admin`, `dapur`, `gudang`
    */
   public getKeringPengemas(id: number): Promise<SpkKeringPengemasDetailResponse> {
     return this.client.request<SpkKeringPengemasDetailResponse>({

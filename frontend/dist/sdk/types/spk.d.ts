@@ -136,7 +136,9 @@ export interface SpkKeringPengemasDetail {
     print_ready: SpkKeringPengemasPrintReady;
 }
 export interface GenerateSpkBasahRequest {
+    daily_patient_id: number;
     service_date: string;
+    category_id: number;
 }
 export interface GenerateSpkKeringPengemasRequest {
     target_month: string;
