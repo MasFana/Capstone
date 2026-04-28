@@ -17,6 +17,7 @@ class ItemModel extends Model
         'item_unit_convert_id',
         'conversion_base',
         'is_active',
+        'min_stock',
     ];
     protected $useTimestamps  = true;
     protected $useSoftDeletes = true;
