@@ -7,6 +7,7 @@ use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Models\StockOpnameDetailModel;
 use App\Models\StockOpnameModel;
+use App\Services\NotificationService;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
 
@@ -33,6 +34,7 @@ class StockOpnameService
     protected ItemModel $itemModel;
     protected StockTransactionService $stockTransactionService;
     protected AuditService $auditService;
+    protected NotificationService $notificationService;
     protected BaseConnection $db;
 
     public function __construct()
@@ -44,6 +46,7 @@ class StockOpnameService
         $this->itemModel              = new ItemModel();
         $this->stockTransactionService = new StockTransactionService();
         $this->auditService           = new AuditService();
+        $this->notificationService    = new NotificationService();
         $this->db                     = Database::connect();
     }
 
@@ -325,6 +328,24 @@ class StockOpnameService
             $ipAddress
         );
 
+        $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
+        $itemNames = [];
+        foreach ($details as $detail) {
+            $item = $this->itemModel->find((int) $detail['item_id']);
+            if ($item !== null) {
+                $itemNames[] = $item['name'];
+            }
+        }
+        $itemNameStr = implode(', ', $itemNames);
+        
+        $this->notificationService->sendToRole(
+            'Admin',
+            'Pengajuan Penyesuaian Stok',
+            "Pengajuan penyesuaian stok untuk bahan {$itemNameStr} telah diajukan oleh Petugas Gudang. Silakan lakukan verifikasi.",
+            'STOCK_OPNAME',
+            $id
+        );
+
         return [
             'success' => true,
             'message' => 'Stock opname submitted successfully.',
@@ -388,6 +409,24 @@ class StockOpnameService
             $oldValues,
             $newValues,
             $ipAddress
+        );
+
+        $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
+        $itemNames = [];
+        foreach ($details as $detail) {
+            $item = $this->itemModel->find((int) $detail['item_id']);
+            if ($item !== null) {
+                $itemNames[] = $item['name'];
+            }
+        }
+        $itemNameStr = implode(', ', $itemNames);
+        
+        $this->notificationService->sendToUser(
+            (int) $stockOpname['submitted_by'],
+            'Pengajuan Penyesuaian Stok Disetujui',
+            "Penyesuaian stok untuk bahan {$itemNameStr} telah disetujui oleh Admin.",
+            'STOCK_OPNAME',
+            $id
         );
 
         return [
@@ -476,6 +515,24 @@ class StockOpnameService
             $oldValues,
             $newValues,
             $ipAddress
+        );
+
+        $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
+        $itemNames = [];
+        foreach ($details as $detail) {
+            $item = $this->itemModel->find((int) $detail['item_id']);
+            if ($item !== null) {
+                $itemNames[] = $item['name'];
+            }
+        }
+        $itemNameStr = implode(', ', $itemNames);
+        
+        $this->notificationService->sendToUser(
+            (int) $stockOpname['submitted_by'],
+            'Pengajuan Penyesuaian Stok Ditolak',
+            "Penyesuaian stok untuk bahan {$itemNameStr} ditolak. Silakan periksa kembali data yang diajukan.",
+            'STOCK_OPNAME',
+            $id
         );
 
         return [

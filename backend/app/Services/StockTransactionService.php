@@ -7,6 +7,7 @@ use App\Models\ItemModel;
 use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Models\TransactionTypeModel;
+use App\Services\NotificationService;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
 
@@ -64,6 +65,7 @@ class StockTransactionService
     protected ItemModel $itemModel;
     protected ApprovalStatusModel $approvalStatusModel;
     protected AuditService $auditService;
+    protected NotificationService $notificationService;
     protected BaseConnection $db;
 
     public function __construct()
@@ -74,6 +76,7 @@ class StockTransactionService
         $this->itemModel           = new ItemModel();
         $this->approvalStatusModel = new ApprovalStatusModel();
         $this->auditService        = new AuditService();
+        $this->notificationService = new NotificationService();
         $this->db                  = Database::connect();
     }
 
@@ -400,6 +403,18 @@ class StockTransactionService
                         ],
                     ];
                 }
+
+                $itemAfter = $this->itemModel->find($itemId);
+                if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
+                    $itemName = $itemAfter['name'] ?? 'Barang';
+                    $this->notificationService->sendToRole(
+                        'Admin', 
+                        'Stok Minimum', 
+                        "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
+                        'MIN_STOCK', 
+                        $itemId
+                    );
+                }
             }
         }
 
@@ -506,6 +521,18 @@ class StockTransactionService
                     'details' => $insufficientStockMessage,
                 ],
             ];
+        }
+
+        $itemAfter = $this->itemModel->find($itemId);
+        if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
+            $itemName = $itemAfter['name'] ?? 'Barang';
+            $this->notificationService->sendToRole(
+                'Admin', 
+                'Stok Minimum', 
+                "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
+                'MIN_STOCK', 
+                $itemId
+            );
         }
 
         return [
@@ -662,6 +689,18 @@ class StockTransactionService
                     'expected_current_qty' => 'Current stock no longer matches expected_current_qty. Reload the item and retry the correction.',
                 ],
             ];
+        }
+
+        $itemAfter = $this->itemModel->find($itemId);
+        if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
+            $itemName = $itemAfter['name'] ?? 'Barang';
+            $this->notificationService->sendToRole(
+                'Admin', 
+                'Stok Minimum', 
+                "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
+                'MIN_STOCK', 
+                $itemId
+            );
         }
 
         $transactionData = [
@@ -880,6 +919,18 @@ class StockTransactionService
                     ],
                     'status'  => 409,
                 ];
+            }
+
+            $itemAfter = $this->itemModel->find($itemId);
+            if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
+                $itemName = $itemAfter['name'] ?? 'Barang';
+                $this->notificationService->sendToRole(
+                    'Admin', 
+                    'Stok Minimum', 
+                    "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
+                    'MIN_STOCK', 
+                    $itemId
+                );
             }
 
             $reason = $sourceOpnameId !== null
@@ -1208,6 +1259,14 @@ class StockTransactionService
             ];
         }
 
+        $this->notificationService->sendToRole(
+            'Admin',
+            'Pengajuan Revisi Transaksi Stok',
+            'Revisi transaksi stok telah diajukan. Silakan lakukan verifikasi.',
+            'STOCK_REVISION',
+            $revisionId
+        );
+
         return [
             'success' => true,
             'message' => 'Revision submitted successfully.',
@@ -1419,6 +1478,14 @@ class StockTransactionService
             ];
         }
 
+        $this->notificationService->sendToUser(
+            (int) $revision['user_id'],
+            'Revisi Transaksi Disetujui',
+            'Revisi transaksi stok Anda telah disetujui.',
+            'STOCK_REVISION',
+            $revisionId
+        );
+
         return [
             'success' => true,
             'message' => 'Revision approved successfully.',
@@ -1541,6 +1608,14 @@ class StockTransactionService
                 'errors'  => [],
             ];
         }
+
+        $this->notificationService->sendToUser(
+            (int) $revision['user_id'],
+            'Revisi Transaksi Ditolak',
+            'Revisi transaksi stok Anda ditolak.',
+            'STOCK_REVISION',
+            $revisionId
+        );
 
         return [
             'success' => true,
