@@ -18,13 +18,57 @@ class Notifications extends BaseController
     public function index(): ResponseInterface
     {
         $userId = auth()->id();
-        $notifications = $this->notificationService->getUserNotifications($userId);
+        
+        $queryParams = $this->request->getGet();
+        $page    = max(1, (int) ($queryParams['page'] ?? 1));
+        $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $paginate = !in_array(strtolower((string) ($queryParams['paginate'] ?? '')), ['false', '0'], true);
+
+        $result = $this->notificationService->getUserNotifications($userId, $page, $perPage, $paginate);
+        $data   = $result['data'];
+        $total  = $result['total'];
+
+        if ($paginate) {
+            $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 0;
+        } else {
+            $page       = 1;
+            $perPage    = max(1, count($data));
+            $totalPages = $total > 0 ? 1 : 0;
+        }
+
+        $meta = [
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'total'      => $total,
+            'totalPages' => $totalPages,
+            'paginated'  => $paginate,
+        ];
 
         return $this->response
             ->setStatusCode(200)
             ->setJSON([
-                'data' => $notifications,
+                'data'  => $data,
+                'meta'  => $meta,
+                'links' => $this->buildPaginationLinks($meta),
             ]);
+    }
+
+    private function buildPaginationLinks(array $meta): array
+    {
+        $queryParams = $this->request->getGet();
+        $path        = current_url();
+
+        $buildLink = function (int $page) use ($path, $queryParams, $meta): string {
+            return $path . '?' . http_build_query([...$queryParams, 'page' => $page, 'perPage' => $meta['perPage']]);
+        };
+
+        return [
+            'self'     => $buildLink($meta['page']),
+            'first'    => $buildLink(1),
+            'last'     => $buildLink(max(1, $meta['totalPages'])),
+            'next'     => $meta['page'] < $meta['totalPages'] ? $buildLink($meta['page'] + 1) : null,
+            'previous' => $meta['page'] > 1 ? $buildLink($meta['page'] - 1) : null,
+        ];
     }
 
     public function markAsRead(int $id): ResponseInterface
@@ -38,6 +82,7 @@ class Notifications extends BaseController
                 ->setStatusCode(404)
                 ->setJSON([
                     'message' => 'Notification not found or access denied.',
+                    'errors'  => [],
                 ]);
         }
 
@@ -59,6 +104,7 @@ class Notifications extends BaseController
                 ->setStatusCode(500)
                 ->setJSON([
                     'message' => 'Failed to mark notifications as read.',
+                    'errors'  => [],
                 ]);
         }
 

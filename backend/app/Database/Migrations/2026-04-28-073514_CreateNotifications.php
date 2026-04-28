@@ -10,9 +10,7 @@ class CreateNotifications extends Migration
     {
         $this->forge->addField([
             'id' => [
-                'type'           => 'INT',
-                'constraint'     => 11,
-                'unsigned'       => true,
+                'type'           => 'BIGINT',
                 'auto_increment' => true,
             ],
             'user_id' => [
@@ -30,9 +28,7 @@ class CreateNotifications extends Migration
                 'constraint' => 50,
             ],
             'related_id' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'unsigned'   => true,
+                'type'       => 'BIGINT',
                 'null'       => true,
             ],
             'is_read' => [

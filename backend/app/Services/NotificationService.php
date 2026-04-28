@@ -45,7 +45,7 @@ class NotificationService
         $insertedIds = [];
 
         foreach ($users as $user) {
-            $id = $this->sendToUser((int)$user['id'], $title, $message, $type, $relatedId);
+            $id = $this->sendToUser((int)$user->id, $title, $message, $type, $relatedId);
             if ($id) {
                 $insertedIds[] = $id;
             }
@@ -74,11 +74,23 @@ class NotificationService
             ->update();
     }
 
-    public function getUserNotifications(int $userId): array
+    public function getUserNotifications(int $userId, int $page = 1, int $perPage = 10, bool $paginate = true): array
     {
-        return $this->notificationModel->where('user_id', $userId)
+        $builder = $this->notificationModel->where('user_id', $userId)
             ->orderBy('created_at', 'DESC')
-            ->orderBy('id', 'DESC')
-            ->findAll();
+            ->orderBy('id', 'DESC');
+
+        $total = $builder->countAllResults(false);
+
+        if ($paginate) {
+            $data = $builder->findAll($perPage, ($page - 1) * $perPage);
+        } else {
+            $data = $builder->findAll();
+        }
+
+        return [
+            'data'  => $data,
+            'total' => $total,
+        ];
     }
 }
