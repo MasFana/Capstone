@@ -29,6 +29,18 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "notifications",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "notifications/(:num)/read",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "notifications/read-all",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "roles",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -237,6 +249,10 @@ $routes->group(
             $routes->get("auth/me", "Auth::me");
             $routes->post("auth/logout", "Auth::logout");
             $routes->patch("auth/password", "Auth::changePassword");
+
+            $routes->get("notifications", "Notifications::index");
+            $routes->post("notifications/read-all", "Notifications::markAllAsRead");
+            $routes->post("notifications/(:num)/read", 'Notifications::markAsRead/$1');
 
             $routes->group(
                 "",

@@ -67,10 +67,18 @@ class NotificationService
         return $this->notificationModel->update($notificationId, ['is_read' => true]);
     }
 
+    public function markAllAsRead(int $userId): bool
+    {
+        return $this->notificationModel->where('user_id', $userId)
+            ->set(['is_read' => true])
+            ->update();
+    }
+
     public function getUserNotifications(int $userId): array
     {
         return $this->notificationModel->where('user_id', $userId)
             ->orderBy('created_at', 'DESC')
+            ->orderBy('id', 'DESC')
             ->findAll();
     }
 }
