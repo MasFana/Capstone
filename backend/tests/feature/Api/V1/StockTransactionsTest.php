@@ -1112,6 +1112,9 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('data', $detailsJson);
         $this->assertCount(2, $detailsJson['data']);
         $this->assertArrayHasKey('item_id', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_name', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_category_id', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_category_name', $detailsJson['data'][0]);
         $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
     }
 
@@ -1191,6 +1194,9 @@ class StockTransactionsTest extends CIUnitTestCase
         $detailsJson = json_decode($detailsResult->getJSON(), true);
         $this->assertCount(1, $detailsJson['data']);
         $this->assertArrayHasKey('item_id', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_name', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_category_id', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('item_category_name', $detailsJson['data'][0]);
         $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
         $this->assertArrayHasKey('input_qty', $detailsJson['data'][0]);
         $this->assertArrayHasKey('input_unit', $detailsJson['data'][0]);
@@ -3385,10 +3391,16 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertNotEmpty($details);
 
         $first = $details[0];
+        $this->assertArrayHasKey('item_name', $first);
+        $this->assertArrayHasKey('item_category_id', $first);
+        $this->assertArrayHasKey('item_category_name', $first);
         $this->assertArrayHasKey('qty', $first);
         $this->assertArrayHasKey('input_qty', $first);
         $this->assertArrayHasKey('input_unit', $first);
 
+        $this->assertSame('Beras', $first['item_name']);
+        $this->assertNotNull($first['item_category_id']);
+        $this->assertSame('KERING', $first['item_category_name']);
         $this->assertEquals(3000.0, (float) $first['qty']);
         $this->assertEquals(3.0, (float) $first['input_qty']);
         $this->assertSame('convert', $first['input_unit']);

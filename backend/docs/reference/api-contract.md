@@ -1300,6 +1300,9 @@ Request with unit conversion — `qty` is in convert units (e.g. kg), stored as 
       "id": 1,
       "transaction_id": 10,
       "item_id": 1,
+      "item_name": "Beras",
+      "item_category_id": 1,
+      "item_category_name": "KERING",
       "qty": "5000.00",
       "input_qty": "5.00",
       "input_unit": "convert"
@@ -1308,6 +1311,9 @@ Request with unit conversion — `qty` is in convert units (e.g. kg), stored as 
 }
 ```
 
+- `item_name` — item name resolved from `items.name`.
+- `item_category_id` — item category ID resolved from `items.item_category_id`.
+- `item_category_name` — item category name resolved from `item_categories.name`.
 - `qty` — normalized base-unit quantity that was stored and used for stock mutation.
 - `input_qty` — original quantity as submitted in the request.
 - `input_unit` — `"base"` (default) or `"convert"` as submitted/defaulted.

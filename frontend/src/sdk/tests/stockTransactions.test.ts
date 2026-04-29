@@ -214,16 +214,21 @@ describe("StockTransactionsResource", () => {
     expect(body.details[0].input_unit).toBeUndefined();
   });
 
-  it("detail response type includes input_qty and input_unit fields", () => {
+  it("detail response type includes item metadata and input fields", () => {
     const detail: StockTransactionDetail = {
       id: 1,
       transaction_id: 10,
       item_id: 1,
+      item_name: "Beras",
+      item_category_id: 1,
+      item_category_name: "KERING",
       qty: "5000.00",
       input_qty: "5.00",
       input_unit: "convert"
     };
 
+    expect(detail.item_name).toBe("Beras");
+    expect(detail.item_category_name).toBe("KERING");
     expect(detail.input_qty).toBe("5.00");
     expect(detail.input_unit).toBe("convert");
     expect(detail.qty).toBe("5000.00");

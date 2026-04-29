@@ -20,6 +20,18 @@ class StockTransactionDetailModel extends Model
 
     public function getDetailsByTransactionId(int $transactionId): array
     {
-        return $this->where('transaction_id', $transactionId)->findAll();
+        return $this->builder()
+            ->select(
+                'stock_transaction_details.*, ' .
+                'items.name AS item_name, ' .
+                'items.item_category_id AS item_category_id, ' .
+                'item_categories.name AS item_category_name'
+            )
+            ->join('items', 'items.id = stock_transaction_details.item_id', 'left')
+            ->join('item_categories', 'item_categories.id = items.item_category_id', 'left')
+            ->where('stock_transaction_details.transaction_id', $transactionId)
+            ->orderBy('stock_transaction_details.id', 'ASC')
+            ->get()
+            ->getResultArray();
     }
 }

@@ -213,10 +213,15 @@ var AuthResource = class {
   }
   client;
   /**
-   * Logs a user in.
+   * Logs a user in with username and password.
    *
-   * HTTP: `POST /api/v1/auth/login`
-   * Access: public
+   * @endpoint POST /api/v1/auth/login
+   * @access   public
+   * @param payload - Required fields: `username`, `password`.
+   * @returns {Promise<LoginResponse>}
+   * @throws {ValidationApiError} if required credentials are missing or invalid (400)
+   * @throws {AuthenticationApiError} if credentials are rejected (401)
+   * @sideeffect Issues a new Bearer access token on success.
    */
   login(payload) {
     return this.client.request({
@@ -226,10 +231,13 @@ var AuthResource = class {
     });
   }
   /**
-   * Returns the current authenticated user.
+   * Returns the current authenticated user profile from the Bearer token.
    *
-   * HTTP: `GET /api/v1/auth/me`
-   * Access: authenticated `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/auth/me
+   * @access   authenticated
+   * @returns {Promise<ApiDataResponse<User>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect None
    */
   me() {
     return this.client.request({
@@ -238,10 +246,13 @@ var AuthResource = class {
     });
   }
   /**
-   * Revokes the current access token.
+   * Logs out the current Bearer token.
    *
-   * HTTP: `POST /api/v1/auth/logout`
-   * Access: authenticated `admin`, `dapur`, `gudang`
+   * @endpoint POST /api/v1/auth/logout
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Revokes the current access token.
    */
   logout() {
     return this.client.request({
@@ -252,8 +263,13 @@ var AuthResource = class {
   /**
    * Changes the current authenticated user's password.
    *
-   * HTTP: `PATCH /api/v1/auth/password`
-   * Access: authenticated `admin`, `dapur`, `gudang`
+   * @endpoint PATCH /api/v1/auth/password
+   * @access   authenticated
+   * @param payload - Required fields: `current_password`, `password`.
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {ValidationApiError} if validation fails or the current password is wrong (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Revokes all access tokens for the current user after a successful password change.
    */
   changePassword(payload) {
     return this.client.request({
@@ -270,6 +286,21 @@ var ApprovalStatusesResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists approval statuses with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/approval-statuses
+   * @access   admin | gudang
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<ApprovalStatus>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -301,10 +332,14 @@ var DailyPatientsResource = class {
   }
   client;
   /**
-   * Lists daily patient records.
+   * Lists daily patient rows.
    *
-   * HTTP: `GET /api/v1/daily-patients`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/daily-patients
+   * @access   admin | dapur | gudang
+   * @returns {Promise<DailyPatientsListResponse>} Standard `data[]/meta/links` envelope.
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   list() {
     return this.client.request({
@@ -313,10 +348,15 @@ var DailyPatientsResource = class {
     });
   }
   /**
-   * Returns a single daily patient record by identifier.
+   * Returns one daily patient row.
    *
-   * HTTP: `GET /api/v1/daily-patients/{id}`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/daily-patients/{id}
+   * @access   admin | dapur | gudang
+   * @returns {Promise<DailyPatientResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the row does not exist (404)
+   * @sideeffect None
    */
   get(id) {
     return this.client.request({
@@ -325,10 +365,16 @@ var DailyPatientsResource = class {
     });
   }
   /**
-   * Creates a daily patient record.
+   * Creates a daily patient row.
    *
-   * HTTP: `POST /api/v1/daily-patients`
-   * Access: `admin`, `dapur`
+   * @endpoint POST /api/v1/daily-patients
+   * @access   admin | dapur
+   * @param payload - Writable fields: `service_date`, `total_patients`, and optional `notes`. `service_date` must remain unique.
+   * @returns {Promise<DailyPatientCreateResponse>}
+   * @throws {ValidationApiError} if validation fails or the service date already exists (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new immutable audit row; no update/delete endpoint exists.
    */
   create(payload) {
     return this.client.request({
@@ -345,6 +391,7 @@ var DishesResource = class {
     this.client = client;
   }
   client;
+  /** @endpoint GET /api/v1/dishes @access admin | gudang | dapur @param query - Supports standard list pagination, search, sorting, and created/updated date ranges. @returns {Promise<DishesListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -352,12 +399,14 @@ var DishesResource = class {
       ...query ? { query: buildDishesQuery(query) } : {}
     });
   }
+  /** @endpoint GET /api/v1/dishes/{id} @access admin | gudang | dapur @returns {Promise<ApiDataResponse<Dish>>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect None */
   get(id) {
     return this.client.request({
       method: "GET",
       path: `/dishes/${id}`
     });
   }
+  /** @endpoint POST /api/v1/dishes @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {ValidationApiError} if validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect Creates a dish row. */
   create(payload) {
     return this.client.request({
       method: "POST",
@@ -365,6 +414,7 @@ var DishesResource = class {
       body: payload
     });
   }
+  /** @endpoint PUT /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {ValidationApiError} if validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Updates a dish row. */
   update(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -372,6 +422,7 @@ var DishesResource = class {
       body: payload
     });
   }
+  /** @endpoint DELETE /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageResponse>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Permanently deletes the dish row. */
   delete(id) {
     return this.client.request({
       method: "DELETE",
@@ -400,6 +451,7 @@ var DishCompositionsResource = class {
     this.client = client;
   }
   client;
+  /** @endpoint GET /api/v1/dish-compositions @access admin | gudang | dapur @param query - Supports standard list pagination, `dish_id`, `item_id`, search, sorting, and created/updated date ranges. @returns {Promise<DishCompositionsListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -407,12 +459,14 @@ var DishCompositionsResource = class {
       ...query ? { query: buildDishCompositionsQuery(query) } : {}
     });
   }
+  /** @endpoint GET /api/v1/dish-compositions/{id} @access admin | gudang | dapur @returns {Promise<ApiDataResponse<DishComposition>>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the row does not exist (404) @sideeffect None */
   get(id) {
     return this.client.request({
       method: "GET",
       path: `/dish-compositions/${id}`
     });
   }
+  /** @endpoint POST /api/v1/dish-compositions @access admin | dapur @returns {Promise<ApiMessageDataResponse<DishComposition>>} @throws {ValidationApiError} if validation fails or a dish/item pair already exists (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect Creates a composition row. */
   create(payload) {
     return this.client.request({
       method: "POST",
@@ -420,6 +474,7 @@ var DishCompositionsResource = class {
       body: payload
     });
   }
+  /** @endpoint PUT /api/v1/dish-compositions/{id} @access admin | dapur @returns {Promise<ApiMessageDataResponse<DishComposition>>} @throws {ValidationApiError} if validation fails or uniqueness rules fail (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the row does not exist (404) @sideeffect Updates a composition row. */
   update(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -427,6 +482,7 @@ var DishCompositionsResource = class {
       body: payload
     });
   }
+  /** @endpoint DELETE /api/v1/dish-compositions/{id} @access admin | dapur @returns {Promise<ApiMessageResponse>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the row does not exist (404) @sideeffect Permanently deletes the composition row. */
   delete(id) {
     return this.client.request({
       method: "DELETE",
@@ -457,6 +513,18 @@ var ItemCategoriesResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists item categories with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/item-categories
+   * @access   admin | gudang
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<ItemCategory>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -464,12 +532,35 @@ var ItemCategoriesResource = class {
       ...query ? { query: buildLookupQuery2(query) } : {}
     });
   }
+  /**
+   * Returns one active item category.
+   *
+   * @endpoint GET /api/v1/item-categories/{id}
+   * @access   admin | gudang
+   * @returns {Promise<ApiDataResponse<ItemCategory>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the category does not exist or is soft-deleted (404)
+   * @sideeffect None
+   */
   get(id) {
     return this.client.request({
       method: "GET",
       path: `/item-categories/${id}`
     });
   }
+  /**
+   * Creates an item category.
+   *
+   * @endpoint POST /api/v1/item-categories
+   * @access   admin
+   * @param payload - Writable fields: `name`. Name uniqueness applies to active rows only; if a deleted-name collision exists, backend returns restore guidance with `errors.restore_id`.
+   * @returns {Promise<ApiMessageDataResponse<ItemCategory>>}
+   * @throws {ValidationApiError} if validation fails or the name conflicts (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   create(payload) {
     return this.client.request({
       method: "POST",
@@ -477,6 +568,19 @@ var ItemCategoriesResource = class {
       body: payload
     });
   }
+  /**
+   * Updates an active item category.
+   *
+   * @endpoint PUT /api/v1/item-categories/{id}
+   * @access   admin
+   * @param payload - Writable fields: `name`. Active-only uniqueness rules still apply.
+   * @returns {Promise<ApiMessageDataResponse<ItemCategory>>}
+   * @throws {ValidationApiError} if validation fails or the name conflicts (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the category does not exist or is soft-deleted (404)
+   * @sideeffect None
+   */
   update(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -484,12 +588,35 @@ var ItemCategoriesResource = class {
       body: payload
     });
   }
+  /**
+   * Soft-deletes an item category.
+   *
+   * @endpoint DELETE /api/v1/item-categories/{id}
+   * @access   admin
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the category does not exist or is already soft-deleted (404)
+   * @sideeffect Sets `deleted_at`; the row remains restorable.
+   */
   delete(id) {
     return this.client.request({
       method: "DELETE",
       path: `/item-categories/${id}`
     });
   }
+  /**
+   * Restores a soft-deleted item category.
+   *
+   * @endpoint PATCH /api/v1/item-categories/{id}/restore
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<ItemCategory>>}
+   * @throws {ValidationApiError} if restore fails because an active row already owns the name (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the category does not exist (404)
+   * @sideeffect Clears `deleted_at` when restore succeeds.
+   */
   restore(id) {
     return this.client.request({
       method: "PATCH",
@@ -520,10 +647,16 @@ var ItemsResource = class {
   }
   client;
   /**
-   * Lists items with pagination, filtering, and search.
+   * Lists active items with pagination, filtering, and search.
    *
-   * HTTP: `GET /api/v1/items`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/items
+   * @access   admin | gudang
+   * @param query - Supports `page`, `perPage`, `item_category_id`, `is_active`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted items are excluded.
+   * @returns {Promise<ApiListResponse<Item>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   list(query) {
     return this.client.request({
@@ -533,10 +666,15 @@ var ItemsResource = class {
     });
   }
   /**
-   * Returns a single item by identifier.
+   * Returns one active item.
    *
-   * HTTP: `GET /api/v1/items/{id}`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/items/{id}
+   * @access   admin | gudang
+   * @returns {Promise<ApiDataResponse<Item>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the item does not exist or is soft-deleted (404)
+   * @sideeffect None
    */
   get(id) {
     return this.client.request({
@@ -545,10 +683,16 @@ var ItemsResource = class {
     });
   }
   /**
-   * Creates a new item.
+   * Creates an item.
    *
-   * HTTP: `POST /api/v1/items`
-   * Access: `admin`, `gudang`
+   * @endpoint POST /api/v1/items
+   * @access   admin | gudang
+   * @param payload - Writable fields: `name`, `unit_base`, `unit_convert`, `conversion_base`, `min_stock`, `is_active`, and exactly one of `item_category_id` or `item_category_name`. `unit_base` and `unit_convert` resolve case-insensitively to active `item_units` rows and are still persisted as strings for backward compatibility. `qty`, `id`, and timestamps are backend-managed.
+   * @returns {Promise<ApiMessageDataResponse<Item>>}
+   * @throws {ValidationApiError} if validation fails, both category fields are sent, units are inactive/missing, or a deleted-name collision requires restore guidance (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None; stock is not mutated here and `qty` remains backend-controlled.
    */
   create(payload) {
     return this.client.request({
@@ -558,10 +702,17 @@ var ItemsResource = class {
     });
   }
   /**
-   * Updates an existing item using the backend's partial-update semantics.
+   * Updates an item using the backend's partial-update semantics.
    *
-   * HTTP: `PUT /api/v1/items/{id}`
-   * Access: `admin`, `gudang`
+   * @endpoint PUT /api/v1/items/{id}
+   * @access   admin | gudang
+   * @param payload - Partial update. When changing category, send exactly one of `item_category_id` or `item_category_name`. If `unit_base` or `unit_convert` is sent, each must resolve to an active item unit.
+   * @returns {Promise<ApiMessageDataResponse<Item>>}
+   * @throws {ValidationApiError} if validation fails, both category fields are sent, or unit/category constraints fail (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the item does not exist or is soft-deleted (404)
+   * @sideeffect None; stock is not mutated here and `qty` remains backend-controlled.
    */
   update(id, payload) {
     return this.client.request({
@@ -573,8 +724,13 @@ var ItemsResource = class {
   /**
    * Soft-deletes an item.
    *
-   * HTTP: `DELETE /api/v1/items/{id}`
-   * Access: `admin` only
+   * @endpoint DELETE /api/v1/items/{id}
+   * @access   admin
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the item does not exist or is already soft-deleted (404)
+   * @sideeffect Sets `deleted_at`; the row remains restorable.
    */
   delete(id) {
     return this.client.request({
@@ -585,13 +741,14 @@ var ItemsResource = class {
   /**
    * Restores a soft-deleted item.
    *
-   * Idempotent: if the item is already active, returns 200 with current data.
-   * Returns 400 if an active item with the same name already exists.
-   * Returns 400 if the referenced category or units are no longer active.
-   * Returns 404 if the item does not exist at all.
-   *
-   * HTTP: `PATCH /api/v1/items/{id}/restore`
-   * Access: `admin` only
+   * @endpoint PATCH /api/v1/items/{id}/restore
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<Item>>}
+   * @throws {ValidationApiError} if an active item already owns the name or the referenced category/units are inactive (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the item does not exist (404)
+   * @sideeffect Clears `deleted_at`. If the item is already active, backend returns the current resource idempotently.
    */
   restore(id) {
     return this.client.request({
@@ -647,6 +804,18 @@ var ItemUnitsResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists item units with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/item-units
+   * @access   admin | gudang
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<ItemUnit>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -654,12 +823,35 @@ var ItemUnitsResource = class {
       ...query ? { query: buildLookupQuery3(query) } : {}
     });
   }
+  /**
+   * Returns one active item unit.
+   *
+   * @endpoint GET /api/v1/item-units/{id}
+   * @access   admin | gudang
+   * @returns {Promise<ApiDataResponse<ItemUnit>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the unit does not exist or is soft-deleted (404)
+   * @sideeffect None
+   */
   get(id) {
     return this.client.request({
       method: "GET",
       path: `/item-units/${id}`
     });
   }
+  /**
+   * Creates an item unit.
+   *
+   * @endpoint POST /api/v1/item-units
+   * @access   admin
+   * @param payload - Writable fields: `name`. Name uniqueness applies to active rows only; if a deleted-name collision exists, backend returns restore guidance with `errors.restore_id`.
+   * @returns {Promise<ApiMessageDataResponse<ItemUnit>>}
+   * @throws {ValidationApiError} if validation fails or the name conflicts (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   create(payload) {
     return this.client.request({
       method: "POST",
@@ -667,6 +859,19 @@ var ItemUnitsResource = class {
       body: payload
     });
   }
+  /**
+   * Updates an active item unit.
+   *
+   * @endpoint PUT /api/v1/item-units/{id}
+   * @access   admin
+   * @param payload - Writable fields: `name`. Active-only uniqueness rules still apply.
+   * @returns {Promise<ApiMessageDataResponse<ItemUnit>>}
+   * @throws {ValidationApiError} if validation fails or the name conflicts (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the unit does not exist or is soft-deleted (404)
+   * @sideeffect None
+   */
   update(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -674,12 +879,36 @@ var ItemUnitsResource = class {
       body: payload
     });
   }
+  /**
+   * Soft-deletes an item unit.
+   *
+   * @endpoint DELETE /api/v1/item-units/{id}
+   * @access   admin
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {ValidationApiError} if active items still reference the unit (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the unit does not exist or is already soft-deleted (404)
+   * @sideeffect Sets `deleted_at`; the row remains restorable.
+   */
   delete(id) {
     return this.client.request({
       method: "DELETE",
       path: `/item-units/${id}`
     });
   }
+  /**
+   * Restores a soft-deleted item unit.
+   *
+   * @endpoint PATCH /api/v1/item-units/{id}/restore
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<ItemUnit>>}
+   * @throws {ValidationApiError} if restore fails because an active row already owns the name (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the unit does not exist (404)
+   * @sideeffect Clears `deleted_at` when restore succeeds.
+   */
   restore(id) {
     return this.client.request({
       method: "PATCH",
@@ -709,6 +938,21 @@ var MealTimesResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists meal times with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/meal-times
+   * @access   admin | gudang
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<MealTime>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -739,18 +983,50 @@ var MenusResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists fixed menu package headers.
+   *
+   * @endpoint GET /api/v1/menus
+   * @access   admin | gudang | dapur
+   * @returns {Promise<MenusListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   list() {
     return this.client.request({
       method: "GET",
       path: "/menus"
     });
   }
+  /**
+   * Lists menu slot assignments.
+   *
+   * @endpoint GET /api/v1/menu-dishes
+   * @access   admin | gudang | dapur
+   * @returns {Promise<MenuSlotsListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   slots() {
     return this.client.request({
       method: "GET",
       path: "/menu-dishes"
     });
   }
+  /**
+   * Assigns a dish to a menu slot.
+   *
+   * @endpoint POST /api/v1/menu-dishes
+   * @access   admin | dapur
+   * @param payload - Writable fields: `menu_id`, `meal_time_id`, `dish_id`. Occupied slots are rejected; this is not an upsert endpoint.
+   * @returns {Promise<ApiMessageDataResponse<MenuSlot>>}
+   * @throws {ValidationApiError} if validation fails or the slot is already occupied (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a menu slot assignment.
+   */
   assignSlot(payload) {
     return this.client.request({
       method: "POST",
@@ -758,6 +1034,18 @@ var MenusResource = class {
       body: payload
     });
   }
+  /**
+   * Updates a menu slot assignment.
+   *
+   * @endpoint PUT /api/v1/menu-dishes/{id}
+   * @access   admin | dapur
+   * @returns {Promise<ApiMessageDataResponse<MenuSlot>>}
+   * @throws {ValidationApiError} if validation fails or the target slot conflicts (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the slot assignment does not exist (404)
+   * @sideeffect Replaces slot assignment metadata.
+   */
   updateSlot(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -765,6 +1053,17 @@ var MenusResource = class {
       body: payload
     });
   }
+  /**
+   * Deletes a menu slot assignment.
+   *
+   * @endpoint DELETE /api/v1/menu-dishes/{id}
+   * @access   admin | dapur
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the slot assignment does not exist (404)
+   * @sideeffect Permanently deletes the slot assignment.
+   */
   deleteSlot(id) {
     return this.client.request({
       method: "DELETE",
@@ -779,18 +1078,50 @@ var MenuSchedulesResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists manual schedule overrides.
+   *
+   * @endpoint GET /api/v1/menu-schedules
+   * @access   admin | gudang | dapur
+   * @returns {Promise<MenuSchedulesListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   list() {
     return this.client.request({
       method: "GET",
       path: "/menu-schedules"
     });
   }
+  /**
+   * Returns one manual schedule override.
+   *
+   * @endpoint GET /api/v1/menu-schedules/{id}
+   * @access   admin | gudang | dapur
+   * @returns {Promise<ApiDataResponse<MenuSchedule>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the schedule does not exist (404)
+   * @sideeffect None
+   */
   get(id) {
     return this.client.request({
       method: "GET",
       path: `/menu-schedules/${id}`
     });
   }
+  /**
+   * Creates a manual day-of-month override.
+   *
+   * @endpoint POST /api/v1/menu-schedules
+   * @access   admin | dapur
+   * @returns {Promise<MenuScheduleCreateResponse>}
+   * @throws {ValidationApiError} if validation fails or the day-of-month override already exists (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates one override row in `menu_schedules`.
+   */
   create(payload) {
     return this.client.request({
       method: "POST",
@@ -798,6 +1129,18 @@ var MenuSchedulesResource = class {
       body: payload
     });
   }
+  /**
+   * Updates a manual day-of-month override.
+   *
+   * @endpoint PUT /api/v1/menu-schedules/{id}
+   * @access   admin | dapur
+   * @returns {Promise<MenuScheduleCreateResponse>}
+   * @throws {ValidationApiError} if validation fails or uniqueness rules fail (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the schedule does not exist (404)
+   * @sideeffect Updates one override row in `menu_schedules`.
+   */
   update(id, payload) {
     return this.client.request({
       method: "PUT",
@@ -805,6 +1148,18 @@ var MenuSchedulesResource = class {
       body: payload
     });
   }
+  /**
+   * Resolves the effective menu calendar.
+   *
+   * @endpoint GET /api/v1/menu-calendar
+   * @access   admin | gudang | dapur
+   * @param query - Send exactly one of `date`, `month`, or `start_date` + `end_date`. Resolution order is: Feb 29 -> Package 9, day 31 -> Package 11, manual `menu_schedules` override, then the default day pattern.
+   * @returns {Promise<MenuCalendarResponse>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   calendarProjection(query) {
     return this.client.request({
       method: "GET",
@@ -828,6 +1183,17 @@ var NotificationsResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists the authenticated user's notifications.
+   *
+   * @endpoint GET /api/v1/notifications
+   * @access   authenticated
+   * @param query - Supports `page`, `perPage`, `paginate`, `is_read`, `type`, `q`, `sortBy`, and `sortDir`. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<Notification>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -835,12 +1201,31 @@ var NotificationsResource = class {
       ...query ? { query: buildNotificationsQuery(query) } : {}
     });
   }
+  /**
+   * Marks one notification as read for the current user.
+   *
+   * @endpoint POST /api/v1/notifications/{id}/read
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {NotFoundApiError} if the notification does not exist or does not belong to the caller (404)
+   * @sideeffect Updates the notification's `is_read` flag.
+   */
   markAsRead(id) {
     return this.client.request({
       method: "POST",
       path: `/notifications/${id}/read`
     });
   }
+  /**
+   * Marks all notifications as read for the current user.
+   *
+   * @endpoint POST /api/v1/notifications/read-all
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Updates `is_read=true` for all notifications owned by the caller.
+   */
   markAllAsRead() {
     return this.client.request({
       method: "POST",
@@ -848,9 +1233,14 @@ var NotificationsResource = class {
     });
   }
   /**
-   * Delete a single notification owned by the current user.
+   * Deletes one notification owned by the current user.
    *
-   * HTTP: DELETE /api/v1/notifications/{id}
+   * @endpoint DELETE /api/v1/notifications/{id}
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {NotFoundApiError} if the notification does not exist or does not belong to the caller (404)
+   * @sideeffect Permanently deletes the matching notification row.
    */
   delete(id) {
     return this.client.request({
@@ -859,9 +1249,13 @@ var NotificationsResource = class {
     });
   }
   /**
-   * Delete all notifications for the current user.
+   * Deletes all notifications owned by the current user.
    *
-   * HTTP: DELETE /api/v1/notifications
+   * @endpoint DELETE /api/v1/notifications
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Permanently deletes all notifications owned by the caller.
    */
   deleteAll() {
     return this.client.request({
@@ -890,10 +1284,19 @@ var RolesResource = class {
   }
   client;
   /**
-   * Lists all available roles.
+   * Lists all available app roles with pagination, filtering, and optional full lookup reads.
    *
-   * HTTP: `GET /api/v1/roles`
-   * Access: `admin` only
+   * @endpoint GET /api/v1/roles
+   * @access   admin
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<Role>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
    */
   list(query) {
     return this.client.request({
@@ -925,6 +1328,18 @@ var SpkResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Resolves the SPK basah menu-calendar projection.
+   *
+   * @endpoint GET /api/v1/spk/basah/menu-calendar
+   * @access   admin | gudang | dapur
+   * @param query - Send exactly one of `date`, `month`, or `start_date` + `end_date`.
+   * @returns {Promise<SpkMenuCalendarResponse>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   basahMenuCalendar(query) {
     return this.client.request({
       method: "GET",
@@ -932,6 +1347,17 @@ var SpkResource = class {
       ...query ? { query: buildMenuCalendarQuery2(query) } : {}
     });
   }
+  /**
+   * Previews same-day operational stock consumption for basah preparation.
+   *
+   * @endpoint POST /api/v1/spk/basah/operational-stock-preview
+   * @access   admin | dapur
+   * @returns {Promise<OperationalStockPreviewResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None; this is a calculation helper only.
+   */
   operationalStockPreview(payload) {
     return this.client.request({
       method: "POST",
@@ -940,11 +1366,16 @@ var SpkResource = class {
     });
   }
   /**
-   * Generates a basah SPK for one requested service date, with backend logic
-   * potentially expanding to a same-month combined window (day + next day).
+   * Generates a basah SPK version.
    *
-   * HTTP: `POST /api/v1/spk/basah/generate`
-   * Access: `admin`, `dapur`
+   * @endpoint POST /api/v1/spk/basah/generate
+   * @access   admin | dapur
+   * @param payload - Basah generation input. Recommendations follow `((daily_patients × 1.05) × composition_qty) - current_stock`, clamped to 0.
+   * @returns {Promise<SpkBasahGenerateResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new history/version row. Does not create stock transactions and does not mutate stock.
    */
   generateBasah(payload) {
     return this.client.request({
@@ -954,13 +1385,14 @@ var SpkResource = class {
     });
   }
   /**
-   * Lists basah SPK history entries.
+   * Lists SPK basah history versions.
    *
-   * Envelope semantics: `{ data: [...], meta: { total } }`
-   * (intentionally no pagination `links` contract).
-   *
-   * HTTP: `GET /api/v1/spk/basah/history`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/basah/history
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkBasahHistoryListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   listBasah() {
     return this.client.request({
@@ -969,13 +1401,15 @@ var SpkResource = class {
     });
   }
   /**
-   * Returns one basah SPK history detail.
+   * Returns one SPK basah history version.
    *
-   * Basah detail/print payload includes combined-window `target_dates` and
-   * item rows with non-null day-level `target_date` fields.
-   *
-   * HTTP: `GET /api/v1/spk/basah/history/{id}`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/basah/history/{id}
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkBasahDetailResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the history row does not exist (404)
+   * @sideeffect None
    */
   getBasah(id) {
     return this.client.request({
@@ -983,6 +1417,18 @@ var SpkResource = class {
       path: `/spk/basah/history/${id}`
     });
   }
+  /**
+   * Overrides one basah recommendation row.
+   *
+   * @endpoint POST /api/v1/spk/basah/history/{id}/override
+   * @access   admin | dapur
+   * @returns {Promise<SpkOverrideResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row or recommendation does not exist (404)
+   * @sideeffect Updates override metadata only; no stock mutation occurs.
+   */
   overrideBasah(id, payload) {
     return this.client.request({
       method: "POST",
@@ -990,12 +1436,36 @@ var SpkResource = class {
       body: payload
     });
   }
+  /**
+   * Posts one basah SPK to stock.
+   *
+   * @endpoint POST /api/v1/spk/basah/history/{id}/post-stock
+   * @access   admin
+   * @returns {Promise<SpkPostStockResponse>}
+   * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect Creates a stock transaction and finalizes the SPK with `is_finish=true`. This action can only happen once per SPK version.
+   */
   postBasahStock(id) {
     return this.client.request({
       method: "POST",
       path: `/spk/basah/history/${id}/post-stock`
     });
   }
+  /**
+   * Resolves the SPK kering/pengemas menu-calendar projection.
+   *
+   * @endpoint GET /api/v1/spk/kering-pengemas/menu-calendar
+   * @access   admin | gudang | dapur
+   * @param query - Send exactly one of `date`, `month`, or `start_date` + `end_date`.
+   * @returns {Promise<SpkMenuCalendarResponse>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   keringPengemasMenuCalendar(query) {
     return this.client.request({
       method: "GET",
@@ -1004,10 +1474,16 @@ var SpkResource = class {
     });
   }
   /**
-   * Generates a monthly SPK for kering/pengemas categories.
+   * Generates a kering/pengemas SPK version.
    *
-   * HTTP: `POST /api/v1/spk/kering-pengemas/generate`
-   * Access: `admin`, `dapur`
+   * @endpoint POST /api/v1/spk/kering-pengemas/generate
+   * @access   admin | dapur
+   * @param payload - Monthly generation input. Recommendations follow `(prev_month_actual_usage × 1.10) - current_stock`, clamped to 0.
+   * @returns {Promise<SpkKeringPengemasGenerateResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new history/version row. Does not create stock transactions and does not mutate stock.
    */
   generateKeringPengemas(payload) {
     return this.client.request({
@@ -1017,13 +1493,14 @@ var SpkResource = class {
     });
   }
   /**
-   * Lists kering/pengemas SPK history entries.
+   * Lists kering/pengemas SPK history versions.
    *
-   * Envelope semantics: `{ data: [...], meta: { total } }`
-   * (intentionally no pagination `links` contract).
-   *
-   * HTTP: `GET /api/v1/spk/kering-pengemas/history`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/kering-pengemas/history
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkKeringPengemasHistoryListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   listKeringPengemas() {
     return this.client.request({
@@ -1032,13 +1509,15 @@ var SpkResource = class {
     });
   }
   /**
-   * Returns one kering/pengemas SPK history detail.
+   * Returns one kering/pengemas SPK history version.
    *
-   * Kering/pengemas detail/print payload uses monthly semantics where item rows
-   * keep `target_date = null` and print payload includes `target_month`.
-   *
-   * HTTP: `GET /api/v1/spk/kering-pengemas/history/{id}`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/kering-pengemas/history/{id}
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkKeringPengemasDetailResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the history row does not exist (404)
+   * @sideeffect None
    */
   getKeringPengemas(id) {
     return this.client.request({
@@ -1046,6 +1525,18 @@ var SpkResource = class {
       path: `/spk/kering-pengemas/history/${id}`
     });
   }
+  /**
+   * Overrides one kering/pengemas recommendation row.
+   *
+   * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/override
+   * @access   admin | dapur
+   * @returns {Promise<SpkOverrideResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row or recommendation does not exist (404)
+   * @sideeffect Updates override metadata only; no stock mutation occurs.
+   */
   overrideKeringPengemas(id, payload) {
     return this.client.request({
       method: "POST",
@@ -1053,12 +1544,35 @@ var SpkResource = class {
       body: payload
     });
   }
+  /**
+   * Posts one kering/pengemas SPK to stock.
+   *
+   * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/post-stock
+   * @access   admin
+   * @returns {Promise<SpkPostStockResponse>}
+   * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect Creates a stock transaction and finalizes the SPK with `is_finish=true`. This action can only happen once per SPK version.
+   */
   postKeringPengemasStock(id) {
     return this.client.request({
       method: "POST",
       path: `/spk/kering-pengemas/history/${id}/post-stock`
     });
   }
+  /**
+   * Returns a stock-transaction prefill payload derived from an SPK.
+   *
+   * @endpoint GET /api/v1/spk/stock-in-prefill/{id}
+   * @access   admin | dapur
+   * @returns {Promise<SpkStockInPrefillResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect None; this helper does not mutate stock.
+   */
   stockInPrefill(id) {
     return this.client.request({
       method: "GET",
@@ -1082,10 +1596,16 @@ var StockTransactionsResource = class {
   }
   client;
   /**
-   * Lists stock transactions with pagination.
+   * Lists stock transactions with pagination, filtering, and search.
    *
-   * HTTP: `GET /api/v1/stock-transactions`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/stock-transactions
+   * @access   admin | gudang
+   * @param query - Supports `page`, `perPage`, `q`/`search` on `spk_id` (`q` wins), `sortBy`, `sortDir`, `type_id`, `status_id`, `transaction_date_from/to`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400.
+   * @returns {Promise<ApiListResponse<StockTransaction>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   list(query) {
     return this.client.request({
@@ -1095,10 +1615,15 @@ var StockTransactionsResource = class {
     });
   }
   /**
-   * Returns a stock transaction header.
+   * Returns a stock transaction header only.
    *
-   * HTTP: `GET /api/v1/stock-transactions/{id}`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/stock-transactions/{id}
+   * @access   admin | gudang
+   * @returns {Promise<ApiDataResponse<StockTransaction>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the transaction does not exist (404)
+   * @sideeffect None
    */
   get(id) {
     return this.client.request({
@@ -1107,10 +1632,15 @@ var StockTransactionsResource = class {
     });
   }
   /**
-   * Returns the detail rows for a stock transaction.
+   * Returns the stock transaction detail rows only.
    *
-   * HTTP: `GET /api/v1/stock-transactions/{id}/details`
-   * Access: `admin`, `gudang`
+   * @endpoint GET /api/v1/stock-transactions/{id}/details
+   * @access   admin | gudang
+   * @returns {Promise<ApiDataResponse<StockTransactionDetail[]>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the transaction does not exist (404)
+   * @sideeffect None
    */
   details(id) {
     return this.client.request({
@@ -1119,10 +1649,16 @@ var StockTransactionsResource = class {
     });
   }
   /**
-   * Creates a normal stock transaction.
+   * Creates a stock transaction.
    *
-   * HTTP: `POST /api/v1/stock-transactions`
-   * Access: `admin`, `gudang`
+   * @endpoint POST /api/v1/stock-transactions
+   * @access   admin | gudang
+   * @param payload - Send exactly one of `type_id` or `type_name`, plus `transaction_date`, optional `spk_id`, and `details`. Each detail supports `item_id`, `qty`, and optional `input_unit`. `user_id` is derived from the Bearer token and cannot be sent by the client. `input_unit="base"` stores qty as submitted; `input_unit="convert"` stores qty × `items.conversion_base`; backend always persists `input_qty` and normalizes response `qty` to base units.
+   * @returns {Promise<ApiMessageDataResponse<StockTransactionCreateResult>>}
+   * @throws {ValidationApiError} if validation fails, both type fields are sent, duplicate items exist in one request, or an OUT transaction would drive stock negative (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Mutates `items.qty` immediately because normal transactions are created with `APPROVED` status.
    */
   create(payload) {
     return this.client.request({
@@ -1132,13 +1668,16 @@ var StockTransactionsResource = class {
     });
   }
   /**
-   * Applies a direct stock correction for a single item.
+   * Applies an admin-only direct stock correction for one item.
    *
-   * The system derives the mutation type (IN/OUT) and applies the correction
-   * to the item's stock level.
-   *
-   * HTTP: `POST /api/v1/stock-transactions/direct-corrections`
-   * Access: `admin` only
+   * @endpoint POST /api/v1/stock-transactions/direct-corrections
+   * @access   admin
+   * @param payload - Required fields: `transaction_date`, `item_id`, `expected_current_qty`, `target_qty`, and `reason`. Backend derives `IN` or `OUT` from `target_qty - expected_current_qty` and rejects the request if actual stock no longer matches `expected_current_qty`.
+   * @returns {Promise<ApiMessageDataResponse<StockTransactionCreateResult>>}
+   * @throws {ValidationApiError} if validation fails or optimistic concurrency rejects the correction (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Mutates `items.qty` immediately through a final approved ledger transaction.
    */
   directCorrection(payload) {
     return this.client.request({
@@ -1150,8 +1689,15 @@ var StockTransactionsResource = class {
   /**
    * Submits a revision for an existing transaction.
    *
-   * HTTP: `POST /api/v1/stock-transactions/{id}/submit-revision`
-   * Access: `admin`, `gudang`
+   * @endpoint POST /api/v1/stock-transactions/{id}/submit-revision
+   * @access   admin | gudang
+   * @param payload - Same detail contract as create. Revisions always create a child transaction with `is_revision=true` and `PENDING` status.
+   * @returns {Promise<ApiMessageDataResponse<StockTransactionRevisionResult>>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the parent transaction does not exist (404)
+   * @sideeffect Does not mutate `items.qty`.
    */
   submitRevision(id, payload) {
     return this.client.request({
@@ -1163,12 +1709,14 @@ var StockTransactionsResource = class {
   /**
    * Approves a revision transaction.
    *
-   * The backend applies the approved revision as a correction against the
-   * parent transaction's stock effect, not as an additional standalone stock
-   * movement.
-   *
-   * HTTP: `POST /api/v1/stock-transactions/{id}/approve`
-   * Access: `admin` only
+   * @endpoint POST /api/v1/stock-transactions/{id}/approve
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<StockTransactionModerationResult>>}
+   * @throws {ValidationApiError} if the revision is not approvable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the revision does not exist (404)
+   * @sideeffect Mutates `items.qty` by applying the net difference between parent and revision details, not by replaying the revision as a second additive movement.
    */
   approve(id) {
     return this.client.request({
@@ -1179,8 +1727,14 @@ var StockTransactionsResource = class {
   /**
    * Rejects a revision transaction.
    *
-   * HTTP: `POST /api/v1/stock-transactions/{id}/reject`
-   * Access: `admin` only
+   * @endpoint POST /api/v1/stock-transactions/{id}/reject
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<StockTransactionModerationResult>>}
+   * @throws {ValidationApiError} if the revision is not rejectable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the revision does not exist (404)
+   * @sideeffect Does not mutate `items.qty`.
    */
   reject(id) {
     return this.client.request({
@@ -1218,6 +1772,21 @@ var TransactionTypesResource = class {
     this.client = client;
   }
   client;
+  /**
+   * Lists transaction types with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/transaction-types
+   * @access   admin | gudang
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<TransactionType>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
+   */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -1249,10 +1818,16 @@ var UsersResource = class {
   }
   client;
   /**
-   * Lists all users.
+   * Lists active users with pagination, filtering, and search.
    *
-   * HTTP: `GET /api/v1/users`
-   * Access: `admin` only
+   * @endpoint GET /api/v1/users
+   * @access   admin
+   * @param query - Supports `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `role_id`, `is_active`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted users are excluded.
+   * @returns {Promise<ApiListResponse<User>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   list(query) {
     return this.client.request({
@@ -1262,10 +1837,15 @@ var UsersResource = class {
     });
   }
   /**
-   * Returns a single user by identifier.
+   * Returns one active user.
    *
-   * HTTP: `GET /api/v1/users/{id}`
-   * Access: `admin` only
+   * @endpoint GET /api/v1/users/{id}
+   * @access   admin
+   * @returns {Promise<ApiDataResponse<User>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is soft-deleted (404)
+   * @sideeffect None
    */
   get(id) {
     return this.client.request({
@@ -1274,10 +1854,16 @@ var UsersResource = class {
     });
   }
   /**
-   * Creates a new user.
+   * Creates a user.
    *
-   * HTTP: `POST /api/v1/users`
-   * Access: `admin` only
+   * @endpoint POST /api/v1/users
+   * @access   admin
+   * @param payload - Writable fields: `name`, `username`, `password`, optional `email`, optional `is_active`, and exactly one of `role_id` or `role_name`.
+   * @returns {Promise<ApiMessageDataResponse<User>>}
+   * @throws {ValidationApiError} if validation fails, both role fields are sent, or a deleted-username collision requires restore guidance (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new user account and synced auth state.
    */
   create(payload) {
     return this.client.request({
@@ -1287,10 +1873,17 @@ var UsersResource = class {
     });
   }
   /**
-   * Updates a user profile and role assignment.
+   * Updates a user's profile and role assignment.
    *
-   * HTTP: `PUT /api/v1/users/{id}`
-   * Access: `admin` only
+   * @endpoint PUT /api/v1/users/{id}
+   * @access   admin
+   * @param payload - Partial update. When changing role, send exactly one of `role_id` or `role_name`.
+   * @returns {Promise<ApiMessageDataResponse<User>>}
+   * @throws {ValidationApiError} if validation fails or both role fields are sent (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is soft-deleted (404)
+   * @sideeffect Updates role/profile fields and keeps auth flags synchronized.
    */
   update(id, payload) {
     return this.client.request({
@@ -1302,8 +1895,13 @@ var UsersResource = class {
   /**
    * Activates a user account.
    *
-   * HTTP: `PATCH /api/v1/users/{id}/activate`
-   * Access: `admin` only
+   * @endpoint PATCH /api/v1/users/{id}/activate
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<User>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is soft-deleted (404)
+   * @sideeffect Sets `is_active=true` and syncs the auth `active` flag.
    */
   activate(id) {
     return this.client.request({
@@ -1314,8 +1912,13 @@ var UsersResource = class {
   /**
    * Deactivates a user account.
    *
-   * HTTP: `PATCH /api/v1/users/{id}/deactivate`
-   * Access: `admin` only
+   * @endpoint PATCH /api/v1/users/{id}/deactivate
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<User>>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is soft-deleted (404)
+   * @sideeffect Sets `is_active=false` and syncs the auth `active` flag. Existing tokens remain valid until separately revoked.
    */
   deactivate(id) {
     return this.client.request({
@@ -1324,10 +1927,17 @@ var UsersResource = class {
     });
   }
   /**
-   * Changes a user's password.
+   * Changes another user's password.
    *
-   * HTTP: `PATCH /api/v1/users/{id}/password`
-   * Access: `admin` only
+   * @endpoint PATCH /api/v1/users/{id}/password
+   * @access   admin
+   * @param payload - Writable fields: `password` only.
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is soft-deleted (404)
+   * @sideeffect Revokes all access tokens for the target user.
    */
   changePassword(id, payload) {
     return this.client.request({
@@ -1339,8 +1949,13 @@ var UsersResource = class {
   /**
    * Soft-deletes a user.
    *
-   * HTTP: `DELETE /api/v1/users/{id}`
-   * Access: `admin` only
+   * @endpoint DELETE /api/v1/users/{id}
+   * @access   admin
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist or is already soft-deleted (404)
+   * @sideeffect Sets `deleted_at` and revokes all access tokens for the target user.
    */
   delete(id) {
     return this.client.request({
@@ -1351,13 +1966,14 @@ var UsersResource = class {
   /**
    * Restores a soft-deleted user.
    *
-   * Idempotent: if the user is already active, returns 200 with current data.
-   * Returns 400 if an active user with the same username already exists.
-   * Returns 400 if the assigned role is no longer active.
-   * Returns 404 if the user does not exist at all.
-   *
-   * HTTP: `PATCH /api/v1/users/{id}/restore`
-   * Access: `admin` only
+   * @endpoint PATCH /api/v1/users/{id}/restore
+   * @access   admin
+   * @returns {Promise<ApiMessageDataResponse<User>>}
+   * @throws {ValidationApiError} if an active user already owns the username or the assigned role is inactive (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the user does not exist (404)
+   * @sideeffect Clears `deleted_at`. If the user is already active, backend returns the current resource idempotently.
    */
   restore(id) {
     return this.client.request({
@@ -1389,6 +2005,16 @@ var DashboardResource = class {
   constructor(client) {
     this.client = client;
   }
+  /**
+   * Returns the dashboard aggregate payload for the authenticated user's role.
+   *
+   * @endpoint GET /api/v1/dashboard
+   * @access   admin | gudang | dapur
+   * @returns {Promise<DashboardResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role or the account is inactive (403)
+   * @sideeffect None
+   */
   async getAggregate() {
     return this.client.request({
       method: "GET",
@@ -1403,6 +2029,18 @@ var ReportsResource = class {
   constructor(client) {
     this.client = client;
   }
+  /**
+   * Returns the stock report dataset.
+   *
+   * @endpoint GET /api/v1/reports/stocks
+   * @access   admin | gudang | dapur
+   * @param params - Must include `period_start` and `period_end`. Unknown params return 400.
+   * @returns {Promise<ReportResponse>}
+   * @throws {ValidationApiError} if the period is missing, malformed, or reversed (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   async getStocks(params) {
     return this.client.request({
       method: "GET",
@@ -1410,6 +2048,18 @@ var ReportsResource = class {
       query: { ...params }
     });
   }
+  /**
+   * Returns the stock transaction report dataset.
+   *
+   * @endpoint GET /api/v1/reports/transactions
+   * @access   admin | gudang | dapur
+   * @param params - Must include `period_start` and `period_end`. Unknown params return 400.
+   * @returns {Promise<ReportResponse>}
+   * @throws {ValidationApiError} if the period is missing, malformed, or reversed (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   async getTransactions(params) {
     return this.client.request({
       method: "GET",
@@ -1417,6 +2067,18 @@ var ReportsResource = class {
       query: { ...params }
     });
   }
+  /**
+   * Returns the SPK history report dataset.
+   *
+   * @endpoint GET /api/v1/reports/spk-history
+   * @access   admin | gudang | dapur
+   * @param params - Must include `period_start` and `period_end`. Unknown params return 400.
+   * @returns {Promise<ReportResponse>}
+   * @throws {ValidationApiError} if the period is missing, malformed, or reversed (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   async getSpkHistory(params) {
     return this.client.request({
       method: "GET",
@@ -1424,6 +2086,18 @@ var ReportsResource = class {
       query: { ...params }
     });
   }
+  /**
+   * Returns the evaluation report dataset.
+   *
+   * @endpoint GET /api/v1/reports/evaluation
+   * @access   admin | gudang | dapur
+   * @param params - Must include `period_start` and `period_end`. Unknown params return 400.
+   * @returns {Promise<ReportResponse>}
+   * @throws {ValidationApiError} if the period is missing, malformed, or reversed (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   async getEvaluation(params) {
     return this.client.request({
       method: "GET",
@@ -1439,6 +2113,17 @@ var StockOpnamesResource = class {
   constructor(client) {
     this.client = client;
   }
+  /**
+   * Creates a stock opname draft.
+   *
+   * @endpoint POST /api/v1/stock-opnames
+   * @access   admin | gudang
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a draft opname only; no stock mutation occurs.
+   */
   async create(request) {
     return this.client.request({
       method: "POST",
@@ -1446,24 +2131,71 @@ var StockOpnamesResource = class {
       body: request
     });
   }
+  /**
+   * Returns one stock opname header and detail set.
+   *
+   * @endpoint GET /api/v1/stock-opnames/{id}
+   * @access   admin | gudang
+   * @returns {Promise<StockOpnameResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect None
+   */
   async get(id) {
     return this.client.request({
       method: "GET",
       path: `/stock-opnames/${id}`
     });
   }
+  /**
+   * Submits a stock opname draft for approval.
+   *
+   * @endpoint POST /api/v1/stock-opnames/{id}/submit
+   * @access   admin | gudang
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if the draft is not submittable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect Changes workflow state only; no stock mutation occurs.
+   */
   async submit(id) {
     return this.client.request({
       method: "POST",
       path: `/stock-opnames/${id}/submit`
     });
   }
+  /**
+   * Approves a submitted stock opname.
+   *
+   * @endpoint POST /api/v1/stock-opnames/{id}/approve
+   * @access   admin
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if the opname is not approvable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect Changes workflow state only; no stock mutation occurs.
+   */
   async approve(id) {
     return this.client.request({
       method: "POST",
       path: `/stock-opnames/${id}/approve`
     });
   }
+  /**
+   * Rejects a submitted stock opname.
+   *
+   * @endpoint POST /api/v1/stock-opnames/{id}/reject
+   * @access   admin
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if the opname is not rejectable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect Changes workflow state only; no stock mutation occurs.
+   */
   async reject(id, request) {
     return this.client.request({
       method: "POST",
@@ -1471,6 +2203,18 @@ var StockOpnamesResource = class {
       body: request
     });
   }
+  /**
+   * Posts approved stock opname variances to the ledger.
+   *
+   * @endpoint POST /api/v1/stock-opnames/{id}/post
+   * @access   admin
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if the opname is not postable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect Mutates stock by generating `OPNAME_ADJUSTMENT` ledger transactions.
+   */
   async post(id) {
     return this.client.request({
       method: "POST",

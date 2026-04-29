@@ -30,6 +30,9 @@ export interface StockTransactionDetail {
   id: number;
   transaction_id: number;
   item_id: number;
+  item_name: string | null;
+  item_category_id: number | null;
+  item_category_name: string | null;
   /** Normalized base-unit quantity used for stock mutation. */
   qty: string;
   /** Original submitted quantity persisted by the backend. */
