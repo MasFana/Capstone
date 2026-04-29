@@ -768,6 +768,67 @@ function buildMenuCalendarQuery(query) {
   return result;
 }
 
+// src/sdk/resources/notifications.ts
+var NotificationsResource = class {
+  constructor(client) {
+    this.client = client;
+  }
+  client;
+  list(query) {
+    return this.client.request({
+      method: "GET",
+      path: "/notifications",
+      ...query ? { query: buildNotificationsQuery(query) } : {}
+    });
+  }
+  markAsRead(id) {
+    return this.client.request({
+      method: "POST",
+      path: `/notifications/${id}/read`
+    });
+  }
+  markAllAsRead() {
+    return this.client.request({
+      method: "POST",
+      path: "/notifications/read-all"
+    });
+  }
+  /**
+   * Delete a single notification owned by the current user.
+   *
+   * HTTP: DELETE /api/v1/notifications/{id}
+   */
+  delete(id) {
+    return this.client.request({
+      method: "DELETE",
+      path: `/notifications/${id}`
+    });
+  }
+  /**
+   * Delete all notifications for the current user.
+   *
+   * HTTP: DELETE /api/v1/notifications
+   */
+  deleteAll() {
+    return this.client.request({
+      method: "DELETE",
+      path: "/notifications"
+    });
+  }
+};
+function buildNotificationsQuery(query) {
+  const result = {};
+  if (query.page !== void 0) result.page = query.page;
+  if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.is_read !== void 0) result.is_read = query.is_read;
+  if (query.type !== void 0) result.type = query.type;
+  if (query.q !== void 0) result.q = query.q;
+  if (query.sortBy !== void 0) result.sortBy = query.sortBy;
+  if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.paginate !== void 0) result.paginate = query.paginate;
+  return result;
+}
+
 // src/sdk/resources/roles.ts
 var RolesResource = class {
   constructor(client) {
@@ -1379,6 +1440,7 @@ var CapstoneSdk = class {
   mealTimes;
   menus;
   menuSchedules;
+  notifications;
   spk;
   stockTransactions;
   transactionTypes;
@@ -1400,6 +1462,7 @@ var CapstoneSdk = class {
     this.mealTimes = new MealTimesResource(this.client);
     this.menus = new MenusResource(this.client);
     this.menuSchedules = new MenuSchedulesResource(this.client);
+    this.notifications = new NotificationsResource(this.client);
     this.spk = new SpkResource(this.client);
     this.stockTransactions = new StockTransactionsResource(this.client);
     this.transactionTypes = new TransactionTypesResource(this.client);
@@ -1443,6 +1506,7 @@ export {
   MenuSchedulesResource,
   MenusResource,
   NotFoundApiError,
+  NotificationsResource,
   ReportsResource,
   RolesResource,
   SpkResource,

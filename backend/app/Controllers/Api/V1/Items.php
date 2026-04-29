@@ -100,6 +100,7 @@ class Items extends BaseController
             'unit_base'        => 'required|max_length[20]',
             'unit_convert'     => 'required|max_length[20]',
             'conversion_base'  => 'required|is_natural_no_zero',
+            'min_stock'        => 'permit_empty|is_natural',
             'is_active'        => 'permit_empty',
         ];
 
@@ -177,6 +178,7 @@ class Items extends BaseController
             'unit_base'        => 'permit_empty|max_length[20]',
             'unit_convert'     => 'permit_empty|max_length[20]',
             'conversion_base'  => 'permit_empty|is_natural_no_zero',
+            'min_stock'        => 'permit_empty|is_natural',
             'is_active'        => 'permit_empty',
         ];
 

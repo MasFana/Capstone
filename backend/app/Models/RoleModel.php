@@ -6,6 +6,10 @@ use CodeIgniter\Model;
 
 class RoleModel extends Model
 {
+    public const NAME_ADMIN = 'admin';
+    public const NAME_GUDANG = 'gudang';
+    public const NAME_DAPUR = 'dapur';
+
     protected $table         = 'roles';
     protected $primaryKey    = 'id';
     protected $allowedFields  = ['name'];

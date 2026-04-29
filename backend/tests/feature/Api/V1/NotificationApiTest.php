@@ -94,8 +94,10 @@ class NotificationApiTest extends CIUnitTestCase
         $token = $this->loginAsUser1();
 
         $this->notificationService->sendToUser($this->user1->id, 'Title 1', 'Message 1', 'INFO');
-        $this->notificationService->sendToUser($this->user1->id, 'Title 2', 'Message 2', 'WARNING');
+        $id2 = $this->notificationService->sendToUser($this->user1->id, 'Title 2', 'Message 2', 'WARNING');
         $this->notificationService->sendToUser($this->user2->id, 'Title 3', 'Message 3', 'ERROR');
+        
+        $this->notificationService->markAsRead($id2, $this->user1->id);
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
@@ -109,6 +111,34 @@ class NotificationApiTest extends CIUnitTestCase
         $this->assertCount(2, $json['data']);
         $this->assertEquals('Title 2', $json['data'][0]['title']);
         $this->assertEquals('Title 1', $json['data'][1]['title']);
+
+        // Test filtering by is_read
+        $responseRead = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->get('api/v1/notifications?is_read=1');
+        
+        $jsonRead = json_decode($responseRead->getJSON(), true);
+        $this->assertCount(1, $jsonRead['data']);
+        $this->assertEquals('Title 2', $jsonRead['data'][0]['title']);
+
+        // Test searching by q
+        $responseSearch = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->get('api/v1/notifications?q=Title 1');
+        
+        $jsonSearch = json_decode($responseSearch->getJSON(), true);
+        $this->assertCount(1, $jsonSearch['data']);
+        $this->assertEquals('Title 1', $jsonSearch['data'][0]['title']);
+
+        // Test pagination
+        $responsePage = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->get('api/v1/notifications?page=1&perPage=1');
+
+        $jsonPage = json_decode($responsePage->getJSON(), true);
+        $this->assertCount(1, $jsonPage['data']);
+        $this->assertEquals(2, $jsonPage['meta']['total']);
+        $this->assertEquals(2, $jsonPage['meta']['totalPages']);
     }
 
     public function testMarkAsRead(): void
@@ -140,7 +170,7 @@ class NotificationApiTest extends CIUnitTestCase
         ])->post("api/v1/notifications/{$id2}/read");
         
         $response->assertStatus(404);
-        $response->assertJSONExact(['message' => 'Notification not found or access denied.']);
+        $response->assertJSONExact(['message' => 'Notification not found or access denied.', 'errors' => []]);
 
         $model = new NotificationModel();
         $notif = $model->find($id2);
@@ -172,6 +202,60 @@ class NotificationApiTest extends CIUnitTestCase
         
         $notif3 = $model->find($id3);
         $this->assertEquals(0, $notif3['is_read']);
+    }
+
+    public function testDeleteNotification(): void
+    {
+        $token = $this->loginAsUser1();
+
+        $id1 = $this->notificationService->sendToUser($this->user1->id, 'Title 1', 'Message 1', 'INFO');
+        
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->delete("api/v1/notifications/{$id1}");
+        
+        $response->assertStatus(200);
+        $response->assertJSONExact(['message' => 'Notification deleted.']);
+
+        $model = new NotificationModel();
+        $this->assertEmpty($model->find($id1));
+    }
+
+    public function testDeleteNotificationFailsForOtherUser(): void
+    {
+        $token = $this->loginAsUser1();
+
+        $id2 = $this->notificationService->sendToUser($this->user2->id, 'Title 2', 'Message 2', 'INFO');
+        
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->delete("api/v1/notifications/{$id2}");
+        
+        $response->assertStatus(404);
+        $response->assertJSONExact(['message' => 'Notification not found or access denied.', 'errors' => []]);
+
+        $model = new NotificationModel();
+        $this->assertNotEmpty($model->find($id2));
+    }
+
+    public function testDeleteAllNotifications(): void
+    {
+        $token = $this->loginAsUser1();
+
+        $this->notificationService->sendToUser($this->user1->id, 'Title 1', 'Message 1', 'INFO');
+        $this->notificationService->sendToUser($this->user1->id, 'Title 2', 'Message 2', 'INFO');
+        $id3 = $this->notificationService->sendToUser($this->user2->id, 'Title 3', 'Message 3', 'INFO');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->delete('api/v1/notifications');
+        
+        $response->assertStatus(200);
+        $response->assertJSONExact(['message' => 'All notifications deleted.']);
+
+        $model = new NotificationModel();
+        $this->assertCount(0, $model->where('user_id', $this->user1->id)->findAll());
+        $this->assertNotEmpty($model->find($id3));
     }
 }
 

@@ -261,6 +261,7 @@ Fungsi: Menyimpan master barang dan saldo stok berjalan.
 | `conversion_base` | int | not null | Nilai konversi dari satuan gudang ke satuan dasar |
 | `is_active` | boolean | default true | Status aktif item |
 | `qty` | decimal(12,2) | default 0 | Stok berjalan saat ini dalam satuan dasar |
+| `min_stock` | int | default 0 | Batas stok minimum untuk peringatan stok rendah |
 | `created_at` | timestamp | nullable | Waktu dibuat |
 | `updated_at` | timestamp | nullable | Waktu diperbarui |
 | `deleted_at` | timestamp | nullable | Soft delete marker |
@@ -274,6 +275,22 @@ Perilaku Phase 1 item master API:
 - `unit_base` dan `unit_convert` dikirim client sebagai string dan di-resolve ke row `item_units` yang aktif oleh service layer; FK `item_unit_base_id` / `item_unit_convert_id` diisi dari hasil resolusi tersebut.
 - String `unit_base`/`unit_convert` tetap disimpan di kolom teks untuk backward compatibility dan muncul di response API.
 - `item_unit_base_id` dan `item_unit_convert_id` bersifat nullable untuk mengakomodasi data historis dan periode transisi.
+
+### 3.11 `notifications`
+
+Stores system-generated notifications for users.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | INT(11) | PK, Auto Increment | Primary key |
+| `user_id` | INT(11) | FK | Refers to `users(id)` |
+| `title` | VARCHAR(255) | NOT NULL | Short notification title |
+| `message` | TEXT | NOT NULL | Body of the notification |
+| `type` | VARCHAR(50) | NOT NULL | Notification category/type |
+| `related_id` | INT(11) | NULL | Optional reference to a related resource |
+| `is_read` | TINYINT(1) | DEFAULT 0 | Whether the notification has been read |
+| `created_at` | DATETIME | NOT NULL | Timestamp |
+| `updated_at` | DATETIME | NOT NULL | Timestamp |
 
 ## 4. Inventory & Stock Logic
 

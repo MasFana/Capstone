@@ -766,6 +766,7 @@ Rules:
       "item_unit_convert_id": 2,
       "conversion_base": 1000,
       "qty": "1500.00",
+      "min_stock": 100,
       "is_active": true,
       "created_at": "2026-04-03 10:00:00",
       "updated_at": "2026-04-03 10:00:00",
@@ -809,6 +810,7 @@ Writable fields:
 - `unit_base`
 - `unit_convert`
 - `conversion_base`
+- `min_stock`
 - `is_active`
 
 Lookup contract:
@@ -841,6 +843,7 @@ Forbidden write fields:
   "unit_base": "ml",
   "unit_convert": "liter",
   "conversion_base": 1000,
+  "min_stock": 100,
   "is_active": true
 }
 ```
@@ -860,6 +863,7 @@ Forbidden write fields:
     "item_unit_convert_id": 4,
     "conversion_base": 1000,
     "qty": "0.00",
+    "min_stock": 100,
     "is_active": true,
     "created_at": "2026-04-03 11:00:00",
     "updated_at": "2026-04-03 11:00:00",
@@ -895,6 +899,7 @@ Forbidden write fields:
     "item_unit_convert_id": 2,
     "conversion_base": 1000,
     "qty": "1500.00",
+    "min_stock": 100,
     "is_active": true,
     "created_at": "2026-04-03 10:00:00",
     "updated_at": "2026-04-03 10:00:00",
@@ -934,6 +939,7 @@ Unit resolution contract:
 ```json
 {
   "name": "Beras Premium",
+  "min_stock": 50,
   "is_active": false
 }
 ```
@@ -953,6 +959,7 @@ Unit resolution contract:
     "item_unit_convert_id": 2,
     "conversion_base": 1000,
     "qty": "1500.00",
+    "min_stock": 50,
     "is_active": false,
     "created_at": "2026-04-03 10:00:00",
     "updated_at": "2026-04-03 11:30:00",
@@ -1019,6 +1026,7 @@ Creating a new item with the name of a deleted item returns `400` with `errors.r
     "item_unit_convert_id": 4,
     "conversion_base": 1000,
     "qty": "0.00",
+    "min_stock": 100,
     "is_active": true,
     "created_at": "2026-04-03 11:00:00",
     "updated_at": "2026-04-03 12:00:00",
@@ -1754,6 +1762,245 @@ Evaluation semantics:
 - `variance_qty` = `realization_qty - planned_qty`
 
 Summary menyertakan total planned/realization/variance lintas baris hasil.
+
+### 5.10 Notifications
+
+Endpoint untuk notifikasi sistem.
+
+#### Notification Types & Flow
+Sistem secara otomatis membuat dan mendistribusikan notifikasi berdasarkan event operasional berikut:
+
+| Event / Konteks | `type` Value | Penerima Notifikasi | `related_id` Merujuk Pada |
+|---|---|---|---|
+| **Peringatan Stok Minimum** | `MIN_STOCK` | Role: `Admin` | ID Item (`items.id`) |
+| **Pengajuan Revisi Transaksi** | `STOCK_REVISION` | Role: `Admin` | ID Revisi/Transaksi |
+| **Status Revisi Transaksi** | `STOCK_REVISION` | User Submitter | ID Revisi/Transaksi |
+| **Pengajuan Stock Opname** | `STOCK_OPNAME` | Role: `Admin` | ID Opname (`stock_opnames.id`) |
+| **Status Stock Opname** | `STOCK_OPNAME` | User Submitter | ID Opname (`stock_opnames.id`) |
+
+#### 5.10.1 List Notifications
+- **Method:** `GET /api/v1/notifications`
+- **Access:** Authenticated user (self)
+- **Query Parameters:** `page`, `perPage`, `paginate`, `is_read`, `type`, `q`, `sortBy`, `sortDir`
+
+#### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "title": "Low Stock Warning",
+      "message": "Stock for 'Beras Premium' has reached minimum limit.",
+      "type": "MIN_STOCK",
+      "related_id": 1,
+      "is_read": false,
+      "created_at": "2026-05-15 10:00:00",
+      "updated_at": "2026-05-15 10:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 1,
+    "totalPages": 1
+  },
+  "links": {
+    "self": "...",
+    "first": "...",
+    "last": "...",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+#### 5.10.2 Mark Notification as Read
+- **Method:** `POST /api/v1/notifications/{id}/read`
+- **Access:** Authenticated user (owner of notification)
+
+#### 5.10.3 Mark All Notifications as Read
+- **Method:** `POST /api/v1/notifications/read-all`
+- **Access:** Authenticated user (self)
+
+#### 5.10.4 List Notifications with Filters, Sorting, and Pagination
+
+The notifications list endpoint supports filtering, sorting, and pagination control via query parameters.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `page` | number | Page number (default: 1) |
+| `perPage` | number | Items per page (default: 10, max: 100) |
+| `paginate` | boolean | Set to `false` to return all records without pagination |
+| `is_read` | boolean\|number | Filter by read status (`1` or `true` for read, `0` or `false` for unread) |
+| `type` | string | Filter by notification type (e.g., `MIN_STOCK`, `STOCK_OPNAME`, `STOCK_REVISION`) |
+| `q` | string | Search term to match against title and message |
+| `sortBy` | string | Sort key: `id`, `created_at`, `updated_at`, `is_read`, `type` (default: `created_at`) |
+| `sortDir` | string | Sort direction: `ASC` or `DESC` (default: `DESC`) |
+
+**Example Query 1: Unread notifications, sorted by newest first**
+```
+GET /api/v1/notifications?is_read=0&sortBy=created_at&sortDir=DESC
+```
+
+**Example Query 2: Search by keyword with pagination**
+```
+GET /api/v1/notifications?q=stock&is_read=false&page=1&perPage=20
+```
+
+**Example Query 3: Filter by notification type with stable sorting**
+```
+GET /api/v1/notifications?type=STOCK_OPNAME&sortBy=type&sortDir=ASC&page=1&perPage=10
+```
+
+**Example Query 4: Get all notifications without pagination**
+```
+GET /api/v1/notifications?paginate=false
+```
+
+**Example Response (Paginated)**
+
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "user_id": 2,
+      "title": "Opname Required",
+      "message": "Stock opname for April 2026 pending approval.",
+      "type": "STOCK_OPNAME",
+      "related_id": 123,
+      "is_read": false,
+      "created_at": "2026-05-16 08:30:00",
+      "updated_at": "2026-05-16 08:30:00"
+    },
+    {
+      "id": 4,
+      "user_id": 2,
+      "title": "Low Stock Alert",
+      "message": "Beras Premium stock reached minimum level.",
+      "type": "MIN_STOCK",
+      "related_id": 1,
+      "is_read": true,
+      "created_at": "2026-05-15 10:00:00",
+      "updated_at": "2026-05-15 14:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 2,
+    "totalPages": 1,
+    "paginated": true
+  },
+  "links": {
+    "self": "/api/v1/notifications?page=1&perPage=10&type=STOCK_OPNAME",
+    "first": "/api/v1/notifications?page=1&perPage=10&type=STOCK_OPNAME",
+    "last": "/api/v1/notifications?page=1&perPage=10&type=STOCK_OPNAME",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+**Example Response (All records, paginate=false)**
+
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "user_id": 2,
+      "title": "Opname Required",
+      "message": "Stock opname for April 2026 pending approval.",
+      "type": "STOCK_OPNAME",
+      "related_id": 123,
+      "is_read": false,
+      "created_at": "2026-05-16 08:30:00",
+      "updated_at": "2026-05-16 08:30:00"
+    },
+    {
+      "id": 4,
+      "user_id": 2,
+      "title": "Low Stock Alert",
+      "message": "Beras Premium stock reached minimum level.",
+      "type": "MIN_STOCK",
+      "related_id": 1,
+      "is_read": true,
+      "created_at": "2026-05-15 10:00:00",
+      "updated_at": "2026-05-15 14:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 2,
+    "total": 2,
+    "totalPages": 1,
+    "paginated": false
+  },
+  "links": {
+    "self": "/api/v1/notifications?paginate=false",
+    "first": "/api/v1/notifications?paginate=false",
+    "last": "/api/v1/notifications?paginate=false",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+#### 5.10.5 Delete a Single Notification
+- **Method:** `DELETE /api/v1/notifications/{id}`
+- **Access:** Authenticated user (owner of notification)
+- **Behavior:** Only deletes if the notification belongs to the authenticated user.
+
+**Example Request**
+```
+DELETE /api/v1/notifications/123
+Authorization: Bearer <token>
+```
+
+**Example Response (Success)**
+```json
+{
+  "message": "Notification deleted."
+}
+```
+
+**Example Response (Not Found / Access Denied)**
+```json
+{
+  "message": "Notification not found or access denied.",
+  "errors": []
+}
+```
+
+#### 5.10.6 Delete All Notifications
+- **Method:** `DELETE /api/v1/notifications`
+- **Access:** Authenticated user (self)
+- **Behavior:** Deletes all notifications for the authenticated user.
+
+**Example Request**
+```
+DELETE /api/v1/notifications
+Authorization: Bearer <token>
+```
+
+**Example Response (Success)**
+```json
+{
+  "message": "All notifications deleted."
+}
+```
+
+**Example Response (No Notifications to Delete)**
+```json
+{
+  "message": "All notifications deleted."
+}
+```
 
 ## 6. Planned API Surface
 

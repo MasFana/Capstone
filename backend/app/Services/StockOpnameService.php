@@ -329,12 +329,10 @@ class StockOpnameService
         );
 
         $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
-        $itemNames = [];
-        foreach ($details as $detail) {
-            $item = $this->itemModel->find((int) $detail['item_id']);
-            if ($item !== null) {
-                $itemNames[] = $item['name'];
-            }
+        $itemIds = array_unique(array_column($details, 'item_id'));
+        $itemNames = $itemIds !== [] ? $this->itemModel->whereIn('id', $itemIds)->findColumn('name') : [];
+        if ($itemNames === null) {
+            $itemNames = [];
         }
         $itemNameStr = implode(', ', $itemNames);
         
@@ -412,12 +410,10 @@ class StockOpnameService
         );
 
         $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
-        $itemNames = [];
-        foreach ($details as $detail) {
-            $item = $this->itemModel->find((int) $detail['item_id']);
-            if ($item !== null) {
-                $itemNames[] = $item['name'];
-            }
+        $itemIds = array_unique(array_column($details, 'item_id'));
+        $itemNames = $itemIds !== [] ? $this->itemModel->whereIn('id', $itemIds)->findColumn('name') : [];
+        if ($itemNames === null) {
+            $itemNames = [];
         }
         $itemNameStr = implode(', ', $itemNames);
         
@@ -518,12 +514,10 @@ class StockOpnameService
         );
 
         $details = $this->stockOpnameDetailModel->getDetailsByStockOpnameId($id);
-        $itemNames = [];
-        foreach ($details as $detail) {
-            $item = $this->itemModel->find((int) $detail['item_id']);
-            if ($item !== null) {
-                $itemNames[] = $item['name'];
-            }
+        $itemIds = array_unique(array_column($details, 'item_id'));
+        $itemNames = $itemIds !== [] ? $this->itemModel->whereIn('id', $itemIds)->findColumn('name') : [];
+        if ($itemNames === null) {
+            $itemNames = [];
         }
         $itemNameStr = implode(', ', $itemNames);
         

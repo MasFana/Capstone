@@ -41,6 +41,10 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "notifications/(:num)",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "roles",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -251,8 +255,16 @@ $routes->group(
             $routes->patch("auth/password", "Auth::changePassword");
 
             $routes->get("notifications", "Notifications::index");
-            $routes->post("notifications/read-all", "Notifications::markAllAsRead");
-            $routes->post("notifications/(:num)/read", 'Notifications::markAsRead/$1');
+            $routes->post(
+                "notifications/read-all",
+                "Notifications::markAllAsRead",
+            );
+            $routes->post(
+                "notifications/(:num)/read",
+                'Notifications::markAsRead/$1',
+            );
+            $routes->delete("notifications/(:num)", 'Notifications::delete/$1');
+            $routes->delete("notifications", "Notifications::deleteAll");
 
             $routes->group(
                 "",
@@ -260,7 +272,10 @@ $routes->group(
                 static function ($routes) {
                     $routes->get("dashboard", "Dashboard::index");
                     $routes->get("reports/stocks", "Reports::stocks");
-                    $routes->get("reports/transactions", "Reports::transactions");
+                    $routes->get(
+                        "reports/transactions",
+                        "Reports::transactions",
+                    );
                     $routes->get("reports/spk-history", "Reports::spkHistory");
                     $routes->get("reports/evaluation", "Reports::evaluation");
                 },
@@ -274,23 +289,41 @@ $routes->group(
                     $routes->get("dishes", "Dishes::index");
                     $routes->get("dishes/(:num)", 'Dishes::show/$1');
 
-                    $routes->get("dish-compositions", "DishCompositions::index");
-                    $routes->get("dish-compositions/(:num)", 'DishCompositions::show/$1');
+                    $routes->get(
+                        "dish-compositions",
+                        "DishCompositions::index",
+                    );
+                    $routes->get(
+                        "dish-compositions/(:num)",
+                        'DishCompositions::show/$1',
+                    );
 
                     $routes->get("menus", "Menus::index");
                     $routes->get("menu-dishes", "Menus::slots");
                     $routes->get("menu-schedules", "MenuSchedules::index");
-                    $routes->get("menu-schedules/(:num)", 'MenuSchedules::show/$1');
-                    $routes->get("menu-calendar", "MenuSchedules::calendarProjection");
+                    $routes->get(
+                        "menu-schedules/(:num)",
+                        'MenuSchedules::show/$1',
+                    );
+                    $routes->get(
+                        "menu-calendar",
+                        "MenuSchedules::calendarProjection",
+                    );
                     $routes->get("daily-patients", "DailyPatients::index");
-                    $routes->get("daily-patients/(:num)", 'DailyPatients::show/$1');
+                    $routes->get(
+                        "daily-patients/(:num)",
+                        'DailyPatients::show/$1',
+                    );
 
                     $routes->get(
                         "spk/basah/menu-calendar",
                         "SpkBasah::menuCalendarProjection",
                     );
                     $routes->get("spk/basah/history", "SpkBasah::history");
-                    $routes->get("spk/basah/history/(:num)", 'SpkBasah::show/$1');
+                    $routes->get(
+                        "spk/basah/history/(:num)",
+                        'SpkBasah::show/$1',
+                    );
 
                     $routes->get(
                         "spk/kering-pengemas/menu-calendar",
@@ -313,9 +346,18 @@ $routes->group(
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
                     $routes->get("item-categories", "ItemCategories::index");
-                    $routes->get("item-categories/(:num)", 'ItemCategories::show/$1');
-                    $routes->get("transaction-types", "TransactionTypes::index");
-                    $routes->get("approval-statuses", "ApprovalStatuses::index");
+                    $routes->get(
+                        "item-categories/(:num)",
+                        'ItemCategories::show/$1',
+                    );
+                    $routes->get(
+                        "transaction-types",
+                        "TransactionTypes::index",
+                    );
+                    $routes->get(
+                        "approval-statuses",
+                        "ApprovalStatuses::index",
+                    );
                     $routes->get("meal-times", "MealTimes::index");
                     $routes->get("item-units", "ItemUnits::index");
                     $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
@@ -366,8 +408,14 @@ $routes->group(
                         'StockTransactions::submitRevision/$1',
                     );
                     $routes->post("stock-opnames", "StockOpnames::create");
-                    $routes->get("stock-opnames/(:num)", 'StockOpnames::show/$1');
-                    $routes->post("stock-opnames/(:num)/submit", 'StockOpnames::submit/$1');
+                    $routes->get(
+                        "stock-opnames/(:num)",
+                        'StockOpnames::show/$1',
+                    );
+                    $routes->post(
+                        "stock-opnames/(:num)/submit",
+                        'StockOpnames::submit/$1',
+                    );
                     $routes->options(
                         "stock-transactions/(:num)/submit-revision",
                         static fn() => service("response")->setStatusCode(204),
@@ -375,43 +423,60 @@ $routes->group(
                 },
             );
 
-            $routes->group("", ["filter" => "role:admin,dapur"], static function (
-                $routes,
-            ) {
-                $routes->post("dishes", "Dishes::create");
-                $routes->put("dishes/(:num)", 'Dishes::update/$1');
-                $routes->delete("dishes/(:num)", 'Dishes::delete/$1');
-                $routes->post("dish-compositions", "DishCompositions::create");
-                $routes->put("dish-compositions/(:num)", 'DishCompositions::update/$1');
-                $routes->delete("dish-compositions/(:num)", 'DishCompositions::delete/$1');
-                $routes->post("menu-dishes", "Menus::assignSlot");
-                $routes->put("menu-dishes/(:num)", 'Menus::updateSlot/$1');
-                $routes->delete("menu-dishes/(:num)", 'Menus::deleteSlot/$1');
-                $routes->post("menu-schedules", "MenuSchedules::create");
-                $routes->put("menu-schedules/(:num)", 'MenuSchedules::update/$1');
-                $routes->post("daily-patients", "DailyPatients::create");
-                $routes->post("spk/basah/generate", "SpkBasah::generate");
-                $routes->post(
-                    "spk/basah/operational-stock-preview",
-                    "SpkBasah::operationalStockPreview",
-                );
-                $routes->post(
-                    "spk/kering-pengemas/generate",
-                    "SpkKeringPengemas::generate",
-                );
-                $routes->post(
-                    "spk/basah/history/(:num)/override",
-                    'SpkBasah::overrideItem/$1',
-                );
-                $routes->post(
-                    "spk/kering-pengemas/history/(:num)/override",
-                    'SpkKeringPengemas::overrideItem/$1',
-                );
-                $routes->get(
-                    "spk/stock-in-prefill/(:num)",
-                    'SpkStockInPrefill::show/$1',
-                );
-            });
+            $routes->group(
+                "",
+                ["filter" => "role:admin,dapur"],
+                static function ($routes) {
+                    $routes->post("dishes", "Dishes::create");
+                    $routes->put("dishes/(:num)", 'Dishes::update/$1');
+                    $routes->delete("dishes/(:num)", 'Dishes::delete/$1');
+                    $routes->post(
+                        "dish-compositions",
+                        "DishCompositions::create",
+                    );
+                    $routes->put(
+                        "dish-compositions/(:num)",
+                        'DishCompositions::update/$1',
+                    );
+                    $routes->delete(
+                        "dish-compositions/(:num)",
+                        'DishCompositions::delete/$1',
+                    );
+                    $routes->post("menu-dishes", "Menus::assignSlot");
+                    $routes->put("menu-dishes/(:num)", 'Menus::updateSlot/$1');
+                    $routes->delete(
+                        "menu-dishes/(:num)",
+                        'Menus::deleteSlot/$1',
+                    );
+                    $routes->post("menu-schedules", "MenuSchedules::create");
+                    $routes->put(
+                        "menu-schedules/(:num)",
+                        'MenuSchedules::update/$1',
+                    );
+                    $routes->post("daily-patients", "DailyPatients::create");
+                    $routes->post("spk/basah/generate", "SpkBasah::generate");
+                    $routes->post(
+                        "spk/basah/operational-stock-preview",
+                        "SpkBasah::operationalStockPreview",
+                    );
+                    $routes->post(
+                        "spk/kering-pengemas/generate",
+                        "SpkKeringPengemas::generate",
+                    );
+                    $routes->post(
+                        "spk/basah/history/(:num)/override",
+                        'SpkBasah::overrideItem/$1',
+                    );
+                    $routes->post(
+                        "spk/kering-pengemas/history/(:num)/override",
+                        'SpkKeringPengemas::overrideItem/$1',
+                    );
+                    $routes->get(
+                        "spk/stock-in-prefill/(:num)",
+                        'SpkStockInPrefill::show/$1',
+                    );
+                },
+            );
 
             $routes->group("", ["filter" => "role:admin"], static function (
                 $routes,
@@ -419,18 +484,30 @@ $routes->group(
                 $routes->get("roles", "Roles::index");
 
                 $routes->post("item-categories", "ItemCategories::create");
-                $routes->put("item-categories/(:num)", 'ItemCategories::update/$1');
-                $routes->delete("item-categories/(:num)", 'ItemCategories::delete/$1');
-                $routes->patch("item-categories/(:num)/restore", 'ItemCategories::restore/$1');
+                $routes->put(
+                    "item-categories/(:num)",
+                    'ItemCategories::update/$1',
+                );
+                $routes->delete(
+                    "item-categories/(:num)",
+                    'ItemCategories::delete/$1',
+                );
+                $routes->patch(
+                    "item-categories/(:num)/restore",
+                    'ItemCategories::restore/$1',
+                );
 
                 $routes->post("item-units", "ItemUnits::create");
                 $routes->put("item-units/(:num)", 'ItemUnits::update/$1');
                 $routes->delete("item-units/(:num)", 'ItemUnits::delete/$1');
-                $routes->patch("item-units/(:num)/restore", 'ItemUnits::restore/$1');
+                $routes->patch(
+                    "item-units/(:num)/restore",
+                    'ItemUnits::restore/$1',
+                );
 
                 $routes->post(
                     "stock-transactions/direct-corrections",
-                    'StockTransactions::directCorrection',
+                    "StockTransactions::directCorrection",
                 );
                 $routes->options(
                     "stock-transactions/direct-corrections",
@@ -449,9 +526,18 @@ $routes->group(
                     "stock-transactions/(:num)/reject",
                     'StockTransactions::reject/$1',
                 );
-                $routes->post("stock-opnames/(:num)/approve", 'StockOpnames::approve/$1');
-                $routes->post("stock-opnames/(:num)/reject", 'StockOpnames::reject/$1');
-                $routes->post("stock-opnames/(:num)/post", 'StockOpnames::post/$1');
+                $routes->post(
+                    "stock-opnames/(:num)/approve",
+                    'StockOpnames::approve/$1',
+                );
+                $routes->post(
+                    "stock-opnames/(:num)/reject",
+                    'StockOpnames::reject/$1',
+                );
+                $routes->post(
+                    "stock-opnames/(:num)/post",
+                    'StockOpnames::post/$1',
+                );
                 $routes->options(
                     "stock-transactions/(:num)/reject",
                     static fn() => service("response")->setStatusCode(204),

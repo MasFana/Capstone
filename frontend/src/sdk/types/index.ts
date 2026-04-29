@@ -5,6 +5,7 @@ export * from "./dashboard";
 export * from "./menu";
 export * from "./items";
 export * from "./lookups";
+export * from "./notifications";
 export * from "./reports";
 export * from "./roles";
 export * from "./spk";

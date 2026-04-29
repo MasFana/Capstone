@@ -473,6 +473,32 @@ These resources provide management for nutrition standards and calendar scheduli
 | `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
 | `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
 
+### `notifications`
+
+| SDK method | HTTP endpoint | Access |
+|---|---|---|
+| `sdk.notifications.list(query?)` | `GET /api/v1/notifications` | authenticated |
+| `sdk.notifications.markAsRead(id)` | `POST /api/v1/notifications/{id}/read` | authenticated |
+| `sdk.notifications.markAllAsRead()` | `POST /api/v1/notifications/read-all` | authenticated |
+| `sdk.notifications.delete(id)` | `DELETE /api/v1/notifications/{id}` | authenticated |
+| `sdk.notifications.deleteAll()` | `DELETE /api/v1/notifications` | authenticated |
+
+Query parameters and filters supported by `GET /api/v1/notifications`:
+- `page` (number) — page index (default: 1)
+- `perPage` (number) — items per page (default: 10, max: 100)
+- `paginate` (boolean|0|1) — if false/0 the endpoint returns all matched records (no paging). Default: true.
+- `is_read` (boolean|0|1) — filter by read status
+- `type` (string) — filter by notification type/category (e.g. `MIN_STOCK`, `STOCK_OPNAME`)
+- `q` (string) — full-text-ish search over `title` and `message`
+- `sortBy` (string) — one of `id`, `created_at`, `updated_at`, `is_read`, `type` (default: `created_at`)
+- `sortDir` (string) — `ASC` or `DESC` (default: `DESC`)
+
+Notes:
+- Example query: `GET /api/v1/notifications?page=2&perPage=20&is_read=0&type=MIN_STOCK&sortBy=created_at&sortDir=DESC`
+- When `paginate=false` the response includes the full `data` array and `meta` will indicate `paginated: false` and `perPage` will reflect the returned count.
+- All collection responses follow the standard paginated envelope: `{ data: [...], meta: { page, perPage, total, totalPages, paginated }, links: { self, first, last, next, previous } }`.
+- `related_id` in each notification points to the relevant resource (see API docs for types). Frontend should use `type` + `related_id` to route the user to the appropriate page.
+
 ### `dashboard` / `reports` / `stockOpnames`
 
 These resources provide analytical views and auditing tools.

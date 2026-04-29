@@ -12,6 +12,7 @@ export interface Item {
     item_unit_base_id: number | null;
     item_unit_convert_id: number | null;
     conversion_base: number;
+    min_stock: number;
     qty: string;
     is_active: boolean;
     created_at: string;
@@ -54,6 +55,7 @@ export type CreateItemRequest = ItemCategoryIdentifier & {
     unit_base: string;
     unit_convert: string;
     conversion_base: number;
+    min_stock?: number;
     is_active?: boolean;
 };
 export type UpdateItemRequest = OptionalItemCategoryIdentifier & {
@@ -61,6 +63,7 @@ export type UpdateItemRequest = OptionalItemCategoryIdentifier & {
     unit_base?: string;
     unit_convert?: string;
     conversion_base?: number;
+    min_stock?: number;
     is_active?: boolean;
 };
 export {};

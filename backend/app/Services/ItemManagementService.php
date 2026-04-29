@@ -188,6 +188,7 @@ class ItemManagementService
             'item_unit_base_id'    => $itemUnitBaseId,
             'item_unit_convert_id' => $itemUnitConvertId,
             'conversion_base'      => (int) $data['conversion_base'],
+            'min_stock'            => isset($data['min_stock']) ? (int) $data['min_stock'] : 0,
             'is_active'            => array_key_exists('is_active', $data)
                 ? filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN)
                 : true,
@@ -317,6 +318,9 @@ class ItemManagementService
         }
         if (isset($data['conversion_base'])) {
             $updateData['conversion_base'] = (int) $data['conversion_base'];
+        }
+        if (isset($data['min_stock'])) {
+            $updateData['min_stock'] = (int) $data['min_stock'];
         }
         if (array_key_exists('is_active', $data)) {
             $updateData['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
@@ -468,6 +472,7 @@ class ItemManagementService
             'item_unit_base_id'    => isset($item['item_unit_base_id']) ? (int) $item['item_unit_base_id'] : null,
             'item_unit_convert_id' => isset($item['item_unit_convert_id']) ? (int) $item['item_unit_convert_id'] : null,
             'conversion_base'      => (int) $item['conversion_base'],
+            'min_stock'            => (int) ($item['min_stock'] ?? 0),
             'qty'                  => number_format((float) $item['qty'], 2, '.', ''),
             'is_active'            => (bool) $item['is_active'],
             'created_at'           => $item['created_at'],

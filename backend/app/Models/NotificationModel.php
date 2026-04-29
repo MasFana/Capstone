@@ -34,10 +34,14 @@ class NotificationModel extends Model
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
-    protected $deletedField  = 'deleted_at';
 
     // Validation
-    protected $validationRules      = [];
+    protected $validationRules      = [
+        'user_id' => 'required|is_natural_no_zero',
+        'title'   => 'required|max_length[255]',
+        'message' => 'required',
+        'type'    => 'required|in_list[MIN_STOCK,STOCK_REVISION,STOCK_OPNAME]',
+    ];
     protected $validationMessages   = [];
     protected $skipValidation       = false;
     protected $cleanValidationRules = true;
