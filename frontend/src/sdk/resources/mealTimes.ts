@@ -1,9 +1,34 @@
 import type { ApiClient } from "../client";
 import type { ApiListResponse, LookupListQuery, MealTime } from "../types";
 
+// Aligned with api-contract.md §5.2 and runtime-status.md §4.2 — 2026-04-29
+/**
+ * MealTimes SDK Resource
+ *
+ * Wraps:    /api/v1/meal-times
+ * Contract: api-contract.md §5.2
+ * Access:   admin | gudang
+ *
+ * Lists meal-time lookup rows used by menu and SPK workflows.
+ */
 export class MealTimesResource {
   public constructor(private readonly client: ApiClient) {}
 
+  /**
+   * Lists meal times with pagination, filtering, and optional full lookup reads.
+   *
+   * @endpoint GET /api/v1/meal-times
+   * @access   admin | gudang
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<MealTime>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
+   */
   public list(query?: LookupListQuery): Promise<ApiListResponse<MealTime>> {
     return this.client.request<ApiListResponse<MealTime>>({
       method: "GET",

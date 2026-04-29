@@ -6,9 +6,30 @@ import type {
   ListNotificationsQuery,
 } from "../types";
 
+// Aligned with api-contract.md §5.10 — 2026-04-29
+/**
+ * Notifications SDK Resource
+ *
+ * Wraps:    /api/v1/notifications
+ * Contract: api-contract.md §5.10
+ * Access:   authenticated
+ *
+ * Manages self-scoped notifications for the authenticated user.
+ */
 export class NotificationsResource {
   public constructor(private readonly client: ApiClient) {}
 
+  /**
+   * Lists the authenticated user's notifications.
+   *
+   * @endpoint GET /api/v1/notifications
+   * @access   authenticated
+   * @param query - Supports `page`, `perPage`, `paginate`, `is_read`, `type`, `q`, `sortBy`, and `sortDir`. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<Notification>>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect None
+   */
   public list(
     query?: ListNotificationsQuery,
   ): Promise<ApiListResponse<Notification>> {
@@ -20,9 +41,14 @@ export class NotificationsResource {
   }
 
   /**
-   * Mark a single notification as read for the current user.
+   * Marks one notification as read for the current user.
    *
-   * HTTP: POST /api/v1/notifications/{id}/read
+   * @endpoint POST /api/v1/notifications/{id}/read
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {NotFoundApiError} if the notification does not exist or does not belong to the caller (404)
+   * @sideeffect Updates the notification's `is_read` flag.
    */
   public markAsRead(id: number): Promise<ApiMessageResponse> {
     return this.client.request<ApiMessageResponse>({
@@ -32,9 +58,13 @@ export class NotificationsResource {
   }
 
   /**
-   * Mark all notifications as read for the current user.
+   * Marks all notifications as read for the current user.
    *
-   * HTTP: POST /api/v1/notifications/read-all
+   * @endpoint POST /api/v1/notifications/read-all
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Updates `is_read=true` for all notifications owned by the caller.
    */
   public markAllAsRead(): Promise<ApiMessageResponse> {
     return this.client.request<ApiMessageResponse>({
@@ -44,9 +74,14 @@ export class NotificationsResource {
   }
 
   /**
-   * Delete a single notification owned by the current user.
+   * Deletes one notification owned by the current user.
    *
-   * HTTP: DELETE /api/v1/notifications/{id}
+   * @endpoint DELETE /api/v1/notifications/{id}
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {NotFoundApiError} if the notification does not exist or does not belong to the caller (404)
+   * @sideeffect Permanently deletes the matching notification row.
    */
   public delete(id: number): Promise<ApiMessageResponse> {
     return this.client.request<ApiMessageResponse>({
@@ -56,9 +91,13 @@ export class NotificationsResource {
   }
 
   /**
-   * Delete all notifications for the current user.
+   * Deletes all notifications owned by the current user.
    *
-   * HTTP: DELETE /api/v1/notifications
+   * @endpoint DELETE /api/v1/notifications
+   * @access   authenticated
+   * @returns {Promise<ApiMessageResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @sideeffect Permanently deletes all notifications owned by the caller.
    */
   public deleteAll(): Promise<ApiMessageResponse> {
     return this.client.request<ApiMessageResponse>({
@@ -73,20 +112,13 @@ function buildNotificationsQuery(
 ): Record<string, string | number | boolean> {
   const result: Record<string, string | number | boolean> = {};
 
-  // Pagination
   if (query.page !== undefined) result.page = query.page;
   if (query.perPage !== undefined) result.perPage = query.perPage;
-
-  // Filters
   if (query.is_read !== undefined) result.is_read = query.is_read;
   if (query.type !== undefined) result.type = query.type;
   if (query.q !== undefined) result.q = query.q;
-
-  // Sorting
   if (query.sortBy !== undefined) result.sortBy = query.sortBy;
   if (query.sortDir !== undefined) result.sortDir = query.sortDir;
-
-  // Paginate toggle (when false, backend returns all matched records)
   if (query.paginate !== undefined) result.paginate = query.paginate;
 
   return result;

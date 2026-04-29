@@ -1,3 +1,4 @@
+/** Summary block returned by reporting endpoints. Keys vary by report type. */
 export interface ReportSummary {
   total_items?: number;
   active_items?: number;
@@ -10,10 +11,12 @@ export interface ReportSummary {
   [key: string]: unknown;
 }
 
+/** Generic report row used by implemented report datasets. */
 export interface ReportRow {
   [key: string]: unknown;
 }
 
+/** Additive read-only compatibility projection used by the SPK history report. */
 export interface CompatibilityProjection {
   contract: {
     spk_calculations: string[];
@@ -23,6 +26,7 @@ export interface CompatibilityProjection {
   rows: unknown[];
 }
 
+/** Shared `data` shape used by `/reports/stocks`, `/reports/transactions`, `/reports/spk-history`, and `/reports/evaluation`. */
 export interface ReportData {
   report_type: string;
   summary: ReportSummary;
@@ -30,10 +34,12 @@ export interface ReportData {
   compatibility_projection?: CompatibilityProjection;
 }
 
+/** Response envelope for implemented report endpoints. */
 export interface ReportResponse {
   data: ReportData;
 }
 
+/** Base required query params for all report endpoints. */
 export interface ReportParams {
   period_start: string;
   period_end: string;

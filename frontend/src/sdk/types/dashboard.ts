@@ -1,5 +1,8 @@
+/** Role-shaped aggregate block returned by `GET /api/v1/dashboard` (api-contract.md §5.8). */
 export interface DashboardAggregate {
+  /** Operational app role resolved by the backend. */
   role: string;
+  /** Backend aggregate keys vary by role; see api-contract.md §5.8 for the minimum key set. */
   aggregates: {
     stock_summary?: unknown;
     dry_stock_status?: unknown;
@@ -11,6 +14,7 @@ export interface DashboardAggregate {
   };
 }
 
+/** Response envelope for `GET /api/v1/dashboard`. */
 export interface DashboardResponse {
   data: DashboardAggregate;
 }

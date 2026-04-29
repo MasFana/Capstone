@@ -1,17 +1,29 @@
 import type { ApiClient } from "../client";
 import type {
+  ApiDataResponse,
+  ApiMessageDataResponse,
   ApiMessageResponse,
   CreateDishRequest,
   Dish,
-  DishCreateResponse,
   DishesListResponse,
   ListDishesQuery,
   UpdateDishRequest
 } from "../types";
 
+// Aligned with api-contract.md §5.6.2 — 2026-04-29
+/**
+ * Dishes SDK Resource
+ *
+ * Wraps:    /api/v1/dishes
+ * Contract: api-contract.md §5.6.2
+ * Access:   admin | gudang | dapur
+ *
+ * Manages dish master data used by menu slots.
+ */
 export class DishesResource {
   public constructor(private readonly client: ApiClient) {}
 
+  /** @endpoint GET /api/v1/dishes @access admin | gudang | dapur @param query - Supports standard list pagination, search, sorting, and created/updated date ranges. @returns {Promise<DishesListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
   public list(query?: ListDishesQuery): Promise<DishesListResponse> {
     return this.client.request<DishesListResponse>({
       method: "GET",
@@ -20,29 +32,33 @@ export class DishesResource {
     });
   }
 
-  public get(id: number): Promise<{ data: Dish }> {
-    return this.client.request<{ data: Dish }>({
+  /** @endpoint GET /api/v1/dishes/{id} @access admin | gudang | dapur @returns {Promise<ApiDataResponse<Dish>>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect None */
+  public get(id: number): Promise<ApiDataResponse<Dish>> {
+    return this.client.request<ApiDataResponse<Dish>>({
       method: "GET",
       path: `/dishes/${id}`
     });
   }
 
-  public create(payload: CreateDishRequest): Promise<DishCreateResponse> {
-    return this.client.request<DishCreateResponse>({
+  /** @endpoint POST /api/v1/dishes @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {ValidationApiError} if validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect Creates a dish row. */
+  public create(payload: CreateDishRequest): Promise<ApiMessageDataResponse<Dish>> {
+    return this.client.request<ApiMessageDataResponse<Dish>>({
       method: "POST",
       path: "/dishes",
       body: payload
     });
   }
 
-  public update(id: number, payload: UpdateDishRequest): Promise<DishCreateResponse> {
-    return this.client.request<DishCreateResponse>({
+  /** @endpoint PUT /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {ValidationApiError} if validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Updates a dish row. */
+  public update(id: number, payload: UpdateDishRequest): Promise<ApiMessageDataResponse<Dish>> {
+    return this.client.request<ApiMessageDataResponse<Dish>>({
       method: "PUT",
       path: `/dishes/${id}`,
       body: payload
     });
   }
 
+  /** @endpoint DELETE /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageResponse>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Permanently deletes the dish row. */
   public delete(id: number): Promise<ApiMessageResponse> {
     return this.client.request<ApiMessageResponse>({
       method: "DELETE",

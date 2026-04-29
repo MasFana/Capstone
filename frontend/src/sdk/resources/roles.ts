@@ -1,17 +1,33 @@
 import type { ApiClient } from "../client";
 import type { ApiListResponse, Role, RoleListQuery } from "../types";
 
+// Aligned with api-contract.md §5.1 and §5.2 — 2026-04-29
 /**
- * Role lookup endpoints.
+ * Roles SDK Resource
+ *
+ * Wraps:    /api/v1/roles
+ * Contract: api-contract.md §5.1 and §5.2
+ * Access:   admin
+ *
+ * Lists operational app roles from the `roles` table.
  */
 export class RolesResource {
   public constructor(private readonly client: ApiClient) {}
 
   /**
-   * Lists all available roles.
+   * Lists all available app roles with pagination, filtering, and optional full lookup reads.
    *
-   * HTTP: `GET /api/v1/roles`
-   * Access: `admin` only
+   * @endpoint GET /api/v1/roles
+   * @access   admin
+   *
+   * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
+   * @returns {Promise<ApiListResponse<Role>>}
+   *
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   *
+   * @sideeffect None
    */
   public list(query?: RoleListQuery): Promise<ApiListResponse<Role>> {
     return this.client.request<ApiListResponse<Role>>({

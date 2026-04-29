@@ -18,15 +18,31 @@ import type {
   SpkStockInPrefillResponse
 } from "../types";
 
+// Aligned with api-contract.md §5.7 — 2026-04-29
 /**
- * SPK generation/history endpoints.
+ * SPK SDK Resource
  *
- * This resource keeps basah and kering/pengemas contracts explicitly separate
- * because they use different generation payloads and detail semantics.
+ * Wraps:    /api/v1/spk/*
+ * Contract: api-contract.md §5.7
+ * Access:   admin | gudang | dapur
+ *
+ * Wraps SPK basah and kering/pengemas generation, history, override, posting, and helper endpoints.
  */
 export class SpkResource {
   public constructor(private readonly client: ApiClient) {}
 
+  /**
+   * Resolves the SPK basah menu-calendar projection.
+   *
+   * @endpoint GET /api/v1/spk/basah/menu-calendar
+   * @access   admin | gudang | dapur
+   * @param query - Send exactly one of `date`, `month`, or `start_date` + `end_date`.
+   * @returns {Promise<SpkMenuCalendarResponse>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   public basahMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse> {
     return this.client.request<SpkMenuCalendarResponse>({
       method: "GET",
@@ -35,6 +51,17 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Previews same-day operational stock consumption for basah preparation.
+   *
+   * @endpoint POST /api/v1/spk/basah/operational-stock-preview
+   * @access   admin | dapur
+   * @returns {Promise<OperationalStockPreviewResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None; this is a calculation helper only.
+   */
   public operationalStockPreview(
     payload: OperationalStockPreviewRequest
   ): Promise<OperationalStockPreviewResponse> {
@@ -46,11 +73,16 @@ export class SpkResource {
   }
 
   /**
-   * Generates a basah SPK for one requested service date, with backend logic
-   * potentially expanding to a same-month combined window (day + next day).
+   * Generates a basah SPK version.
    *
-   * HTTP: `POST /api/v1/spk/basah/generate`
-   * Access: `admin`, `dapur`
+   * @endpoint POST /api/v1/spk/basah/generate
+   * @access   admin | dapur
+   * @param payload - Basah generation input. Recommendations follow `((daily_patients × 1.05) × composition_qty) - current_stock`, clamped to 0.
+   * @returns {Promise<SpkBasahGenerateResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new history/version row. Does not create stock transactions and does not mutate stock.
    */
   public generateBasah(payload: GenerateSpkBasahRequest): Promise<SpkBasahGenerateResponse> {
     return this.client.request<SpkBasahGenerateResponse>({
@@ -61,13 +93,14 @@ export class SpkResource {
   }
 
   /**
-   * Lists basah SPK history entries.
+   * Lists SPK basah history versions.
    *
-   * Envelope semantics: `{ data: [...], meta: { total } }`
-   * (intentionally no pagination `links` contract).
-   *
-   * HTTP: `GET /api/v1/spk/basah/history`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/basah/history
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkBasahHistoryListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   public listBasah(): Promise<SpkBasahHistoryListResponse> {
     return this.client.request<SpkBasahHistoryListResponse>({
@@ -77,13 +110,15 @@ export class SpkResource {
   }
 
   /**
-   * Returns one basah SPK history detail.
+   * Returns one SPK basah history version.
    *
-   * Basah detail/print payload includes combined-window `target_dates` and
-   * item rows with non-null day-level `target_date` fields.
-   *
-   * HTTP: `GET /api/v1/spk/basah/history/{id}`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/basah/history/{id}
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkBasahDetailResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the history row does not exist (404)
+   * @sideeffect None
    */
   public getBasah(id: number): Promise<SpkBasahDetailResponse> {
     return this.client.request<SpkBasahDetailResponse>({
@@ -92,6 +127,18 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Overrides one basah recommendation row.
+   *
+   * @endpoint POST /api/v1/spk/basah/history/{id}/override
+   * @access   admin | dapur
+   * @returns {Promise<SpkOverrideResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row or recommendation does not exist (404)
+   * @sideeffect Updates override metadata only; no stock mutation occurs.
+   */
   public overrideBasah(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse> {
     return this.client.request<SpkOverrideResponse>({
       method: "POST",
@@ -100,6 +147,18 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Posts one basah SPK to stock.
+   *
+   * @endpoint POST /api/v1/spk/basah/history/{id}/post-stock
+   * @access   admin
+   * @returns {Promise<SpkPostStockResponse>}
+   * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect Creates a stock transaction and finalizes the SPK with `is_finish=true`. This action can only happen once per SPK version.
+   */
   public postBasahStock(id: number): Promise<SpkPostStockResponse> {
     return this.client.request<SpkPostStockResponse>({
       method: "POST",
@@ -107,6 +166,18 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Resolves the SPK kering/pengemas menu-calendar projection.
+   *
+   * @endpoint GET /api/v1/spk/kering-pengemas/menu-calendar
+   * @access   admin | gudang | dapur
+   * @param query - Send exactly one of `date`, `month`, or `start_date` + `end_date`.
+   * @returns {Promise<SpkMenuCalendarResponse>}
+   * @throws {ValidationApiError} if query validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
+   */
   public keringPengemasMenuCalendar(query?: SpkMenuCalendarQuery): Promise<SpkMenuCalendarResponse> {
     return this.client.request<SpkMenuCalendarResponse>({
       method: "GET",
@@ -116,10 +187,16 @@ export class SpkResource {
   }
 
   /**
-   * Generates a monthly SPK for kering/pengemas categories.
+   * Generates a kering/pengemas SPK version.
    *
-   * HTTP: `POST /api/v1/spk/kering-pengemas/generate`
-   * Access: `admin`, `dapur`
+   * @endpoint POST /api/v1/spk/kering-pengemas/generate
+   * @access   admin | dapur
+   * @param payload - Monthly generation input. Recommendations follow `(prev_month_actual_usage × 1.10) - current_stock`, clamped to 0.
+   * @returns {Promise<SpkKeringPengemasGenerateResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect Creates a new history/version row. Does not create stock transactions and does not mutate stock.
    */
   public generateKeringPengemas(
     payload: GenerateSpkKeringPengemasRequest
@@ -132,13 +209,14 @@ export class SpkResource {
   }
 
   /**
-   * Lists kering/pengemas SPK history entries.
+   * Lists kering/pengemas SPK history versions.
    *
-   * Envelope semantics: `{ data: [...], meta: { total } }`
-   * (intentionally no pagination `links` contract).
-   *
-   * HTTP: `GET /api/v1/spk/kering-pengemas/history`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/kering-pengemas/history
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkKeringPengemasHistoryListResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @sideeffect None
    */
   public listKeringPengemas(): Promise<SpkKeringPengemasHistoryListResponse> {
     return this.client.request<SpkKeringPengemasHistoryListResponse>({
@@ -148,13 +226,15 @@ export class SpkResource {
   }
 
   /**
-   * Returns one kering/pengemas SPK history detail.
+   * Returns one kering/pengemas SPK history version.
    *
-   * Kering/pengemas detail/print payload uses monthly semantics where item rows
-   * keep `target_date = null` and print payload includes `target_month`.
-   *
-   * HTTP: `GET /api/v1/spk/kering-pengemas/history/{id}`
-   * Access: `admin`, `dapur`, `gudang`
+   * @endpoint GET /api/v1/spk/kering-pengemas/history/{id}
+   * @access   admin | dapur | gudang
+   * @returns {Promise<SpkKeringPengemasDetailResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the history row does not exist (404)
+   * @sideeffect None
    */
   public getKeringPengemas(id: number): Promise<SpkKeringPengemasDetailResponse> {
     return this.client.request<SpkKeringPengemasDetailResponse>({
@@ -163,6 +243,18 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Overrides one kering/pengemas recommendation row.
+   *
+   * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/override
+   * @access   admin | dapur
+   * @returns {Promise<SpkOverrideResponse>}
+   * @throws {ValidationApiError} if validation fails (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row or recommendation does not exist (404)
+   * @sideeffect Updates override metadata only; no stock mutation occurs.
+   */
   public overrideKeringPengemas(id: number, payload: SpkOverrideRequest): Promise<SpkOverrideResponse> {
     return this.client.request<SpkOverrideResponse>({
       method: "POST",
@@ -171,6 +263,18 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Posts one kering/pengemas SPK to stock.
+   *
+   * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/post-stock
+   * @access   admin
+   * @returns {Promise<SpkPostStockResponse>}
+   * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect Creates a stock transaction and finalizes the SPK with `is_finish=true`. This action can only happen once per SPK version.
+   */
   public postKeringPengemasStock(id: number): Promise<SpkPostStockResponse> {
     return this.client.request<SpkPostStockResponse>({
       method: "POST",
@@ -178,6 +282,17 @@ export class SpkResource {
     });
   }
 
+  /**
+   * Returns a stock-transaction prefill payload derived from an SPK.
+   *
+   * @endpoint GET /api/v1/spk/stock-in-prefill/{id}
+   * @access   admin | dapur
+   * @returns {Promise<SpkStockInPrefillResponse>}
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the SPK history row does not exist (404)
+   * @sideeffect None; this helper does not mutate stock.
+   */
   public stockInPrefill(id: number): Promise<SpkStockInPrefillResponse> {
     return this.client.request<SpkStockInPrefillResponse>({
       method: "GET",

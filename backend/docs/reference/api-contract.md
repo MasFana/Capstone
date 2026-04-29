@@ -1772,15 +1772,15 @@ Sistem secara otomatis membuat dan mendistribusikan notifikasi berdasarkan event
 
 | Event / Konteks | `type` Value | Penerima Notifikasi | `related_id` Merujuk Pada |
 |---|---|---|---|
-| **Peringatan Stok Minimum** | `MIN_STOCK` | Role: `Admin` | ID Item (`items.id`) |
-| **Pengajuan Revisi Transaksi** | `STOCK_REVISION` | Role: `Admin` | ID Revisi/Transaksi |
-| **Status Revisi Transaksi** | `STOCK_REVISION` | User Submitter | ID Revisi/Transaksi |
-| **Pengajuan Stock Opname** | `STOCK_OPNAME` | Role: `Admin` | ID Opname (`stock_opnames.id`) |
-| **Status Stock Opname** | `STOCK_OPNAME` | User Submitter | ID Opname (`stock_opnames.id`) |
+| **Peringatan Stok Minimum** | `MIN_STOCK` | Role: `admin` | `items.id` |
+| **Pengajuan Revisi Transaksi** | `STOCK_REVISION` | Role: `admin` | transaction/revision id |
+| **Status Revisi Transaksi** | `STOCK_REVISION` | User submitter | transaction/revision id |
+| **Pengajuan Stock Opname** | `STOCK_OPNAME` | Role: `admin` | `stock_opnames.id` |
+| **Status Stock Opname** | `STOCK_OPNAME` | User submitter | `stock_opnames.id` |
 
 #### 5.10.1 List Notifications
 - **Method:** `GET /api/v1/notifications`
-- **Access:** Authenticated user (self)
+- **Access:** `authenticated` (self-scoped)
 - **Query Parameters:** `page`, `perPage`, `paginate`, `is_read`, `type`, `q`, `sortBy`, `sortDir`
 
 #### Response
@@ -1818,11 +1818,11 @@ Sistem secara otomatis membuat dan mendistribusikan notifikasi berdasarkan event
 
 #### 5.10.2 Mark Notification as Read
 - **Method:** `POST /api/v1/notifications/{id}/read`
-- **Access:** Authenticated user (owner of notification)
+- **Access:** `authenticated` (owner of notification)
 
 #### 5.10.3 Mark All Notifications as Read
 - **Method:** `POST /api/v1/notifications/read-all`
-- **Access:** Authenticated user (self)
+- **Access:** `authenticated` (self-scoped)
 
 #### 5.10.4 List Notifications with Filters, Sorting, and Pagination
 
@@ -1953,7 +1953,7 @@ GET /api/v1/notifications?paginate=false
 
 #### 5.10.5 Delete a Single Notification
 - **Method:** `DELETE /api/v1/notifications/{id}`
-- **Access:** Authenticated user (owner of notification)
+- **Access:** `authenticated` (owner of notification)
 - **Behavior:** Only deletes if the notification belongs to the authenticated user.
 
 **Example Request**
@@ -1979,7 +1979,7 @@ Authorization: Bearer <token>
 
 #### 5.10.6 Delete All Notifications
 - **Method:** `DELETE /api/v1/notifications`
-- **Access:** Authenticated user (self)
+- **Access:** `authenticated` (self-scoped)
 - **Behavior:** Deletes all notifications for the authenticated user.
 
 **Example Request**

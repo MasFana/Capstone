@@ -6,6 +6,16 @@ use App\Controllers\BaseController;
 use App\Services\ItemManagementService;
 use CodeIgniter\HTTP\ResponseInterface;
 
+/**
+ * Items
+ *
+ * Module   : Items
+ * Route    : /api/v1/items
+ * Access   : admin, gudang (list/show/create/update); admin (delete/restore)
+ * Canonical: backend/docs/reference/api-contract.md §5.4
+ *
+ * Manages item master records while keeping qty mutations confined to stock workflows.
+ */
 class Items extends BaseController
 {
     protected ItemManagementService $itemService;
@@ -15,6 +25,25 @@ class Items extends BaseController
         $this->itemService = new ItemManagementService();
     }
 
+    /**
+     * Returns the item collection with canonical filtering and pagination rules.
+     *
+     * HTTP     : GET /api/v1/items
+     * Access   : admin, gudang
+     * Service  : ItemManagementService::getAllItems()
+     * Contract : api-contract.md §5.4.2
+     *
+     * Supports: page, perPage, paginate (false = all rows, same envelope, meta.paginated=false),
+     *           sortBy, sortDir, q/search (q takes priority), date range filters.
+     * Unknown query params → 400.
+     * Soft-deleted rows are excluded.
+     *
+     * @return ResponseInterface JSON — data/meta/links envelope of active item rows.
+     *
+     * @throws \RuntimeException if downstream query assembly fails
+     *
+     * @sideeffect none
+     */
     public function index(): ResponseInterface
     {
         $result = $this->itemService->getAllItems($this->request->getGet());
@@ -37,6 +66,22 @@ class Items extends BaseController
             ]);
     }
 
+    /**
+     * Returns one active item by identifier.
+     *
+     * HTTP     : GET /api/v1/items/{id}
+     * Access   : admin, gudang
+     * Service  : ItemManagementService::getItemById()
+     * Contract : api-contract.md §5.4.4
+     *
+     * @param int $id Item identifier.
+     * @return ResponseInterface JSON — data envelope containing one active item.
+     *
+     * @throws \DomainException if the item lookup fails in the persistence layer
+     * @throws \RuntimeException if response serialization fails
+     *
+     * @sideeffect none
+     */
     public function show(int $id): ResponseInterface
     {
         $item = $this->itemService->getItemById($id);
@@ -56,6 +101,26 @@ class Items extends BaseController
             ]);
     }
 
+    /**
+     * Creates a new item master row with category and unit lookup resolution.
+     *
+     * HTTP     : POST /api/v1/items
+     * Access   : admin, gudang
+     * Service  : ItemManagementService::createItem()
+     * Contract : api-contract.md §5.4.3
+     *
+     * Accepts EITHER item_category_id OR item_category_name — not both.
+     * Name matching is case-insensitive and trimmed.
+     * Sending both returns 400.
+     *
+     * @return ResponseInterface JSON — message + data envelope for the created item.
+     *
+     * @throws \InvalidArgumentException if forbidden writable fields such as qty are sent
+     * @throws \DomainException if category or unit lookups cannot resolve to active rows
+     * @throws \RuntimeException if persistence fails
+     *
+     * @sideeffect none; items.qty remains read-only in this module.
+     */
     public function create(): ResponseInterface
     {
         $data = $this->request->getJSON(true) ?? [];
@@ -140,6 +205,27 @@ class Items extends BaseController
             ]);
     }
 
+    /**
+     * Applies partial-update semantics to an active item master row.
+     *
+     * HTTP     : PUT /api/v1/items/{id}
+     * Access   : admin, gudang
+     * Service  : ItemManagementService::updateItem()
+     * Contract : api-contract.md §5.4.5
+     *
+     * Accepts EITHER item_category_id OR item_category_name — not both.
+     * Name matching is case-insensitive and trimmed.
+     * Sending both returns 400.
+     *
+     * @param int $id Item identifier.
+     * @return ResponseInterface JSON — message + data envelope for the updated item.
+     *
+     * @throws \InvalidArgumentException if forbidden writable fields such as qty are sent
+     * @throws \DomainException if the item, category, or unit lookup is invalid
+     * @throws \RuntimeException if persistence fails
+     *
+     * @sideeffect none; items.qty remains read-only in this module.
+     */
     public function update(int $id): ResponseInterface
     {
         $data = $this->request->getJSON(true) ?? [];
@@ -220,6 +306,22 @@ class Items extends BaseController
             ]);
     }
 
+    /**
+     * Soft-deletes an item master row.
+     *
+     * HTTP     : DELETE /api/v1/items/{id}
+     * Access   : admin
+     * Service  : ItemManagementService::deleteItem()
+     * Contract : api-contract.md §5.4.6
+     *
+     * @param int $id Item identifier.
+     * @return ResponseInterface JSON — message envelope confirming deletion.
+     *
+     * @throws \DomainException if the active item does not exist
+     * @throws \RuntimeException if soft-delete persistence fails
+     *
+     * @sideeffect Soft-deletes row (sets deleted_at).
+     */
     public function delete(int $id): ResponseInterface
     {
         $result = $this->itemService->deleteItem($id);
@@ -239,6 +341,22 @@ class Items extends BaseController
             ]);
     }
 
+    /**
+     * Restores a soft-deleted item after validating active FK dependencies.
+     *
+     * HTTP     : PATCH /api/v1/items/{id}/restore
+     * Access   : admin
+     * Service  : ItemManagementService::restoreItem()
+     * Contract : api-contract.md §5.4.8
+     *
+     * @param int $id Item identifier.
+     * @return ResponseInterface JSON — message + data envelope for the restored item.
+     *
+     * @throws \DomainException if the item does not exist or an active duplicate name exists
+     * @throws \RuntimeException if restore persistence fails
+     *
+     * @sideeffect Clears deleted_at, validates FK refs still active.
+     */
     public function restore(int $id): ResponseInterface
     {
         $result = $this->itemService->restoreItem($id);

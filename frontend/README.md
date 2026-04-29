@@ -34,6 +34,7 @@ Implemented SDK resources:
 - `dishes`
 - `dishCompositions`
 - `menuSchedules`
+- `notifications`
 - `dashboard`
 - `reports`
 - `stockOpnames`
@@ -332,6 +333,12 @@ await sdk.auth.login({
 |---|---|---|
 | `sdk.approvalStatuses.list(query?)` | `GET /api/v1/approval-statuses` | `admin`, `gudang` |
 
+### `mealTimes`
+
+| SDK method | HTTP endpoint | Access |
+|---|---|---|
+| `sdk.mealTimes.list(query?)` | `GET /api/v1/meal-times` | `admin`, `gudang` |
+
 ### `items`
 
 | SDK method | HTTP endpoint | Access |
@@ -445,21 +452,28 @@ await sdk.auth.login({
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
+| `sdk.spk.basahMenuCalendar(query?)` | `GET /api/v1/spk/basah/menu-calendar` | `admin`, `dapur`, `gudang` |
+| `sdk.spk.operationalStockPreview(payload)` | `POST /api/v1/spk/basah/operational-stock-preview` | `admin`, `dapur` |
 | `sdk.spk.generateBasah(payload)` | `POST /api/v1/spk/basah/generate` | `admin`, `dapur` |
 | `sdk.spk.listBasah()` | `GET /api/v1/spk/basah/history` | `admin`, `dapur`, `gudang` |
 | `sdk.spk.getBasah(id)` | `GET /api/v1/spk/basah/history/{id}` | `admin`, `dapur`, `gudang` |
+| `sdk.spk.overrideBasah(id, payload)` | `POST /api/v1/spk/basah/history/{id}/override` | `admin`, `dapur` |
 | `sdk.spk.postBasahStock(id)` | `POST /api/v1/spk/basah/history/{id}/post-stock` | `admin` only |
+| `sdk.spk.keringPengemasMenuCalendar(query?)` | `GET /api/v1/spk/kering-pengemas/menu-calendar` | `admin`, `dapur`, `gudang` |
 | `sdk.spk.generateKeringPengemas(payload)` | `POST /api/v1/spk/kering-pengemas/generate` | `admin`, `dapur` |
 | `sdk.spk.listKeringPengemas()` | `GET /api/v1/spk/kering-pengemas/history` | `admin`, `dapur`, `gudang` |
 | `sdk.spk.getKeringPengemas(id)` | `GET /api/v1/spk/kering-pengemas/history/{id}` | `admin`, `dapur`, `gudang` |
+| `sdk.spk.overrideKeringPengemas(id, payload)` | `POST /api/v1/spk/kering-pengemas/history/{id}/override` | `admin`, `dapur` |
 | `sdk.spk.postKeringPengemasStock(id)` | `POST /api/v1/spk/kering-pengemas/history/{id}/post-stock` | `admin` only |
+| `sdk.spk.stockInPrefill(id)` | `GET /api/v1/spk/stock-in-prefill/{id}` | `admin`, `dapur` |
 
 #### SPK Recommendation logic
 
-- **Basah:** `((daily_patients * 1.05) * composition) - stock`. Covers today and day+1 within the same month.
-- **Kering/Pengemas:** `(prev_month_actual_usage * 1.10) - stock`.
-- Recommendations are clamped to 0 (no negative values).
-- **Important:** SPK generation endpoints are calculation helpers; they do not mutate stock. Stock changes must be explicitly saved via `stockTransactions.create`.
+- **Basah:** `((daily_patients × 1.05) × composition_qty) - current_stock`, clamped to 0.
+- **Kering/Pengemas:** `(prev_month_actual_usage × 1.10) - current_stock`, clamped to 0.
+- Each `generate*()` call creates a new history row/version; earlier versions are preserved.
+- `generate*()` and `operationalStockPreview()` are calculation helpers only; they do **not** create stock transactions and do **not** mutate stock.
+- `postBasahStock()` and `postKeringPengemasStock()` create the stock transaction and finalize the SPK (`is_finish=true`).
 
 ### `menus` / `dishes` / `dishCompositions` / `menuSchedules`
 
@@ -477,11 +491,11 @@ These resources provide management for nutrition standards and calendar scheduli
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.notifications.list(query?)` | `GET /api/v1/notifications` | authenticated |
-| `sdk.notifications.markAsRead(id)` | `POST /api/v1/notifications/{id}/read` | authenticated |
-| `sdk.notifications.markAllAsRead()` | `POST /api/v1/notifications/read-all` | authenticated |
-| `sdk.notifications.delete(id)` | `DELETE /api/v1/notifications/{id}` | authenticated |
-| `sdk.notifications.deleteAll()` | `DELETE /api/v1/notifications` | authenticated |
+| `sdk.notifications.list(query?)` | `GET /api/v1/notifications` | authenticated (self-scoped) |
+| `sdk.notifications.markAsRead(id)` | `POST /api/v1/notifications/{id}/read` | authenticated (owner only) |
+| `sdk.notifications.markAllAsRead()` | `POST /api/v1/notifications/read-all` | authenticated (self-scoped) |
+| `sdk.notifications.delete(id)` | `DELETE /api/v1/notifications/{id}` | authenticated (owner only) |
+| `sdk.notifications.deleteAll()` | `DELETE /api/v1/notifications` | authenticated (self-scoped) |
 
 Query parameters and filters supported by `GET /api/v1/notifications`:
 - `page` (number) — page index (default: 1)
@@ -497,7 +511,8 @@ Notes:
 - Example query: `GET /api/v1/notifications?page=2&perPage=20&is_read=0&type=MIN_STOCK&sortBy=created_at&sortDir=DESC`
 - When `paginate=false` the response includes the full `data` array and `meta` will indicate `paginated: false` and `perPage` will reflect the returned count.
 - All collection responses follow the standard paginated envelope: `{ data: [...], meta: { page, perPage, total, totalPages, paginated }, links: { self, first, last, next, previous } }`.
-- `related_id` in each notification points to the relevant resource (see API docs for types). Frontend should use `type` + `related_id` to route the user to the appropriate page.
+- `related_id` in each notification points to the relevant resource: `MIN_STOCK` -> `items.id`, `STOCK_REVISION` -> revision/transaction id, `STOCK_OPNAME` -> `stock_opnames.id`.
+- Frontend should use `type` + `related_id` to route the user to the appropriate page.
 
 ### `dashboard` / `reports` / `stockOpnames`
 
@@ -506,8 +521,9 @@ These resources provide analytical views and auditing tools.
 | Resource | Methods | Access |
 |---|---|---|
 | `dashboard` | `getAggregate` | `admin`, `dapur`, `gudang` |
-| `reports` | `getStocks`, `getTransactions`, `getSpkHistory`, `getEvaluation` | `admin`, `gudang` |
-| `stockOpnames` | `create`, `get`, `submit`, `approve`, `reject`, `post` | `admin`, `gudang` |
+| `reports` | `getStocks`, `getTransactions`, `getSpkHistory`, `getEvaluation` | `admin`, `dapur`, `gudang` |
+| `stockOpnames` | `create`, `get`, `submit` | `admin`, `gudang` |
+| `stockOpnames` | `approve`, `reject`, `post` | `admin` |
 
 ## List query reference
 
@@ -767,7 +783,6 @@ sdk.setAccessToken(login.access_token);
 // Input daily patients (canonical source for SPK Basah)
 const patients = await sdk.dailyPatients.create({
   service_date: "2026-04-14",
-  meal_time: "SIANG",
   total_patients: 120
 });
 ```
@@ -777,44 +792,24 @@ const patients = await sdk.dailyPatients.create({
 // Generate SPK Basah recommendation
 const spk = await sdk.spk.generateBasah({
   daily_patient_id: patients.data.id,
-  target_date: "2026-04-14",
+  service_date: "2026-04-14",
   category_id: 1 // BASAH
 });
 
-// spk.data.recommendations contains items with:
-// qty = ((120 * 1.05) * composition) - stock (clamped to 0)
+// Basah recommendation formula:
+// ((120 * 1.05) * composition_qty) - current_stock, clamped to 0
 ```
 
 ### 3. Stock Mutation (Authoritative Action)
-The UI may allow overriding quantities before finalizing. Once ready, the stock mutation must be explicitly saved.
+The UI may allow overriding quantities before finalizing. Once ready, stock posting must be triggered explicitly.
 
 ```ts
-// Record stock IN from external purchase based on SPK
-await sdk.stockTransactions.create({
-  type_name: "IN",
-  transaction_date: "2026-04-14",
-  spk_id: spk.data.id,
-  details: [
-    {
-      item_id: 1, // Rice
-      qty: 5000,   // 5kg (base unit)
-      input_unit: "base"
-    }
-  ]
-});
+// Optional helper: prefill a stock-IN transaction payload from the SPK
+const prefill = await sdk.spk.stockInPrefill(spk.data.id);
+console.log(prefill.data);
 
-// Record stock OUT based on menu projection (Drafted from menu helper in UI)
-await sdk.stockTransactions.create({
-  type_name: "OUT",
-  transaction_date: "2026-04-14",
-  details: [
-    {
-      item_id: 1,
-      qty: 4800,
-      input_unit: "base"
-    }
-  ]
-});
+// Finalize the SPK and post its stock mutation
+await sdk.spk.postBasahStock(spk.data.id);
 ```
 
 ### 4. History and Printing

@@ -250,6 +250,7 @@ $routes->group(
         }
 
         $routes->group("", ["filter" => "tokens"], static function ($routes) {
+            // [MODULE: Auth] Roles: authenticated | Controller: App\Controllers\Api\V1\Auth
             $routes->get("auth/me", "Auth::me");
             $routes->post("auth/logout", "Auth::logout");
             $routes->patch("auth/password", "Auth::changePassword");
@@ -270,6 +271,7 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,dapur,gudang"],
                 static function ($routes) {
+                    // [MODULE: Dashboard & Reports] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\Dashboard, App\Controllers\Api\V1\Reports
                     $routes->get("dashboard", "Dashboard::index");
                     $routes->get("reports/stocks", "Reports::stocks");
                     $routes->get(
@@ -281,7 +283,7 @@ $routes->group(
                 },
             );
 
-            // Shared operational read access.
+            // [MODULE: Menu & Nutrition Read Surface] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, DailyPatients, SpkBasah, SpkKeringPengemas
             $routes->group(
                 "",
                 ["filter" => "role:admin,dapur,gudang"],
@@ -340,7 +342,7 @@ $routes->group(
                 },
             );
 
-            // Inventory and stock domain access (gudang-focused).
+            // [MODULE: Inventory & Stock Operations] Roles: admin, gudang | Controller: App\Controllers\Api\V1\ItemCategories, ItemUnits, Items, StockTransactions, StockOpnames
             $routes->group(
                 "",
                 ["filter" => "role:admin,gudang"],
@@ -427,6 +429,7 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,dapur"],
                 static function ($routes) {
+                    // [MODULE: Menu & Nutrition Write Surface] Roles: admin, dapur | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, DailyPatients, SpkBasah, SpkKeringPengemas, SpkStockInPrefill
                     $routes->post("dishes", "Dishes::create");
                     $routes->put("dishes/(:num)", 'Dishes::update/$1');
                     $routes->delete("dishes/(:num)", 'Dishes::delete/$1');
@@ -481,6 +484,7 @@ $routes->group(
             $routes->group("", ["filter" => "role:admin"], static function (
                 $routes,
             ) {
+                // [MODULE: Admin Surface] Roles: admin | Controller: App\Controllers\Api\V1\Roles, ItemCategories, ItemUnits, StockTransactions, StockOpnames, SpkBasah, SpkKeringPengemas, Users, Items
                 $routes->get("roles", "Roles::index");
 
                 $routes->post("item-categories", "ItemCategories::create");
