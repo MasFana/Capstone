@@ -413,6 +413,7 @@ await sdk.auth.login({
 - direct correction is stored as a normal stock transaction (not a revision), with the server deriving whether the adjustment is `IN` or `OUT`
 - submit revision only creates a pending child revision; it does not change stock immediately
 - approve revision applies the revision as a **net correction** against the parent transaction's stock effect, not as a second additive stock movement
+- `sdk.stockTransactions.details(id)` returns normalized detail rows with item metadata, including `satuan` as the base-unit label for `qty`; use `input_qty` + `input_unit` for the original entered quantity mode
 - detail rows still use `item_id`; there is no item-name write shortcut in transaction details
 - there is intentionally no `sdk.stockTransactions.delete()` method because the backend exposes no delete route for stock transactions
 
