@@ -222,6 +222,7 @@ describe("StockTransactionsResource", () => {
       item_name: "Beras",
       item_category_id: 1,
       item_category_name: "KERING",
+      satuan: "gram",
       qty: "5000.00",
       input_qty: "5.00",
       input_unit: "convert"
@@ -229,6 +230,7 @@ describe("StockTransactionsResource", () => {
 
     expect(detail.item_name).toBe("Beras");
     expect(detail.item_category_name).toBe("KERING");
+    expect(detail.satuan).toBe("gram");
     expect(detail.input_qty).toBe("5.00");
     expect(detail.input_unit).toBe("convert");
     expect(detail.qty).toBe("5000.00");

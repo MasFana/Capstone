@@ -70,7 +70,7 @@ export class StockTransactionsResource {
    *
    * @endpoint GET /api/v1/stock-transactions/{id}/details
    * @access   admin | gudang
-   * @returns {Promise<ApiDataResponse<StockTransactionDetail[]>>}
+   * @returns {Promise<ApiDataResponse<StockTransactionDetail[]>>} Each row includes `item_name`, `item_category_id`, `item_category_name`, `satuan` (base unit label from `items.unit_base`), `qty`, `input_qty`, and `input_unit`.
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
    * @throws {NotFoundApiError} if the transaction does not exist (404)
