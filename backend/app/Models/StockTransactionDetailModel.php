@@ -25,7 +25,8 @@ class StockTransactionDetailModel extends Model
                 'stock_transaction_details.*, ' .
                 'items.name AS item_name, ' .
                 'items.item_category_id AS item_category_id, ' .
-                'item_categories.name AS item_category_name'
+                'item_categories.name AS item_category_name, ' .
+                'items.unit_base AS satuan'
             )
             ->join('items', 'items.id = stock_transaction_details.item_id', 'left')
             ->join('item_categories', 'item_categories.id = items.item_category_id', 'left')

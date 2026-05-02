@@ -1115,6 +1115,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('item_name', $detailsJson['data'][0]);
         $this->assertArrayHasKey('item_category_id', $detailsJson['data'][0]);
         $this->assertArrayHasKey('item_category_name', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('satuan', $detailsJson['data'][0]);
         $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
     }
 
@@ -1197,6 +1198,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('item_name', $detailsJson['data'][0]);
         $this->assertArrayHasKey('item_category_id', $detailsJson['data'][0]);
         $this->assertArrayHasKey('item_category_name', $detailsJson['data'][0]);
+        $this->assertArrayHasKey('satuan', $detailsJson['data'][0]);
         $this->assertArrayHasKey('qty', $detailsJson['data'][0]);
         $this->assertArrayHasKey('input_qty', $detailsJson['data'][0]);
         $this->assertArrayHasKey('input_unit', $detailsJson['data'][0]);
@@ -3394,6 +3396,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertArrayHasKey('item_name', $first);
         $this->assertArrayHasKey('item_category_id', $first);
         $this->assertArrayHasKey('item_category_name', $first);
+        $this->assertArrayHasKey('satuan', $first);
         $this->assertArrayHasKey('qty', $first);
         $this->assertArrayHasKey('input_qty', $first);
         $this->assertArrayHasKey('input_unit', $first);
@@ -3401,6 +3404,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertSame('Beras', $first['item_name']);
         $this->assertNotNull($first['item_category_id']);
         $this->assertSame('KERING', $first['item_category_name']);
+        $this->assertSame('gram', $first['satuan']);
         $this->assertEquals(3000.0, (float) $first['qty']);
         $this->assertEquals(3.0, (float) $first['input_qty']);
         $this->assertSame('convert', $first['input_unit']);
