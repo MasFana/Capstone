@@ -16,6 +16,8 @@ class AddLegacyOpnameBackfillMarkersToStockTransactions extends Migration
             return;
         }
 
+        $resolvedTable = $this->resolveTableName(self::TABLE_NAME);
+
         $this->addNullableColumnIfMissing(self::TABLE_NAME, 'legacy_source_table', 'VARCHAR(64)');
         $this->addNullableColumnIfMissing(self::TABLE_NAME, 'legacy_source_id', 'BIGINT');
         $this->addNullableColumnIfMissing(self::TABLE_NAME, 'legacy_source_detail_id', 'BIGINT');
@@ -28,7 +30,7 @@ class AddLegacyOpnameBackfillMarkersToStockTransactions extends Migration
                 sprintf(
                     'CREATE UNIQUE INDEX %s ON %s (legacy_source_table, legacy_source_detail_id)',
                     self::UNIQUE_INDEX_NAME,
-                    self::TABLE_NAME,
+                    $resolvedTable,
                 ),
             );
         }
@@ -38,7 +40,7 @@ class AddLegacyOpnameBackfillMarkersToStockTransactions extends Migration
                 sprintf(
                     'CREATE INDEX %s ON %s (legacy_source_table, legacy_source_id)',
                     self::LOOKUP_INDEX_NAME,
-                    self::TABLE_NAME,
+                    $resolvedTable,
                 ),
             );
         }
