@@ -30,6 +30,8 @@ export interface StockTransactionDetail {
     item_name: string | null;
     item_category_id: number | null;
     item_category_name: string | null;
+    /** Base unit label for the normalized `qty`, sourced from `items.unit_base`. */
+    satuan: string | null;
     /** Normalized base-unit quantity used for stock mutation. */
     qty: string;
     /** Original submitted quantity persisted by the backend. */
