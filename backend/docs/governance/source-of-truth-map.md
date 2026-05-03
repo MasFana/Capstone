@@ -88,7 +88,7 @@ This sampled matrix is evidence-grade only: it maps a verified route or SDK meth
 | 6 | `DELETE /api/v1/items/{id}` / `sdk.items.delete` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/items.ts` | `backend/docs/reference/api-contract.md` §5.4 Items, `backend/docs/architecture/runtime-status.md` row `items` | PASS |
 | 7 | `PATCH /api/v1/items/{id}/restore` / `sdk.items.restore` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/items.ts` | `backend/docs/reference/api-contract.md` §5.4 Items, `backend/docs/architecture/runtime-status.md` row `items` | PASS |
 | 8 | `GET /api/v1/daily-patients` / `sdk.dailyPatients.list` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/dailyPatients.ts` | `backend/docs/reference/api-contract.md` §5.7.1 Daily Patients, `backend/docs/architecture/runtime-status.md` row `daily-patients` | PASS |
-| 9 | `GET /api/v1/daily-patients/{id}` / `sdk.dailyPatients.get` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/dailyPatients.ts` | `backend/docs/reference/api-contract.md` §5.7.1 Daily Patients, `backend/docs/architecture/runtime-status.md` row `daily-patients` | PASS |
+| 9 | `GET /api/v1/daily-patients/{service_date}` / `sdk.dailyPatients.get` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/dailyPatients.ts` | `backend/docs/reference/api-contract.md` §5.7.1 Daily Patients, `backend/docs/architecture/runtime-status.md` row `daily-patients` | PASS |
 | 10 | `POST /api/v1/daily-patients` / `sdk.dailyPatients.create` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/dailyPatients.ts` | `backend/docs/reference/api-contract.md` §5.7.1 Daily Patients, `backend/docs/architecture/runtime-status.md` row `daily-patients` | PASS |
 | 11 | `POST /api/v1/spk/basah/generate` / `sdk.spk.generateBasah` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/spk.ts` | `backend/docs/reference/api-contract.md` §5.7.2 SPK Basah Route Family, `backend/docs/architecture/runtime-status.md` row `spk` | PASS |
 | 12 | `GET /api/v1/spk/basah/history` / `sdk.spk.listBasah` | `backend/app/Config/Routes.php`, `frontend/src/sdk/resources/spk.ts` | `backend/docs/reference/api-contract.md` §5.7.2 SPK Basah Route Family, `backend/docs/architecture/runtime-status.md` row `spk` | PASS |
@@ -173,7 +173,7 @@ This sampled matrix is evidence-grade only: it maps a verified route or SDK meth
 ## Menu planning
 
 - Endpoint surface:
-  - `backend/app/Config/Routes.php` (`menus`, `menu-dishes`, `menu-schedules`, `menu-schedules/(:num)`, `menu-calendar`, `daily-patients`, `daily-patients/(:num)`)
+  - `backend/app/Config/Routes.php` (`menus`, `menu-dishes`, `menu-schedules`, `menu-schedules/(:num)`, `menu-calendar`, `daily-patients`, `daily-patients/(:segment)`)
   - `backend/app/Controllers/Api/V1/Menus.php` (index/slots/assignSlot)
   - `backend/app/Controllers/Api/V1/MenuSchedules.php` (index/show/create/update/calendarProjection)
 - Supporting service contracts:

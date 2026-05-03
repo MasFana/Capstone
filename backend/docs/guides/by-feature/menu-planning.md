@@ -23,7 +23,7 @@ Manages the core kitchen schedule, dish recipes, and patient counts.
 - `PUT /api/v1/menu-schedules/{id}`: Update a schedule override (Admin/Dapur).
 - `GET /api/v1/menu-calendar`: View the current month's menu calendar projection.
 - `GET /api/v1/daily-patients`: List record of patient counts per date.
-- `GET /api/v1/daily-patients/{id}`: Get patient count detail.
+- `GET /api/v1/daily-patients/{service_date}`: Get patient count detail by service date (`Y-m-d`).
 - `POST /api/v1/daily-patients`: Create the patient count for a date (Admin/Dapur). No edit/delete allowed for audit integrity.
 
 ## Business Rules

@@ -1541,7 +1541,7 @@ Bagian ini membekukan kontrak route, boundary, dan lifecycle untuk fondasi imple
 |---|---|---|
 | GET | `/api/v1/daily-patients` | List daily patient rows (standard `data/meta/links`) |
 | POST | `/api/v1/daily-patients` | Create daily patient row |
-| GET | `/api/v1/daily-patients/{id}` | Get daily patient detail |
+| GET | `/api/v1/daily-patients/{service_date}` | Get daily patient detail by service date (`Y-m-d`) |
 
 Access note: `GET` daily-patients tersedia untuk `admin`, `dapur`, dan `gudang`; `POST` daily-patients tersedia untuk `admin` dan `dapur`.
 
