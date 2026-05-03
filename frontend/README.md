@@ -446,7 +446,7 @@ await sdk.auth.login({
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
 | `sdk.dailyPatients.list()` | `GET /api/v1/daily-patients` | `admin`, `dapur`, `gudang` |
-| `sdk.dailyPatients.get(id)` | `GET /api/v1/daily-patients/{id}` | `admin`, `dapur`, `gudang` |
+| `sdk.dailyPatients.get(serviceDate)` | `GET /api/v1/daily-patients/{service_date}` | `admin`, `dapur`, `gudang` |
 | `sdk.dailyPatients.create(payload)` | `POST /api/v1/daily-patients` | `admin`, `dapur` |
 
 ### `spk`
