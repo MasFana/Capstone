@@ -75,7 +75,7 @@ describe("DailyPatientsResource", () => {
     const sdk = new CapstoneSdk({ fetchImplementation: fetchMock });
 
     await sdk.dailyPatients.list();
-    await sdk.dailyPatients.get(1);
+    await sdk.dailyPatients.get("2026-03-01");
     await sdk.dailyPatients.create({
       service_date: "2026-03-02",
       total_patients: 130
@@ -87,7 +87,7 @@ describe("DailyPatientsResource", () => {
 
     expect(listUrl).toBe("http://127.0.0.1:8080/api/v1/daily-patients");
     expect(listInit?.method).toBe("GET");
-    expect(getUrl).toBe("http://127.0.0.1:8080/api/v1/daily-patients/1");
+    expect(getUrl).toBe("http://127.0.0.1:8080/api/v1/daily-patients/2026-03-01");
     expect(getInit?.method).toBe("GET");
     expect(createUrl).toBe("http://127.0.0.1:8080/api/v1/daily-patients");
     expect(createInit?.method).toBe("POST");

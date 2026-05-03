@@ -39,18 +39,19 @@ export class DailyPatientsResource {
   /**
    * Returns one daily patient row.
    *
-   * @endpoint GET /api/v1/daily-patients/{id}
+   * @endpoint GET /api/v1/daily-patients/{service_date}
    * @access   admin | dapur | gudang
    * @returns {Promise<DailyPatientResponse>}
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
-   * @throws {NotFoundApiError} if the row does not exist (404)
+   * @throws {ValidationApiError} if `service_date` path format is invalid (400)
+   * @throws {NotFoundApiError} if the row does not exist for the given service date (404)
    * @sideeffect None
    */
-  public get(id: number): Promise<DailyPatientResponse> {
+  public get(serviceDate: string): Promise<DailyPatientResponse> {
     return this.client.request<DailyPatientResponse>({
       method: "GET",
-      path: `/daily-patients/${id}`
+      path: `/daily-patients/${serviceDate}`
     });
   }
 
