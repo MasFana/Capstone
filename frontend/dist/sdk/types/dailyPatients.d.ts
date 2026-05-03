@@ -16,7 +16,7 @@ export interface CreateDailyPatientRequest {
 }
 /** List response for `GET /api/v1/daily-patients`. */
 export type DailyPatientsListResponse = ApiListResponse<DailyPatient>;
-/** Detail response for `GET /api/v1/daily-patients/{id}`. */
+/** Detail response for `GET /api/v1/daily-patients/{service_date}`. */
 export type DailyPatientResponse = ApiDataResponse<DailyPatient>;
 /** Create response for `POST /api/v1/daily-patients`. */
 export type DailyPatientCreateResponse = ApiMessageDataResponse<DailyPatient>;
