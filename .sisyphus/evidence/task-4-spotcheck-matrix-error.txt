@@ -1,3 +1,0 @@
-Task 4 spot-check matrix verification errors
-
-No verification errors recorded.
