@@ -129,9 +129,10 @@ class DailyPatientsTest extends CIUnitTestCase
         $this->assertSame('2026-05-01', $listJson['data'][0]['service_date']);
 
         $id = (int) $listJson['data'][0]['id'];
+        $serviceDate = $listJson['data'][0]['service_date'];
 
         $showResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
-            ->get('api/v1/daily-patients/' . $id);
+            ->get('api/v1/daily-patients/' . $serviceDate);
 
         $showResult->assertStatus(200);
         $showJson = json_decode($showResult->getJSON(), true);
@@ -140,5 +141,31 @@ class DailyPatientsTest extends CIUnitTestCase
         $this->assertSame($id, (int) $showJson['data']['id']);
         $this->assertSame('2026-05-01', $showJson['data']['service_date']);
         $this->assertSame(120, $showJson['data']['total_patients']);
+
+        $malformedDateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->get('api/v1/daily-patients/not-a-date');
+
+        $malformedDateResult->assertStatus(400);
+        $malformedDateJson = json_decode($malformedDateResult->getJSON(), true);
+        $this->assertSame('Validation failed.', $malformedDateJson['message']);
+        $this->assertArrayHasKey('service_date', $malformedDateJson['errors']);
+
+        $invalidCalendarDateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->get('api/v1/daily-patients/2026-02-31');
+
+        $invalidCalendarDateResult->assertStatus(400);
+        $invalidCalendarDateJson = json_decode($invalidCalendarDateResult->getJSON(), true);
+        $this->assertSame('Validation failed.', $invalidCalendarDateJson['message']);
+        $this->assertSame(
+            'The service_date field must be a valid date in Y-m-d format.',
+            $invalidCalendarDateJson['errors']['service_date']
+        );
+
+        $missingDateResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
+            ->get('api/v1/daily-patients/2026-05-31');
+
+        $missingDateResult->assertStatus(404);
+        $missingDateJson = json_decode($missingDateResult->getJSON(), true);
+        $this->assertSame('Daily patient not found.', $missingDateJson['message']);
     }
 }

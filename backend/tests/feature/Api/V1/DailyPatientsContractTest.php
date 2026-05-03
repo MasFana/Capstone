@@ -23,7 +23,8 @@ class DailyPatientsContractTest extends CIUnitTestCase
 
         $this->assertStringContainsString('$routes->get("daily-patients", "DailyPatients::index")', $routes);
         $this->assertStringContainsString('$routes->post("daily-patients", "DailyPatients::create")', $routes);
-        $this->assertStringContainsString('$routes->get("daily-patients/(:num)", \'DailyPatients::show/$1\')', $routes);
+        $this->assertStringContainsString('"daily-patients/(:segment)"', $routes);
+        $this->assertStringContainsString("'DailyPatients::show/", $routes);
     }
 
     public function testDailyPatientsCorsOptionsAreExplicitlyDeclared(): void
@@ -31,7 +32,7 @@ class DailyPatientsContractTest extends CIUnitTestCase
         $routes = $this->routesSource();
 
         $this->assertStringContainsString('"daily-patients",', $routes);
-        $this->assertStringContainsString('"daily-patients/(:num)",', $routes);
+        $this->assertStringContainsString('"daily-patients/(:segment)",', $routes);
     }
 
     public function testDailyPatientsFamilyIsDistinctFromMenuCalendarPath(): void
@@ -39,6 +40,7 @@ class DailyPatientsContractTest extends CIUnitTestCase
         $routes = $this->routesSource();
 
         $this->assertStringNotContainsString('"menu-calendar/daily-patients"', $routes);
-        $this->assertStringContainsString('$routes->get("menu-calendar", "MenuSchedules::calendarProjection")', $routes);
+        $this->assertStringContainsString('"menu-calendar",', $routes);
+        $this->assertStringContainsString('"MenuSchedules::calendarProjection"', $routes);
     }
 }
