@@ -28,9 +28,33 @@ class DailyPatients extends BaseController
             ]);
     }
 
-    public function show(int $id): ResponseInterface
+    public function show(string $serviceDate): ResponseInterface
     {
-        $row = $this->dailyPatientService->getDailyPatientById($id);
+        $validation = service('validation');
+
+        if (! $validation->setRules([
+            'service_date' => 'required|regex_match[/^\d{4}-\d{2}-\d{2}$/]',
+        ])->run(['service_date' => $serviceDate])) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => $validation->getErrors(),
+                ]);
+        }
+
+        if (! $this->isValidDate($serviceDate)) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    'message' => 'Validation failed.',
+                    'errors'  => [
+                        'service_date' => 'The service_date field must be a valid date in Y-m-d format.',
+                    ],
+                ]);
+        }
+
+        $row = $this->dailyPatientService->getDailyPatientByServiceDate($serviceDate);
 
         if ($row === null) {
             return $this->response
@@ -80,5 +104,16 @@ class DailyPatients extends BaseController
             'next'     => null,
             'previous' => null,
         ];
+    }
+
+    private function isValidDate(string $value): bool
+    {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return false;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $value));
+
+        return checkdate($month, $day, $year);
     }
 }

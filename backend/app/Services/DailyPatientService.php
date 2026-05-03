@@ -39,6 +39,13 @@ class DailyPatientService
         return $row === null ? null : $this->formatRow($row);
     }
 
+    public function getDailyPatientByServiceDate(string $serviceDate): ?array
+    {
+        $row = $this->dailyPatientModel->findByServiceDate($serviceDate);
+
+        return $row === null ? null : $this->formatRow($row);
+    }
+
     public function createDailyPatient(array $data): array
     {
         $validation = service('validation');

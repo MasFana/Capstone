@@ -121,7 +121,7 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
-            "daily-patients/(:num)",
+            "daily-patients/(:segment)",
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
@@ -313,7 +313,7 @@ $routes->group(
                     );
                     $routes->get("daily-patients", "DailyPatients::index");
                     $routes->get(
-                        "daily-patients/(:num)",
+                        "daily-patients/(:segment)",
                         'DailyPatients::show/$1',
                     );
 
