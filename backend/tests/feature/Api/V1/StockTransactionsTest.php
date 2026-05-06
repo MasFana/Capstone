@@ -12,6 +12,9 @@ use App\Models\RoleModel;
 use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Models\TransactionTypeModel;
+use App\Services\AuditService;
+use App\Services\StockTransactionService;
+use App\Database\Migrations\AddMinStockToItems;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Database\Exceptions\DataException;
 use CodeIgniter\Shield\Entities\User;
@@ -1605,6 +1608,75 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertSame($qtyBefore, (float) $itemAfter['qty']);
     }
 
+    public function testCreateTransactionRollbackDoesNotPersistMinStockNotification(): void
+    {
+        $db = Database::connect();
+
+        $itemModel = new ItemModel();
+        $item      = $itemModel->find(1);
+        $this->assertNotNull($item);
+
+        $initialQty = (float) $item['qty'];
+
+        $db->table('items')->where('id', 1)->update([
+            'min_stock'   => number_format($initialQty - 100, 2, '.', ''),
+            'updated_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        $typeModel = new TransactionTypeModel();
+        $outType   = $typeModel->where('name', 'OUT')->first();
+        $this->assertNotNull($outType);
+
+        $notificationCountBefore = $db->table('notifications')->countAllResults();
+
+        $service = new StockTransactionService();
+        $failingAuditService = new class () extends AuditService {
+            public function log(
+                ?int $userId,
+                string $actionType,
+                string $tableName,
+                int $recordId,
+                ?string $message = null,
+                ?array $oldValues = null,
+                ?array $newValues = null,
+                ?string $ipAddress = null
+            ): bool {
+                return false;
+            }
+        };
+
+        $service->setAuditServiceForTesting($failingAuditService);
+
+        $result = $service->createTransaction([
+            'type_id'          => (int) $outType['id'],
+            'transaction_date' => '2026-07-01',
+            'details'          => [
+                ['item_id' => 1, 'qty' => 200],
+            ],
+        ], 1);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Failed to write audit log.', $result['message']);
+
+        $this->assertSame($initialQty, (float) $itemModel->find(1)['qty']);
+
+        $notificationCountAfter = $db->table('notifications')->countAllResults();
+        $this->assertSame($notificationCountBefore, $notificationCountAfter);
+    }
+
+    public function testAddMinStockMigrationDownIsSafeOnSqlite(): void
+    {
+        $db      = Database::connect();
+        $columns = $db->getFieldNames('items');
+        $this->assertContains('min_stock', $columns);
+
+        $migration = new AddMinStockToItems();
+        $migration->down();
+
+        $columnsAfterDown = $db->getFieldNames('items');
+        $this->assertContains('min_stock', $columnsAfterDown);
+    }
+
     public function testCreateTransactionRejectsUnsupportedTransactionTypeName(): void
     {
         $token = $this->login('admin');
@@ -2347,7 +2419,7 @@ class StockTransactionsTest extends CIUnitTestCase
         $this->assertSame($qtyAfterParent + 10, $qtyAfterApprove);
     }
 
-    public function testApproveRevisionBlocksSecondApprovedSibling(): void
+    public function testSubmitRevisionRejectsSecondPendingSiblingInSameLineage(): void
     {
         $adminToken = $this->login('admin');
 
@@ -2377,6 +2449,7 @@ class StockTransactionsTest extends CIUnitTestCase
                     ['item_id' => 1, 'qty' => 12],
                 ],
             ]);
+        $revisionOneResult->assertStatus(201);
         $revisionOneId = json_decode($revisionOneResult->getJSON(), true)['data']['id'];
 
         $revisionTwoResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
@@ -2387,33 +2460,237 @@ class StockTransactionsTest extends CIUnitTestCase
                     ['item_id' => 1, 'qty' => 15],
                 ],
             ]);
-        $revisionTwoId = json_decode($revisionTwoResult->getJSON(), true)['data']['id'];
+        $revisionTwoResult->assertStatus(400);
+
+        $json = json_decode($revisionTwoResult->getJSON(), true);
+        $this->assertSame('Another revision for this transaction is still pending review.', $json['errors']['id']);
+
+        $qtyAfterSecondSubmitAttempt = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 10, $qtyAfterSecondSubmitAttempt);
+
+        $transactionModel    = new \App\Models\StockTransactionModel();
+        $revisionOneAfterTry = $transactionModel->find($revisionOneId);
+        $approvalStatusModel = new ApprovalStatusModel();
+        $pendingStatusId     = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_PENDING);
+        $this->assertSame($pendingStatusId, (int) $revisionOneAfterTry['approval_status_id']);
+    }
+
+    public function testSubmitRevisionAllowsNewSiblingAfterPreviousRejected(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $itemModel = new ItemModel();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-25',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+        $qtyAfterParent = (float) $itemModel->find(1)['qty'];
+
+        $revisionOneResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-26',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+        $revisionOneResult->assertStatus(201);
+        $revisionOneId = json_decode($revisionOneResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionOneId . '/reject', [])
+            ->assertStatus(200);
+
+        $revisionTwoResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+        $revisionTwoResult->assertStatus(201);
+
+        $qtyAfterSecondSubmit = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyAfterParent, $qtyAfterSecondSubmit);
+    }
+
+    public function testSubmitRevisionAllowsNewSiblingAfterPreviousApproved(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-25',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionOneResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-26',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+        $revisionOneResult->assertStatus(201);
+        $revisionOneId = json_decode($revisionOneResult->getJSON(), true)['data']['id'];
 
         $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
             ->withBodyFormat('json')
             ->post('api/v1/stock-transactions/' . $revisionOneId . '/approve', [])
             ->assertStatus(200);
 
-        $qtyAfterFirstApproval = (float) $itemModel->find(1)['qty'];
-        $this->assertSame($qtyBefore + 12, $qtyAfterFirstApproval);
-
-        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+        $revisionTwoResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
             ->withBodyFormat('json')
-            ->post('api/v1/stock-transactions/' . $revisionTwoId . '/approve', []);
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+        $revisionTwoResult->assertStatus(201);
+    }
 
-        $result->assertStatus(400);
+    public function testApproveRevisionUsesLatestApprovedSiblingAsBaseline(): void
+    {
+        $adminToken = $this->login('admin');
 
-        $json = json_decode($result->getJSON(), true);
-        $this->assertSame('Another revision for this transaction has already been approved.', $json['errors']['id']);
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+        $itemModel = new ItemModel();
 
-        $qtyAfterRejectedSibling = (float) $itemModel->find(1)['qty'];
-        $this->assertSame($qtyAfterFirstApproval, $qtyAfterRejectedSibling);
+        $qtyBefore = (float) $itemModel->find(1)['qty'];
 
-        $transactionModel    = new \App\Models\StockTransactionModel();
-        $revisionTwoAfterTry = $transactionModel->find($revisionTwoId);
-        $approvalStatusModel = new ApprovalStatusModel();
-        $pendingStatusId     = $approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_PENDING);
-        $this->assertSame($pendingStatusId, (int) $revisionTwoAfterTry['approval_status_id']);
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-25',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+        $qtyAfterParent = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 10, $qtyAfterParent);
+
+        $revisionAResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-26',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+        $revisionAId = json_decode($revisionAResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionAId . '/approve', [])
+            ->assertStatus(200);
+
+        $qtyAfterApproveA = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 12, $qtyAfterApproveA);
+
+        $revisionBResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 15],
+                ],
+            ]);
+        $revisionBId = json_decode($revisionBResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionBId . '/approve', [])
+            ->assertStatus(200);
+
+        $qtyAfterApproveB = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 15, $qtyAfterApproveB);
+    }
+
+    public function testApproveRevisionWithZeroDeltaAgainstLatestApprovedBaselineLeavesQtyUnchanged(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel = new TransactionTypeModel();
+        $inType    = $typeModel->where('name', 'IN')->first();
+        $itemModel = new ItemModel();
+
+        $qtyBefore = (float) $itemModel->find(1)['qty'];
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $inType['id'],
+                'transaction_date' => '2026-05-25',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 10],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $revisionAResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-26',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+        $revisionAId = json_decode($revisionAResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionAId . '/approve', [])
+            ->assertStatus(200);
+
+        $qtyAfterApproveA = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 12, $qtyAfterApproveA);
+
+        $revisionBResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-05-27',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+        $revisionBId = json_decode($revisionBResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionBId . '/approve', [])
+            ->assertStatus(200);
+
+        $qtyAfterApproveB = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyAfterApproveA, $qtyAfterApproveB);
     }
 
     public function testApproveRevisionAppliesDeltaForAddedItem(): void
@@ -2563,6 +2840,51 @@ class StockTransactionsTest extends CIUnitTestCase
 
         $qtyAfterApprove = (float) $itemModel->find(1)['qty'];
         $this->assertSame($qtyAfterParent, $qtyAfterApprove);
+    }
+
+    public function testApproveRevisionUsesPositiveDeltaForOpnameAdjustmentType(): void
+    {
+        $adminToken = $this->login('admin');
+
+        $typeModel            = new TransactionTypeModel();
+        $opnameAdjustmentType = $typeModel->where('name', TransactionTypeModel::NAME_OPNAME_ADJUSTMENT)->first();
+
+        $itemModel = new ItemModel();
+        $qtyBefore = (float) $itemModel->find(1)['qty'];
+
+        $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_id'          => $opnameAdjustmentType['id'],
+                'transaction_date' => '2026-06-02',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 12],
+                ],
+            ]);
+
+        $parentId = json_decode($createResult->getJSON(), true)['data']['id'];
+
+        $qtyAfterParent = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 12, $qtyAfterParent);
+
+        $revisionResult = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $parentId . '/submit-revision', [
+                'transaction_date' => '2026-06-03',
+                'details'          => [
+                    ['item_id' => 1, 'qty' => 20],
+                ],
+            ]);
+
+        $revisionId = json_decode($revisionResult->getJSON(), true)['data']['id'];
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions/' . $revisionId . '/approve', [])
+            ->assertStatus(200);
+
+        $qtyAfterApprove = (float) $itemModel->find(1)['qty'];
+        $this->assertSame($qtyBefore + 20, $qtyAfterApprove);
     }
 
     public function testApproveRevisionRollsBackAllItemQtyChangesWhenLaterDeltaFails(): void

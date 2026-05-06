@@ -684,6 +684,8 @@ class StockOpnameService
             ];
         }
 
+        $this->stockTransactionService->flushQueuedMinStockNotifications();
+
         return [
             'success' => true,
             'message' => 'Stock opname posted successfully.',

@@ -67,6 +67,10 @@ class StockTransactionService
     protected AuditService $auditService;
     protected NotificationService $notificationService;
     protected BaseConnection $db;
+    /**
+     * @var array<int, array{item_id:int,item_name:string}>
+     */
+    private array $queuedMinStockNotifications = [];
 
     public function __construct()
     {
@@ -82,6 +86,8 @@ class StockTransactionService
 
     public function createTransaction(array $data, int $userId, ?string $ipAddress = null): array
     {
+        $this->resetQueuedMinStockNotifications();
+
         $approvedStatusId = $this->approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
         if ($approvedStatusId === null) {
             return [
@@ -404,17 +410,7 @@ class StockTransactionService
                     ];
                 }
 
-                $itemAfter = $this->itemModel->find($itemId);
-                if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
-                    $itemName = $itemAfter['name'] ?? 'Barang';
-                    $this->notificationService->sendToRole(
-                        'Admin', 
-                        'Stok Minimum', 
-                        "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
-                        'MIN_STOCK', 
-                        $itemId
-                    );
-                }
+                $this->queueMinStockNotificationIfNeeded($itemId);
             }
         }
 
@@ -448,6 +444,8 @@ class StockTransactionService
                 'errors'  => [],
             ];
         }
+
+        $this->flushQueuedMinStockNotifications();
 
         return [
                 'success' => true,
@@ -523,17 +521,7 @@ class StockTransactionService
             ];
         }
 
-        $itemAfter = $this->itemModel->find($itemId);
-        if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
-            $itemName = $itemAfter['name'] ?? 'Barang';
-            $this->notificationService->sendToRole(
-                'Admin', 
-                'Stok Minimum', 
-                "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
-                'MIN_STOCK', 
-                $itemId
-            );
-        }
+        $this->queueMinStockNotificationIfNeeded($itemId);
 
         return [
             'success' => true,
@@ -542,6 +530,8 @@ class StockTransactionService
 
     public function createDirectCorrection(array $data, int $userId, ?string $ipAddress = null): array
     {
+        $this->resetQueuedMinStockNotifications();
+
         $approvedStatusId = $this->approvalStatusModel->getIdByName(ApprovalStatusModel::NAME_APPROVED);
         if ($approvedStatusId === null) {
             return [
@@ -691,17 +681,7 @@ class StockTransactionService
             ];
         }
 
-        $itemAfter = $this->itemModel->find($itemId);
-        if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
-            $itemName = $itemAfter['name'] ?? 'Barang';
-            $this->notificationService->sendToRole(
-                'Admin', 
-                'Stok Minimum', 
-                "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
-                'MIN_STOCK', 
-                $itemId
-            );
-        }
+        $this->queueMinStockNotificationIfNeeded($itemId);
 
         $transactionData = [
             'type_id'               => $typeId,
@@ -784,6 +764,8 @@ class StockTransactionService
             ];
         }
 
+        $this->flushQueuedMinStockNotifications();
+
         return [
             'success' => true,
             'message' => 'Direct stock correction created successfully.',
@@ -799,7 +781,8 @@ class StockTransactionService
      * Persist opname-like item corrections inside the caller transaction.
      *
      * Caller must own DB transaction boundary to keep stock-opname state changes
-     * and stock-transaction artifacts atomic as one unit.
+     * and stock-transaction artifacts atomic as one unit. Caller must flush queued
+     * MIN_STOCK notifications only after successful outer commit.
      *
      * @param list<array{item_id:int,expected_current_qty:float,actual_qty:float}> $details
      */
@@ -810,6 +793,8 @@ class StockTransactionService
         ?int $sourceOpnameId = null,
         ?string $ipAddress = null,
     ): array {
+        $this->resetQueuedMinStockNotifications();
+
         if ($details === []) {
             return [
                 'success' => false,
@@ -921,17 +906,7 @@ class StockTransactionService
                 ];
             }
 
-            $itemAfter = $this->itemModel->find($itemId);
-            if ($itemAfter !== null && (float) $itemAfter['qty'] <= (float) ($itemAfter['min_stock'] ?? 0)) {
-                $itemName = $itemAfter['name'] ?? 'Barang';
-                $this->notificationService->sendToRole(
-                    'Admin', 
-                    'Stok Minimum', 
-                    "Stok bahan {$itemName} telah mencapai batas minimum. Segera lakukan pengadaan", 
-                    'MIN_STOCK', 
-                    $itemId
-                );
-            }
+            $this->queueMinStockNotificationIfNeeded($itemId);
 
             $reason = $sourceOpnameId !== null
                 ? sprintf('Stock opname #%d posting for item #%d', $sourceOpnameId, $itemId)
@@ -1176,6 +1151,32 @@ class StockTransactionService
         // Start transaction
         $this->db->transStart();
 
+        // Lock lineage root row and re-check pending sibling under lock.
+        $lockedParent = $this->db->query(
+            'SELECT id FROM ' . $this->stockTransactionsTable() . ' WHERE id = ? AND deleted_at IS NULL' . $this->forUpdateClause(),
+            [$parentTransactionId]
+        )->getRowArray();
+
+        if ($lockedParent === null) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Parent transaction not found.',
+                'errors'  => [],
+            ];
+        }
+
+        if ($this->transactionModel->hasPendingRevision($parentTransactionId, $pendingStatusId)) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['id' => 'Another revision for this transaction is still pending review.'],
+            ];
+        }
+
         $revisionData = [
             'type_id'               => $parent['type_id'],
             'transaction_date'      => $data['transaction_date'],
@@ -1281,6 +1282,8 @@ class StockTransactionService
 
     public function approveRevision(int $revisionId, int $approverId, ?string $ipAddress = null): array
     {
+        $this->resetQueuedMinStockNotifications();
+
         $revision = $this->transactionModel->findRevisionById($revisionId);
         if ($revision === null) {
             $transaction = $this->transactionModel->findById($revisionId);
@@ -1363,15 +1366,6 @@ class StockTransactionService
             ];
         }
 
-        $parentDetails = $this->detailModel->getDetailsByTransactionId($parentTransactionId);
-        if ($parentDetails === []) {
-            return [
-                'success' => false,
-                'message' => 'System error: parent transaction has no details.',
-                'errors'  => [],
-            ];
-        }
-
         // Get transaction type to determine qty mutation direction
         $type = $this->typeModel->find((int) $revision['type_id']);
         if ($type === null) {
@@ -1385,20 +1379,67 @@ class StockTransactionService
         // Start transaction
         $this->db->transStart();
 
-        $approvedSibling = $this->transactionModel->findApprovedRevisionByParentId($parentTransactionId, $approvedStatusId, $revisionId);
-        if ($approvedSibling !== null) {
+        // Lock revision row and ensure it is still pending (stale-state guard).
+        $lockedRevision = $this->db->query(
+            'SELECT id, approval_status_id FROM ' . $this->stockTransactionsTable() . ' WHERE id = ? AND is_revision = 1 AND deleted_at IS NULL' . $this->forUpdateClause(),
+            [$revisionId]
+        )->getRowArray();
+
+        if ($lockedRevision === null) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Revision not found.',
+                'errors'  => [],
+            ];
+        }
+
+        if ((int) $lockedRevision['approval_status_id'] !== $pendingStatusId) {
             $this->db->transRollback();
 
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => ['id' => 'Another revision for this transaction has already been approved.'],
+                'errors'  => ['id' => 'Revision has an invalid approval state.'],
             ];
         }
 
-        $parentMap = [];
-        foreach ($parentDetails as $detail) {
-            $parentMap[(int) $detail['item_id']] = (float) $detail['qty'];
+        // Lock lineage root for consistent baseline resolution.
+        $lockedParent = $this->db->query(
+            'SELECT id FROM ' . $this->stockTransactionsTable() . ' WHERE id = ? AND deleted_at IS NULL' . $this->forUpdateClause(),
+            [$parentTransactionId]
+        )->getRowArray();
+
+        if ($lockedParent === null) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'System error: parent transaction not found.',
+                'errors'  => [],
+            ];
+        }
+
+        $baselineTransaction = $this->transactionModel->findLatestApprovedRevisionByParentId($parentTransactionId, $approvedStatusId, $revisionId);
+        $baselineTransactionId = $baselineTransaction !== null
+            ? (int) $baselineTransaction['id']
+            : $parentTransactionId;
+
+        $baselineDetails = $this->detailModel->getDetailsByTransactionId($baselineTransactionId);
+        if ($baselineDetails === []) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'System error: baseline transaction has no details.',
+                'errors'  => [],
+            ];
+        }
+
+        $baselineMap = [];
+        foreach ($baselineDetails as $detail) {
+            $baselineMap[(int) $detail['item_id']] = (float) $detail['qty'];
         }
 
         $revisionMap = [];
@@ -1406,13 +1447,17 @@ class StockTransactionService
             $revisionMap[(int) $detail['item_id']] = (float) $detail['qty'];
         }
 
-        $allItemIds = array_values(array_unique(array_merge(array_keys($parentMap), array_keys($revisionMap))));
-        $direction  = in_array($type['name'], [TransactionTypeModel::NAME_IN, TransactionTypeModel::NAME_RETURN_IN], true) ? 1 : -1;
+        $allItemIds = array_values(array_unique(array_merge(array_keys($baselineMap), array_keys($revisionMap))));
+        $direction  = in_array($type['name'], [
+            TransactionTypeModel::NAME_IN,
+            TransactionTypeModel::NAME_RETURN_IN,
+            TransactionTypeModel::NAME_OPNAME_ADJUSTMENT,
+        ], true) ? 1 : -1;
 
         foreach ($allItemIds as $itemId) {
-            $parentQty   = $parentMap[$itemId] ?? 0.0;
+            $baselineQty = $baselineMap[$itemId] ?? 0.0;
             $revisionQty = $revisionMap[$itemId] ?? 0.0;
-            $signedDelta = $direction * ($revisionQty - $parentQty);
+            $signedDelta = $direction * ($revisionQty - $baselineQty);
 
             $mutationResult = $this->applySignedItemDelta(
                 (int) $itemId,
@@ -1477,6 +1522,8 @@ class StockTransactionService
                 'errors'  => [],
             ];
         }
+
+        $this->flushQueuedMinStockNotifications();
 
         $this->notificationService->sendToUser(
             (int) $revision['user_id'],
@@ -1558,6 +1605,32 @@ class StockTransactionService
         // Start transaction
         $this->db->transStart();
 
+        // Lock revision row and ensure it is still pending.
+        $lockedRevision = $this->db->query(
+            'SELECT id, approval_status_id FROM ' . $this->stockTransactionsTable() . ' WHERE id = ? AND is_revision = 1 AND deleted_at IS NULL' . $this->forUpdateClause(),
+            [$revisionId]
+        )->getRowArray();
+
+        if ($lockedRevision === null) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Revision not found.',
+                'errors'  => [],
+            ];
+        }
+
+        if ((int) $lockedRevision['approval_status_id'] !== $pendingStatusId) {
+            $this->db->transRollback();
+
+            return [
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => ['id' => 'Revision has an invalid approval state.'],
+            ];
+        }
+
         // Update revision row (no qty mutation)
         $oldValues = $revision;
         $updated   = $this->transactionModel->update($revisionId, [
@@ -1626,5 +1699,61 @@ class StockTransactionService
                 'approved_by'        => $approverId,
             ],
         ];
+    }
+
+    private function forUpdateClause(): string
+    {
+        return $this->db->getPlatform() === 'SQLite3' ? '' : ' FOR UPDATE';
+    }
+
+    private function stockTransactionsTable(): string
+    {
+        return $this->db->prefixTable('stock_transactions');
+    }
+
+    public function flushQueuedMinStockNotifications(): void
+    {
+        foreach ($this->queuedMinStockNotifications as $payload) {
+            $this->notificationService->sendToRole(
+                'Admin',
+                'Stok Minimum',
+                "Stok bahan {$payload['item_name']} telah mencapai batas minimum. Segera lakukan pengadaan",
+                'MIN_STOCK',
+                $payload['item_id']
+            );
+        }
+
+        $this->resetQueuedMinStockNotifications();
+    }
+
+    public function setAuditServiceForTesting(AuditService $auditService): void
+    {
+        $this->auditService = $auditService;
+    }
+
+    private function queueMinStockNotificationIfNeeded(int $itemId): void
+    {
+        $itemAfter = $this->itemModel->find($itemId);
+        if ($itemAfter === null) {
+            return;
+        }
+
+        if ((float) $itemAfter['qty'] > (float) ($itemAfter['min_stock'] ?? 0)) {
+            return;
+        }
+
+        if (isset($this->queuedMinStockNotifications[$itemId])) {
+            return;
+        }
+
+        $this->queuedMinStockNotifications[$itemId] = [
+            'item_id'   => $itemId,
+            'item_name' => (string) ($itemAfter['name'] ?? 'Barang'),
+        ];
+    }
+
+    private function resetQueuedMinStockNotifications(): void
+    {
+        $this->queuedMinStockNotifications = [];
     }
 }

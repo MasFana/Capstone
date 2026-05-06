@@ -419,6 +419,11 @@ class StockOpnamesTest extends CIUnitTestCase
         $item1Before = (float) $itemModel->find(1)['qty'];
         $item2Before = (float) $itemModel->find(2)['qty'];
 
+        Database::connect()->table('items')->where('id', 1)->update([
+            'min_stock'  => number_format($item1Before + 100, 2, '.', ''),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
         $createResult = $this->withHeaders(['Authorization' => 'Bearer ' . $gudangToken])
             ->withBodyFormat('json')
             ->post('api/v1/stock-opnames', [
@@ -440,6 +445,8 @@ class StockOpnamesTest extends CIUnitTestCase
             ->withBodyFormat('json')
             ->post('api/v1/stock-opnames/' . $opnameId . '/approve', [])
             ->assertStatus(200);
+
+        $notificationCountBefore = Database::connect()->table('notifications')->countAllResults();
 
         Database::connect()->table('items')->where('id', 2)->update([
             'qty'        => number_format($item2Before + 5, 2, '.', ''),
@@ -463,6 +470,9 @@ class StockOpnamesTest extends CIUnitTestCase
             ->like('reason', 'Stock opname #' . $opnameId . ' posting', 'both')
             ->findAll();
         $this->assertCount(0, $postedTransactions);
+
+        $notificationCountAfter = Database::connect()->table('notifications')->countAllResults();
+        $this->assertSame($notificationCountBefore, $notificationCountAfter);
 
         $opnameRow = (new StockOpnameModel())->find($opnameId);
         $this->assertSame(StockOpnameModel::STATE_APPROVED, $opnameRow['state']);

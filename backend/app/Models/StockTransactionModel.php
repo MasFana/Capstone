@@ -168,6 +168,11 @@ class StockTransactionModel extends Model
 
     public function findApprovedRevisionByParentId(int $parentId, int $approvedStatusId, ?int $excludeId = null): ?array
     {
+        return $this->findLatestApprovedRevisionByParentId($parentId, $approvedStatusId, $excludeId);
+    }
+
+    public function findLatestApprovedRevisionByParentId(int $parentId, int $approvedStatusId, ?int $excludeId = null): ?array
+    {
         $builder = $this->builder();
         $builder->where('parent_transaction_id', $parentId);
         $builder->where('is_revision', true);
@@ -178,8 +183,26 @@ class StockTransactionModel extends Model
             $builder->where('id !=', $excludeId);
         }
 
+        $builder->orderBy('id', 'DESC');
+
         $transaction = $builder->get()->getRowArray();
 
         return $transaction ?: null;
+    }
+
+    public function hasPendingRevision(int $parentId, int $pendingStatusId, ?int $excludeId = null): bool
+    {
+        $builder = $this->builder();
+        $builder->select('id');
+        $builder->where('parent_transaction_id', $parentId);
+        $builder->where('is_revision', true);
+        $builder->where('approval_status_id', $pendingStatusId);
+        $builder->where('deleted_at', null);
+
+        if ($excludeId !== null) {
+            $builder->where('id !=', $excludeId);
+        }
+
+        return $builder->countAllResults() > 0;
     }
 }
