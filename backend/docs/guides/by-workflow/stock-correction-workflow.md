@@ -80,18 +80,28 @@ When submitting a direct correction, if the live stock no longer matches your `e
   }
   ```
 
-### Double Revision
-Attempting to approve a revision when another revision for the same parent transaction has already been approved.
+### Pending Revision Conflict
+Attempting to submit a revision while another sibling revision in the same lineage is still pending review.
 
 - **Response (400 Bad Request)**:
   ```json
   {
     "message": "Validation failed.",
     "errors": {
-      "id": "Another revision for this transaction has already been approved."
+      "id": "Another revision for this transaction is still pending review."
     }
   }
   ```
+
+### Sequential Sibling Revision Baseline
+
+- Revisions remain sibling rows (`is_revision = true`) that all point to the same original parent (`parent_transaction_id = <root id>`).
+- Revision-on-revision submission is still blocked.
+- Only one `PENDING` sibling is allowed at a time.
+- Successive approvals are allowed over time.
+- Approval baseline is deterministic:
+  1. latest approved sibling in the same lineage (highest revision id), or
+  2. original parent transaction when no approved sibling exists.
 
 ### Revision on Revision
 Attempting to submit a revision on a transaction that is already a revision.

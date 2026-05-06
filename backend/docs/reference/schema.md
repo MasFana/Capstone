@@ -348,7 +348,13 @@ Catatan desain:
 - `approved_by` diisi saat admin melakukan approve atau reject terhadap revisi.
 - Koreksi stok langsung disimpan sebagai transaksi final (`is_revision = false`, `parent_transaction_id = null`) dan menggunakan `reason` pada header transaksi untuk menjelaskan penyebab koreksi.
 - Mutasi stok dari revisi hanya diterapkan ketika status revisi berubah menjadi `APPROVED`.
-- Saat revisi di-approve, aplikasi menerapkan **selisih bersih** antara detail parent dan detail revisi per item, sehingga revisi berfungsi sebagai koreksi terhadap transaksi asal, bukan sebagai mutasi stok tambahan yang berdiri sendiri.
+- Saat revisi di-approve, aplikasi menerapkan **selisih bersih** antara detail revisi pending dan **baseline efektif** per item (latest approved sibling dalam lineage, atau parent original jika belum ada approved sibling).
+- Semua revisi pada satu lineage tetap sibling ke parent original (tidak ada revision chaining).
+- Dalam satu lineage, maksimal hanya satu sibling berstatus `PENDING` pada waktu yang sama.
+
+Index lineage revisi:
+
+- `idx_st_lineage_parent_revision_status_deleted` pada `stock_transactions(parent_transaction_id, is_revision, approval_status_id, deleted_at, id)` untuk query helper pending/latest-approved sibling.
 
 ### 4.3 `stock_transaction_details`
 

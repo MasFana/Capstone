@@ -59,5 +59,5 @@ Perform regular physical counts to synchronize system data with warehouse realit
 ## Gotchas
 - **Controlled Stock:** Direct edits to `items.qty` are not the normal path. Always use Transactions or Opnames to move stock.
 - **Unit Conversions:** When recording transactions, you can specify `input_unit` as "base" or "convert". The system automatically handles the math based on the item's conversion factor.
-- **Revision Limits:** A transaction can only have one active revision at a time. You cannot revise a revision.
+- **Revision Limits:** A transaction lineage can only have one `PENDING` revision at a time, and you still cannot revise a revision. After a sibling revision is approved or rejected, you can submit the next sibling revision against the same original transaction.
 - **Negative Stock:** The system blocks OUT transactions if the requested quantity exceeds available stock. Check current levels before issuing items.
