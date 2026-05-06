@@ -412,7 +412,8 @@ await sdk.auth.login({
 - direct correction is admin-only and requires `item_id`, `expected_current_qty`, `target_qty`, and `reason`
 - direct correction is stored as a normal stock transaction (not a revision), with the server deriving whether the adjustment is `IN` or `OUT`
 - submit revision only creates a pending child revision; it does not change stock immediately
-- approve revision applies the revision as a **net correction** against the parent transaction's stock effect, not as a second additive stock movement
+- only one pending revision is allowed at a time for the same original transaction lineage; after a revision is approved or rejected, a new sibling revision can be submitted against the same original transaction
+- approve revision applies the revision as a **net correction** against the latest approved revision in the lineage (or the original parent when no approved sibling exists), not as a second additive stock movement
 - `sdk.stockTransactions.details(id)` returns normalized detail rows with item metadata, including `satuan` as the base-unit label for `qty`; use `input_qty` + `input_unit` for the original entered quantity mode
 - detail rows still use `item_id`; there is no item-name write shortcut in transaction details
 - there is intentionally no `sdk.stockTransactions.delete()` method because the backend exposes no delete route for stock transactions
@@ -766,7 +767,7 @@ await sdk.stockTransactions.directCorrection({
 });
 ```
 
-In the workflow above, approval corrects the parent transaction's stock effect based on the difference between the parent details and the revision details. It does not replay the revision quantities as an additional standalone movement.
+In the workflow above, approval corrects the original transaction lineage based on the difference between the revision details and the latest approved baseline in that lineage. It does not replay the revision quantities as an additional standalone movement, and it does not allow multiple pending sibling revisions at the same time.
 
 ## End-to-end SDK flow example
 
