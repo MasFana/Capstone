@@ -15,6 +15,20 @@ class ItemUnitSeeder extends Seeder
             ['name' => 'liter'],
             ['name' => 'butir'],
             ['name' => 'pack'],
+            ['name' => 'pcs'],
+            ['name' => 'roll'],
+            ['name' => 'bks'],
+            ['name' => 'ssr'],
+            ['name' => 'ons'],
+            ['name' => 'ikt'],
+            ['name' => 'sachet'],
+            ['name' => 'dus'],
+            ['name' => 'kotak'],
+            ['name' => 'kaleng'],
+            ['name' => 'bungkus'],
+            ['name' => 'jurigen'],
+            ['name' => 'botol'],
+            ['name' => 'pace'],
         ]);
     }
 }
