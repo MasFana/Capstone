@@ -14,6 +14,7 @@ class ItemUnitSeeder extends Seeder
             ['name' => 'ml'],
             ['name' => 'liter'],
             ['name' => 'butir'],
+            ['name' => 'btr'],
             ['name' => 'pack'],
             ['name' => 'pcs'],
             ['name' => 'roll'],

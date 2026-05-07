@@ -22,6 +22,7 @@ class ItemSeeder extends Seeder
             'ml'      => $this->resolveRequiredUnitId($itemUnitModel, 'ml'),
             'liter'   => $this->resolveRequiredUnitId($itemUnitModel, 'liter'),
             'butir'   => $this->resolveRequiredUnitId($itemUnitModel, 'butir'),
+            'btr'     => $this->resolveRequiredUnitId($itemUnitModel, 'btr'),
             'pack'    => $this->resolveRequiredUnitId($itemUnitModel, 'pack'),
             'pcs'     => $this->resolveRequiredUnitId($itemUnitModel, 'pcs'),
             'roll'    => $this->resolveRequiredUnitId($itemUnitModel, 'roll'),
