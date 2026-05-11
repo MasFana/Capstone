@@ -6,6 +6,7 @@ import type {
   CreateStockTransactionRequest,
   DirectStockCorrectionRequest,
   ListStockTransactionsQuery,
+  RejectStockTransactionRequest,
   StockTransaction,
   StockTransactionCreateResult,
   StockTransactionDetail,
@@ -168,6 +169,7 @@ export class StockTransactionsResource {
    *
    * @endpoint POST /api/v1/stock-transactions/{id}/reject
    * @access   admin
+   * @param payload - Optional JSON body with `reason`. Omitting the body remains supported for backward compatibility.
    * @returns {Promise<ApiMessageDataResponse<StockTransactionModerationResult>>}
    * @throws {ValidationApiError} if the revision is not rejectable (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -175,10 +177,14 @@ export class StockTransactionsResource {
    * @throws {NotFoundApiError} if the revision does not exist (404)
    * @sideeffect Does not mutate `items.qty`.
    */
-  public reject(id: number): Promise<ApiMessageDataResponse<StockTransactionModerationResult>> {
+  public reject(
+    id: number,
+    payload?: RejectStockTransactionRequest
+  ): Promise<ApiMessageDataResponse<StockTransactionModerationResult>> {
     return this.client.request<ApiMessageDataResponse<StockTransactionModerationResult>>({
       method: "POST",
-      path: `/stock-transactions/${id}/reject`
+      path: `/stock-transactions/${id}/reject`,
+      ...(payload ? { body: payload } : {})
     });
   }
 }
