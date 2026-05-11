@@ -15,6 +15,7 @@ Otorisasi Anda didasarkan pada App Role `gudang` yang dikelola oleh `app/Filters
   - View SPK history and projections for Dapur coordination.
   - Access stock and transaction reports.
 - **Can’t:**
+  - Run `POST /api/v1/spk/basah/operational-stock-preview`, `POST /api/v1/spk/basah/generate`, or SPK override endpoints. Those remain restricted to `admin` and `dapur`.
   - Direct correction of `items.qty` (This is restricted to Admin).
   - Approve or Reject their own transaction revisions.
   - Finalize/Post Stock Opnames (Admin only).
