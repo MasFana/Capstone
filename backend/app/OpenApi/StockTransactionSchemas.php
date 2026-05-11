@@ -19,6 +19,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="user_id", type="integer", example=2),
  *     @OA\Property(property="spk_id", type="integer", nullable=true, example=31),
  *     @OA\Property(property="reason", type="string", nullable=true, example="Manual stock correction after recount."),
+ *     @OA\Property(property="rejection_reason", type="string", nullable=true, example="Revision quantities did not match the audit evidence."),
  *     @OA\Property(property="created_at", type="string", example="2026-04-18 08:00:00"),
  *     @OA\Property(property="updated_at", type="string", example="2026-04-18 08:00:00"),
  *     @OA\Property(property="user_name", type="string", nullable=true, example="Gudang User"),
@@ -127,6 +128,11 @@ use OpenApi\Annotations as OA;
  *     required={"message","data"},
  *     @OA\Property(property="message", type="string", example="Revision approved successfully."),
  *     @OA\Property(property="data", ref="#/components/schemas/StockTransactionRevisionDecisionResult")
+ * )
+ * @OA\Schema(
+ *     schema="StockTransactionRevisionRejectRequest",
+ *     type="object",
+ *     @OA\Property(property="reason", type="string", nullable=true, example="Revision quantities did not match the audit evidence.")
  * )
  * @OA\Schema(
  *     schema="StockTransactionRevisionRejectResponse",

@@ -1375,7 +1375,7 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 |---|---|---|
 | POST | `/api/v1/stock-transactions/{id}/submit-revision` | Submit revision against parent transaction |
 | POST | `/api/v1/stock-transactions/{id}/approve` | Approve revision transaction |
-| POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction |
+| POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction (optional body: `reason`) |
 | POST | `/api/v1/stock-opnames` | Create dedicated stock opname draft |
 | GET | `/api/v1/stock-opnames/{id}` | Get stock opname header and details |
 | POST | `/api/v1/stock-opnames/{id}/submit` | Submit stock opname draft for approval |
@@ -1397,6 +1397,8 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 - successive approved sibling revisions diperbolehkan sepanjang alur tetap sequential (satu pending per lineage);
 - revision-on-revision tetap ditolak;
 - reject revision tidak mengubah `items.qty`;
+- reject revision menerima body JSON opsional `{ "reason": "..." }` untuk catatan penolakan admin;
+- request field `reason` disimpan ke kolom `stock_transactions.rejection_reason`, bukan ke `stock_transactions.reason`;
 - parent transaction tetap dipertahankan sebagai histori asal.
 
 #### 5.5.10 Stock Opname Compatibility Facade
