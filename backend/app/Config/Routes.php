@@ -6,6 +6,9 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get("/", "Home::index");
+$routes->get("api/docs/spec", "DocsController::spec");
+$routes->get("api/docs/specs", "DocsController::spec");
+$routes->get("api/docs", "DocsController::index");
 
 $routes->group(
     "api/v1",

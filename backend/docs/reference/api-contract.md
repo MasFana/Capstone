@@ -95,8 +95,8 @@ Enforcement role operasional dilakukan oleh `App\Filters\RoleFilter` yang dikonf
 
 ```json
 {
-  "username": "admin",
-  "password": "password123"
+  "username": "example-user",
+  "password": "example-password"
 }
 ```
 
@@ -110,8 +110,8 @@ Enforcement role operasional dilakukan oleh `App\Filters\RoleFilter` yang dikonf
   "user": {
     "id": 1,
     "role_id": 1,
-    "name": "Admin User",
-    "username": "admin",
+    "name": "Example User",
+    "username": "example-user",
     "is_active": true,
     "role": {
       "id": 1,
@@ -153,8 +153,8 @@ Authenticated users can change their own password. This endpoint requires the us
 
 ```json
 {
-  "current_password": "password123",
-  "password": "newpassword123"
+  "current_password": "example-current-password",
+  "password": "example-new-password"
 }
 ```
 
@@ -249,7 +249,8 @@ Supported query parameters for all lookup list endpoints:
     "page": 1,
     "perPage": 10,
     "total": 3,
-    "totalPages": 1
+    "totalPages": 1,
+    "paginated": true
   },
   "links": {
     "self": "/api/v1/item-categories?page=1&perPage=10",
@@ -328,7 +329,8 @@ Supported query parameters for all lookup list endpoints:
     "page": 1,
     "perPage": 10,
     "total": 3,
-    "totalPages": 1
+    "totalPages": 1,
+    "paginated": true
   },
   "links": {
     "self": "/api/v1/transaction-types?page=1&perPage=10",
@@ -527,9 +529,9 @@ Supported query parameters:
     {
       "id": 1,
       "role_id": 1,
-      "name": "Admin User",
-      "username": "admin",
-      "email": "admin@example.com",
+      "name": "Example User",
+      "username": "example-user",
+      "email": "example.user@example.test",
       "is_active": true,
       "created_at": "2026-04-02 10:00:00",
       "updated_at": "2026-04-02 10:00:00",
@@ -571,7 +573,7 @@ Lookup contract:
   "name": "New User",
   "username": "newuser",
   "email": "newuser@example.com",
-  "password": "password123",
+  "password": "example-user-password",
   "is_active": true
 }
 ```
@@ -665,7 +667,7 @@ This endpoint is for administrators to change another user's password. Changing 
 
 ```json
 {
-  "password": "newpassword123"
+  "password": "example-reset-password"
 }
 ```
 
