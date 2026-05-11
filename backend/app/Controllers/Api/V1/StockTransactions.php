@@ -433,6 +433,7 @@ class StockTransactions extends BaseController
      *     description="Rejects a pending revision transaction. Admin only. Rejecting a revision updates the revision approval state and approved_by metadata but does not mutate item stock quantities.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, description="Revision transaction id.", @OA\Schema(type="integer", minimum=1, example=21)),
+     *     @OA\RequestBody(required=false, @OA\JsonContent(ref="#/components/schemas/StockTransactionRevisionRejectRequest")),
      *     @OA\Response(response=200, description="Revision rejected successfully.", @OA\JsonContent(ref="#/components/schemas/StockTransactionRevisionRejectResponse")),
      *     @OA\Response(response=400, description="Validation failed because the target is not a pending revision or has an invalid approval state.", @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")),
      *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
@@ -452,10 +453,11 @@ class StockTransactions extends BaseController
                 ]);
         }
 
+        $data = $this->request->getJSON(true) ?? [];
         $userId    = $user->id;
         $ipAddress = $this->request->getIPAddress();
 
-        $result = $this->transactionService->rejectRevision($id, $userId, $ipAddress);
+        $result = $this->transactionService->rejectRevision($id, $data, $userId, $ipAddress);
 
         if (! $result['success']) {
             $statusCode = isset($result['errors']) && $result['errors'] === [] && $result['message'] === 'Revision not found.'
