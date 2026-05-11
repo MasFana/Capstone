@@ -109,6 +109,25 @@ class OperationalStockPreviewTest extends CIUnitTestCase
         $this->assertSame($stockTxnBefore + 1, $db->table('stock_transactions')->countAllResults());
     }
 
+    public function testOperationalPreviewRejectsGudangRole(): void
+    {
+        $token = $this->login('gudang');
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/spk/basah/operational-stock-preview', [
+                'service_date'   => '2026-03-01',
+                'meal_time'      => 'SIANG',
+                'total_patients' => 100,
+            ]);
+
+        $response->assertStatus(403);
+
+        $json = json_decode($response->getJSON(), true);
+        $this->assertIsArray($json);
+        $this->assertSame('Insufficient permissions.', $json['message'] ?? null);
+    }
+
     protected function seedRoles(): void
     {
         $roleModel = new RoleModel();

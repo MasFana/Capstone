@@ -217,6 +217,26 @@ class DocsTest extends CIUnitTestCase
         );
     }
 
+    public function testSpkBasahOperationalPreviewSpecDocumentsAdminAndDapurOnly(): void
+    {
+        $result = $this->get('api/docs/spec');
+
+        $result->assertStatus(200);
+
+        $json = json_decode($result->response()->getBody(), true);
+        $this->assertIsArray($json);
+
+        $operation = $json['paths']['/api/v1/spk/basah/operational-stock-preview']['post'] ?? null;
+        $this->assertIsArray($operation);
+
+        $description = $operation['description'] ?? '';
+        $forbiddenDescription = $operation['responses']['403']['description'] ?? '';
+
+        $this->assertStringContainsString('Accessible to admin and dapur users.', $description);
+        $this->assertStringNotContainsString('gudang', strtolower($description));
+        $this->assertStringContainsString('admin or dapur role', $forbiddenDescription);
+    }
+
     /**
      * @param array<string, mixed> $json
      */
