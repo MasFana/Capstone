@@ -5,7 +5,7 @@ import type { GenerateSpkBasahRequest, GenerateSpkKeringPengemasRequest, Operati
  *
  * Wraps:    /api/v1/spk/*
  * Contract: api-contract.md §5.7
- * Access:   admin | gudang | dapur
+ * Access:   Mixed by endpoint; see each method's `@access` tag.
  *
  * Wraps SPK basah and kering/pengemas generation, history, override, posting, and helper endpoints.
  */
