@@ -18,6 +18,7 @@ class StockTransactionModel extends Model
         'user_id',
         'spk_id',
         'reason',
+        'rejection_reason',
         'legacy_source_table',
         'legacy_source_id',
         'legacy_source_detail_id',
