@@ -12,10 +12,9 @@ Otorisasi Anda didasarkan pada App Role `gudang` yang dikelola oleh `app/Filters
   - Submit revisions for existing transactions if errors are found.
   - Create, submit, and manage Stock Opname drafts.
   - View all menus, schedules, and daily patient data.
-  - View SPK history and projections for Dapur coordination.
+  - Run the full SPK flow: preview, generate, inspect history, override recommendations, use stock-in prefill, and finalize SPK stock posting.
   - Access stock and transaction reports.
 - **Can’t:**
-  - Run `POST /api/v1/spk/basah/operational-stock-preview`, `POST /api/v1/spk/basah/generate`, or SPK override endpoints. Those remain restricted to `admin` and `dapur`.
   - Direct correction of `items.qty` (This is restricted to Admin).
   - Approve or Reject their own transaction revisions.
   - Finalize/Post Stock Opnames (Admin only).
