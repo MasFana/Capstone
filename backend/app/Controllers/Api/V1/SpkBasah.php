@@ -45,13 +45,13 @@ class SpkBasah extends BaseController
      *     operationId="previewSpkBasahOperationalStock",
      *     tags={"SPK Basah"},
      *     summary="Preview same-day operational stock",
-     *     description="Builds a same-day draft stock-out preview for the requested basah meal context without mutating stock, creating SPK history rows, or creating stock transactions. Accessible to admin and dapur users. Runtime requires service_date, meal_time, and total_patients. meal_time is normalized to uppercase and must resolve against the meal_times table. Errors are returned when the meal_time, menu mapping, recipe mapping, or BASAH category configuration is missing.",
+     *     description="Builds a same-day draft stock-out preview for the requested basah meal context without mutating stock, creating SPK history rows, or creating stock transactions. Accessible to admin, dapur, and gudang users. Runtime requires service_date, meal_time, and total_patients. meal_time is normalized to uppercase and must resolve against the meal_times table. Errors are returned when the meal_time, menu mapping, recipe mapping, or BASAH category configuration is missing.",
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/OperationalStockPreviewRequest")),
      *     @OA\Response(response=200, description="Operational preview response. This is a draft preview only and does not finalize or reserve stock.", @OA\JsonContent(ref="#/components/schemas/OperationalStockPreviewResponse")),
      *     @OA\Response(response=400, description="Validation failed for invalid dates, meal times, patient counts, or missing menu/recipe/category configuration.", @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")),
      *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
-     *     @OA\Response(response=403, description="Authenticated user lacks the admin or dapur role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
+     *     @OA\Response(response=403, description="Authenticated user lacks the admin, dapur, or gudang role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
      * )
      */
     public function operationalStockPreview(): ResponseInterface
@@ -126,13 +126,13 @@ class SpkBasah extends BaseController
      *     operationId="generateSpkBasah",
      *     tags={"SPK Basah"},
      *     summary="Generate SPK basah",
-     *     description="Generates a new versioned SPK basah history row and recommendation set for the requested service_date. Accessible to admin and dapur users. Runtime requires a valid service_date in Y-m-d format and an existing daily-patient row for that date, then applies a 5 percent patient buffer (ceiling) and targets the requested day plus the next day when both remain in the same calendar month. Generation creates SPK calculation and recommendation history only; it does not create stock transactions or finalize stock movement.",
+     *     description="Generates a new versioned SPK basah history row and recommendation set for the requested service_date. Accessible to admin, dapur, and gudang users. Runtime requires a valid service_date in Y-m-d format and an existing daily-patient row for that date, then applies a 5 percent patient buffer (ceiling) and targets the requested day plus the next day when both remain in the same calendar month. Generation creates SPK calculation and recommendation history only; it does not create stock transactions or finalize stock movement.",
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/SpkBasahGenerateRequest")),
      *     @OA\Response(response=201, description="SPK basah generated successfully. Response contains versioning and target-date metadata, not stock-posting artifacts.", @OA\JsonContent(ref="#/components/schemas/SpkBasahGenerateResponse")),
      *     @OA\Response(response=400, description="Validation failed for invalid service dates, missing daily-patient input, missing BASAH category, unresolved menu schedule, or missing dish/item recipe mapping.", @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")),
      *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
-     *     @OA\Response(response=403, description="Authenticated user lacks the admin or dapur role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
+     *     @OA\Response(response=403, description="Authenticated user lacks the admin, dapur, or gudang role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
      * )
      */
     public function generate(): ResponseInterface
@@ -346,13 +346,13 @@ class SpkBasah extends BaseController
      *     operationId="postSpkBasahToStock",
      *     tags={"SPK Basah"},
      *     summary="Post SPK basah into stock transactions",
-     *     description="Finalizes an SPK basah history row by aggregating positive recommendation quantities into a stock transaction and marking the SPK as finished. Admin only. Runtime rejects missing SPK rows, already-posted SPKs, empty recommendation sets, and all-nonpositive recommendation sets. The created stock transaction uses the server-side posting workflow; generate itself never posts stock.",
+     *     description="Finalizes an SPK basah history row by aggregating positive recommendation quantities into a stock transaction and marking the SPK as finished. Accessible to admin and gudang users. Runtime rejects missing SPK rows, already-posted SPKs, empty recommendation sets, and all-nonpositive recommendation sets. The created stock transaction uses the server-side posting workflow; generate itself never posts stock.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, description="SPK basah history identifier.", @OA\Schema(type="integer", minimum=1, example=31)),
      *     @OA\Response(response=200, description="SPK basah posted successfully and finalized.", @OA\JsonContent(ref="#/components/schemas/SpkBasahPostStockResponse")),
      *     @OA\Response(response=400, description="Validation failed because the SPK is already posted, has no recommendation rows, or has no positive quantities to post.", @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")),
      *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
-     *     @OA\Response(response=403, description="Authenticated user lacks the admin role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse")),
+     *     @OA\Response(response=403, description="Authenticated user lacks the admin or gudang role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse")),
      *     @OA\Response(response=404, description="SPK history not found.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
      * )
      */
@@ -397,14 +397,14 @@ class SpkBasah extends BaseController
      *     operationId="overrideSpkBasahRecommendation",
      *     tags={"SPK Basah"},
      *     summary="Override one SPK basah recommendation item",
-     *     description="Overrides one stored SPK basah recommendation before finalization. Accessible to admin and dapur users. Runtime accepts only recommendation_id, recommended_qty, and reason. It rejects unknown fields, negative quantities, blank reasons, mismatched recommendation ids, missing SPK rows, and finalized SPKs. The response always returns message, errors, and data keys; successful responses include the original system_recommended_qty and the persisted override metadata.",
+     *     description="Overrides one stored SPK basah recommendation before finalization. Accessible to admin, dapur, and gudang users. Runtime accepts only recommendation_id, recommended_qty, and reason. It rejects unknown fields, negative quantities, blank reasons, mismatched recommendation ids, missing SPK rows, and finalized SPKs. The response always returns message, errors, and data keys; successful responses include the original system_recommended_qty and the persisted override metadata.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, description="SPK basah history identifier.", @OA\Schema(type="integer", minimum=1, example=31)),
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideRequest")),
      *     @OA\Response(response=200, description="Recommendation overridden successfully.", @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideResponse")),
      *     @OA\Response(response=400, description="Validation failed for unknown fields, invalid recommendation ids, invalid quantities, or missing reasons.", @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideResponse")),
      *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
-     *     @OA\Response(response=403, description="Authenticated user lacks the admin or dapur role required by the route group, or the SPK is already finalized.", @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideResponse")),
+     *     @OA\Response(response=403, description="Authenticated user lacks the admin, dapur, or gudang role required by the route group, or the SPK is already finalized.", @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideResponse")),
      *     @OA\Response(response=404, description="SPK history or recommendation item not found.", @OA\JsonContent(ref="#/components/schemas/SpkRecommendationOverrideResponse"))
      * )
      */

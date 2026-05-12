@@ -34,7 +34,9 @@ class OpenApiDocs extends BaseConfig
          APPPATH . 'Controllers/Api/V1/Dashboard.php',
          APPPATH . 'Controllers/Api/V1/StockTransactions.php',
          APPPATH . 'Controllers/Api/V1/SpkBasah.php',
-    ];
+         APPPATH . 'Controllers/Api/V1/SpkKeringPengemas.php',
+         APPPATH . 'Controllers/Api/V1/SpkStockInPrefill.php',
+     ];
 
     public string $cachePath = WRITEPATH . 'cache/openapi-spec.json';
 
