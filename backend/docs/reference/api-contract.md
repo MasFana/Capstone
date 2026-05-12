@@ -1608,7 +1608,7 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 
 Access note: endpoint read untuk SPK history/calendar (`GET /spk/basah/menu-calendar`, `GET /spk/basah/history*`, `GET /spk/kering-pengemas/menu-calendar`, `GET /spk/kering-pengemas/history*`) tersedia untuk `admin`, `dapur`, dan `gudang`.
 
-Access note: endpoint write/helper pada SPK basah tidak semuanya mengikuti gate read di atas. `POST /spk/basah/operational-stock-preview`, `POST /spk/basah/generate`, `POST /spk/basah/history/{id}/override`, dan `POST /spk/kering-pengemas/generate` / `POST /spk/kering-pengemas/history/{id}/override` tersedia untuk `admin` dan `dapur`. `gudang` tidak memiliki akses ke endpoint preview/generate/override ini. Final stock posting (`POST /spk/*/history/{id}/post-stock`) tetap `admin` only.
+Access note: seluruh write/helper flow SPK yang saat ini diimplementasikan juga tersedia untuk `admin`, `dapur`, dan `gudang`, termasuk `POST /spk/basah/operational-stock-preview`, `POST /spk/basah/generate`, `POST /spk/basah/history/{id}/override`, `POST /spk/kering-pengemas/generate`, `POST /spk/kering-pengemas/history/{id}/override`, dan `GET /spk/stock-in-prefill/{id}`. Final stock posting (`POST /spk/*/history/{id}/post-stock`) tersedia untuk `admin` dan `gudang`.
 
 #### 5.7.5 Controller/Service Boundary Freeze
 
