@@ -460,6 +460,14 @@ $routes->group(
                         'MenuSchedules::update/$1',
                     );
                     $routes->post("daily-patients", "DailyPatients::create");
+                },
+            );
+
+            $routes->group(
+                "",
+                ["filter" => "role:admin,dapur,gudang"],
+                static function ($routes) {
+                    // [MODULE: SPK Write & Helper Surface] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\SpkBasah, SpkKeringPengemas, SpkStockInPrefill
                     $routes->post("spk/basah/generate", "SpkBasah::generate");
                     $routes->post(
                         "spk/basah/operational-stock-preview",
@@ -480,6 +488,22 @@ $routes->group(
                     $routes->get(
                         "spk/stock-in-prefill/(:num)",
                         'SpkStockInPrefill::show/$1',
+                    );
+                },
+            );
+
+            $routes->group(
+                "",
+                ["filter" => "role:admin,gudang"],
+                static function ($routes) {
+                    // [MODULE: SPK Stock Finalization Surface] Roles: admin, gudang | Controller: App\Controllers\Api\V1\SpkBasah, SpkKeringPengemas
+                    $routes->post(
+                        "spk/basah/history/(:num)/post-stock",
+                        'SpkBasah::postStock/$1',
+                    );
+                    $routes->post(
+                        "spk/kering-pengemas/history/(:num)/post-stock",
+                        'SpkKeringPengemas::postStock/$1',
                     );
                 },
             );
@@ -549,15 +573,6 @@ $routes->group(
                     "stock-transactions/(:num)/reject",
                     static fn() => service("response")->setStatusCode(204),
                 );
-                $routes->post(
-                    "spk/basah/history/(:num)/post-stock",
-                    'SpkBasah::postStock/$1',
-                );
-                $routes->post(
-                    "spk/kering-pengemas/history/(:num)/post-stock",
-                    'SpkKeringPengemas::postStock/$1',
-                );
-
                 // User management endpoints
                 $routes->get("users", "Users::index");
                 $routes->options(
