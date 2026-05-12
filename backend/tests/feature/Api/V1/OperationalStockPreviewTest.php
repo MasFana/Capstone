@@ -109,7 +109,7 @@ class OperationalStockPreviewTest extends CIUnitTestCase
         $this->assertSame($stockTxnBefore + 1, $db->table('stock_transactions')->countAllResults());
     }
 
-    public function testOperationalPreviewRejectsGudangRole(): void
+    public function testOperationalPreviewAllowsGudangRole(): void
     {
         $token = $this->login('gudang');
 
@@ -121,11 +121,12 @@ class OperationalStockPreviewTest extends CIUnitTestCase
                 'total_patients' => 100,
             ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
 
         $json = json_decode($response->getJSON(), true);
         $this->assertIsArray($json);
-        $this->assertSame('Insufficient permissions.', $json['message'] ?? null);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertSame('2026-03-01', $json['data']['service_date']);
     }
 
     protected function seedRoles(): void

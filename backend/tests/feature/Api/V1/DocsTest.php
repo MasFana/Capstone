@@ -217,7 +217,7 @@ class DocsTest extends CIUnitTestCase
         );
     }
 
-    public function testSpkBasahOperationalPreviewSpecDocumentsAdminAndDapurOnly(): void
+    public function testSpkBasahOperationalPreviewSpecDocumentsGudangAccess(): void
     {
         $result = $this->get('api/docs/spec');
 
@@ -232,9 +232,8 @@ class DocsTest extends CIUnitTestCase
         $description = $operation['description'] ?? '';
         $forbiddenDescription = $operation['responses']['403']['description'] ?? '';
 
-        $this->assertStringContainsString('Accessible to admin and dapur users.', $description);
-        $this->assertStringNotContainsString('gudang', strtolower($description));
-        $this->assertStringContainsString('admin or dapur role', $forbiddenDescription);
+        $this->assertStringContainsString('Accessible to admin, dapur, and gudang users.', $description);
+        $this->assertStringContainsString('admin, dapur, or gudang role', $forbiddenDescription);
     }
 
     /**
