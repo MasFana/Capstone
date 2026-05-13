@@ -1352,7 +1352,7 @@ var SpkResource = class {
    * Previews same-day operational stock consumption for basah preparation.
    *
    * @endpoint POST /api/v1/spk/basah/operational-stock-preview
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @returns {Promise<OperationalStockPreviewResponse>}
    * @throws {ValidationApiError} if validation fails (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1370,7 +1370,7 @@ var SpkResource = class {
    * Generates a basah SPK version.
    *
    * @endpoint POST /api/v1/spk/basah/generate
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @param payload - Basah generation input. Recommendations follow `((daily_patients × 1.05) × composition_qty) - current_stock`, clamped to 0.
    * @returns {Promise<SpkBasahGenerateResponse>}
    * @throws {ValidationApiError} if validation fails (400)
@@ -1422,7 +1422,7 @@ var SpkResource = class {
    * Overrides one basah recommendation row.
    *
    * @endpoint POST /api/v1/spk/basah/history/{id}/override
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @returns {Promise<SpkOverrideResponse>}
    * @throws {ValidationApiError} if validation fails (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1441,7 +1441,7 @@ var SpkResource = class {
    * Posts one basah SPK to stock.
    *
    * @endpoint POST /api/v1/spk/basah/history/{id}/post-stock
-   * @access   admin
+   * @access   admin | gudang
    * @returns {Promise<SpkPostStockResponse>}
    * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1478,7 +1478,7 @@ var SpkResource = class {
    * Generates a kering/pengemas SPK version.
    *
    * @endpoint POST /api/v1/spk/kering-pengemas/generate
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @param payload - Monthly generation input. Recommendations follow `(prev_month_actual_usage × 1.10) - current_stock`, clamped to 0.
    * @returns {Promise<SpkKeringPengemasGenerateResponse>}
    * @throws {ValidationApiError} if validation fails (400)
@@ -1530,7 +1530,7 @@ var SpkResource = class {
    * Overrides one kering/pengemas recommendation row.
    *
    * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/override
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @returns {Promise<SpkOverrideResponse>}
    * @throws {ValidationApiError} if validation fails (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1549,7 +1549,7 @@ var SpkResource = class {
    * Posts one kering/pengemas SPK to stock.
    *
    * @endpoint POST /api/v1/spk/kering-pengemas/history/{id}/post-stock
-   * @access   admin
+   * @access   admin | gudang
    * @returns {Promise<SpkPostStockResponse>}
    * @throws {ValidationApiError} if the SPK cannot be posted or was already finalized (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1567,7 +1567,7 @@ var SpkResource = class {
    * Returns a stock-transaction prefill payload derived from an SPK.
    *
    * @endpoint GET /api/v1/spk/stock-in-prefill/{id}
-   * @access   admin | dapur
+   * @access   admin | dapur | gudang
    * @returns {Promise<SpkStockInPrefillResponse>}
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
@@ -1730,6 +1730,7 @@ var StockTransactionsResource = class {
    *
    * @endpoint POST /api/v1/stock-transactions/{id}/reject
    * @access   admin
+   * @param payload - Optional JSON body with `reason`. Omitting the body remains supported for backward compatibility.
    * @returns {Promise<ApiMessageDataResponse<StockTransactionModerationResult>>}
    * @throws {ValidationApiError} if the revision is not rejectable (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
@@ -1737,10 +1738,11 @@ var StockTransactionsResource = class {
    * @throws {NotFoundApiError} if the revision does not exist (404)
    * @sideeffect Does not mutate `items.qty`.
    */
-  reject(id) {
+  reject(id, payload) {
     return this.client.request({
       method: "POST",
-      path: `/stock-transactions/${id}/reject`
+      path: `/stock-transactions/${id}/reject`,
+      ...payload ? { body: payload } : {}
     });
   }
 };
