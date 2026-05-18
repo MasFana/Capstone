@@ -90,6 +90,40 @@ class SpkBasahTest extends CIUnitTestCase
         $response->assertJSONFragment(['message' => 'SPK basah generated successfully.']);
     }
 
+    public function testGenerateReturnsConflictForDuplicateScopeUnlessRegenerateIsTrue(): void
+    {
+        $token = $this->login('dapur');
+
+        $this->createDailyPatient($token, '2026-03-01', 100);
+
+        $first = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/spk/basah/generate', [
+                'service_date' => '2026-03-01',
+            ]);
+        $first->assertStatus(201);
+
+        $conflict = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/spk/basah/generate', [
+                'service_date' => '2026-03-01',
+            ]);
+        $conflict->assertStatus(409);
+        $conflictJson = json_decode($conflict->getJSON(), true);
+        $this->assertSame('SPK generation conflict.', $conflictJson['message']);
+        $this->assertSame(true, $conflictJson['conflict']['regenerate_allowed']);
+
+        $regenerated = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/spk/basah/generate', [
+                'service_date' => '2026-03-01',
+                'regenerate'   => true,
+            ]);
+        $regenerated->assertStatus(201);
+        $regeneratedJson = json_decode($regenerated->getJSON(), true);
+        $this->assertSame(2, $regeneratedJson['data']['version']);
+    }
+
     public function testGenerateOnMonthEndIncludesOnlyRequestedDate(): void
     {
         $token = $this->login('dapur');
