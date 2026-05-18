@@ -19,6 +19,7 @@ Automates stock recommendations based on meal schedules and patient counts.
 
 - **Calculation Logic**: Uses Dish Compositions × Estimated Patients to determine required quantities.
 - **Overrides**: Users can manually adjust the system-calculated recommendation before posting.
+- **Duplicate Guardrail**: Generate endpoints now reject duplicate active scopes unless the caller explicitly sends `regenerate=true`, in which case a new history version is created.
 - **Posting**: Once posted, the SPK creates an `OUT` transaction. A posted SPK cannot be edited.
 
 ## Related Documentation

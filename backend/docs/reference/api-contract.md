@@ -1377,6 +1377,7 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 | POST | `/api/v1/stock-transactions/{id}/approve` | Approve revision transaction |
 | POST | `/api/v1/stock-transactions/{id}/reject` | Reject revision transaction (optional body: `reason`) |
 | POST | `/api/v1/stock-opnames` | Create dedicated stock opname draft |
+| PUT | `/api/v1/stock-opnames/{id}` | Update stock opname draft or rejected revision |
 | GET | `/api/v1/stock-opnames/{id}` | Get stock opname header and details |
 | POST | `/api/v1/stock-opnames/{id}/submit` | Submit stock opname draft for approval |
 | POST | `/api/v1/stock-opnames/{id}/approve` | Approve submitted stock opname |
@@ -1408,6 +1409,7 @@ The `/api/v1/stock-opnames/*` routes are preserved as a compatibility facade. Wh
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/v1/stock-opnames` | Create dedicated stock opname draft |
+| PUT | `/api/v1/stock-opnames/{id}` | Update stock opname draft or rejected revision |
 | GET | `/api/v1/stock-opnames/{id}` | Get stock opname header and details |
 | POST | `/api/v1/stock-opnames/{id}/submit` | Submit stock opname draft for approval |
 | POST | `/api/v1/stock-opnames/{id}/approve` | Approve submitted stock opname |
@@ -1549,9 +1551,10 @@ Bagian ini membekukan kontrak route, boundary, dan lifecycle untuk fondasi imple
 |---|---|---|
 | GET | `/api/v1/daily-patients` | List daily patient rows (standard `data/meta/links`) |
 | POST | `/api/v1/daily-patients` | Create daily patient row |
+| PUT | `/api/v1/daily-patients/{id}` | Update daily patient row by numeric id |
 | GET | `/api/v1/daily-patients/{service_date}` | Get daily patient detail by service date (`Y-m-d`) |
 
-Access note: `GET` daily-patients tersedia untuk `admin`, `dapur`, dan `gudang`; `POST` daily-patients tersedia untuk `admin` dan `dapur`.
+Access note: `GET` daily-patients tersedia untuk `admin`, `dapur`, dan `gudang`; `POST` dan `PUT` daily-patients tersedia untuk `admin` dan `dapur`.
 
 Collection response contract mengikuti envelope standar (`data`, `meta`, `links`).
 
@@ -1573,6 +1576,8 @@ Example create response:
 }
 ```
 
+Duplicate create requests now return `400` with an actionable error that includes `existing_id` and directs clients to use `PUT /api/v1/daily-patients/{id}`.
+
 #### 5.7.2 SPK Basah Route Family
 
 SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generation/history, dan stock posting.
@@ -1581,7 +1586,7 @@ SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generat
 |---|---|---|
 | GET | `/api/v1/spk/basah/menu-calendar` | Projection-only resolver untuk menu calendar context |
 | POST | `/api/v1/spk/basah/operational-stock-preview` | Preview sisa stok untuk tanggal yang sama |
-| POST | `/api/v1/spk/basah/generate` | Generate SPK basah (membuat versi histori baru) |
+| POST | `/api/v1/spk/basah/generate` | Generate SPK basah (membuat versi histori baru; duplicate active scope returns 409 unless `regenerate=true`) |
 | GET | `/api/v1/spk/basah/history` | List histori SPK basah |
 | GET | `/api/v1/spk/basah/history/{id}` | Detail histori SPK basah (termasuk rekomendasi item) |
 | POST | `/api/v1/spk/basah/history/{id}/override` | Override rekomendasi qty per item |
@@ -1594,7 +1599,7 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/v1/spk/kering-pengemas/menu-calendar` | Projection-only resolver |
-| POST | `/api/v1/spk/kering-pengemas/generate` | Generate SPK kering/pengemas (monthly basis) |
+| POST | `/api/v1/spk/kering-pengemas/generate` | Generate SPK kering/pengemas (monthly basis; duplicate active scope returns 409 unless `regenerate=true`) |
 | GET | `/api/v1/spk/kering-pengemas/history` | List histori |
 | GET | `/api/v1/spk/kering-pengemas/history/{id}` | Detail histori |
 | POST | `/api/v1/spk/kering-pengemas/history/{id}/override` | Override rekomendasi qty per item |
@@ -1627,6 +1632,7 @@ Regeneration SPK dibekukan dengan semantics berikut:
 2. Histori versi sebelumnya tidak boleh di-overwrite.
 3. Endpoint history list/detail harus memungkinkan pelacakan versi.
 4. Stock posting adalah langkah terpisah setelah versi dipilih, bukan side effect dari generate.
+5. Jika masih ada SPK aktif (`is_finish=false`) untuk scope yang sama, generate mengembalikan `409 Conflict` beserta metadata SPK existing. Klien harus mengirim `regenerate=true` untuk membuat versi baru secara eksplisit.
 
 Contoh response envelope generate:
 
