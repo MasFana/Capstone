@@ -413,6 +413,7 @@ $routes->group(
                         'StockTransactions::submitRevision/$1',
                     );
                     $routes->post("stock-opnames", "StockOpnames::create");
+                    $routes->put("stock-opnames/(:num)", 'StockOpnames::update/$1');
                     $routes->get(
                         "stock-opnames/(:num)",
                         'StockOpnames::show/$1',
@@ -460,6 +461,7 @@ $routes->group(
                         'MenuSchedules::update/$1',
                     );
                     $routes->post("daily-patients", "DailyPatients::create");
+                    $routes->put("daily-patients/(:num)", 'DailyPatients::update/$1');
                 },
             );
 
