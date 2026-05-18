@@ -375,12 +375,31 @@ var DailyPatientsResource = class {
    * @throws {ValidationApiError} if validation fails or the service date already exists (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
-   * @sideeffect Creates a new immutable audit row; no update/delete endpoint exists.
+   * @sideeffect Creates a new daily patient row used by SPK generation.
    */
   create(payload) {
     return this.client.request({
       method: "POST",
       path: "/daily-patients",
+      body: payload
+    });
+  }
+  /**
+   * Updates a daily patient row by id.
+   *
+   * @endpoint PUT /api/v1/daily-patients/{id}
+   * @access   admin | dapur
+   * @returns {Promise<DailyPatientUpdateResponse>}
+   * @throws {ValidationApiError} if validation fails or the service date collides with another row (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the row does not exist (404)
+   * @sideeffect Updates the existing daily patient input row without changing the list/detail envelope shapes.
+   */
+  update(id, payload) {
+    return this.client.request({
+      method: "PUT",
+      path: `/daily-patients/${id}`,
       body: payload
     });
   }
@@ -2149,6 +2168,25 @@ var StockOpnamesResource = class {
     return this.client.request({
       method: "GET",
       path: `/stock-opnames/${id}`
+    });
+  }
+  /**
+   * Updates an editable stock opname.
+   *
+   * @endpoint PUT /api/v1/stock-opnames/{id}
+   * @access   admin | gudang
+   * @returns {Promise<StockOpnameActionResponse>}
+   * @throws {ValidationApiError} if the payload is invalid or the workflow state is immutable (400)
+   * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
+   * @throws {AuthorizationApiError} if the caller lacks the required role (403)
+   * @throws {NotFoundApiError} if the opname does not exist (404)
+   * @sideeffect Replaces the draft/rejected detail set in full; does not post stock.
+   */
+  async update(id, request) {
+    return this.client.request({
+      method: "PUT",
+      path: `/stock-opnames/${id}`,
+      body: request
     });
   }
   /**
