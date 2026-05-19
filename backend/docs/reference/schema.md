@@ -352,7 +352,7 @@ Catatan desain:
 - Mutasi stok dari revisi hanya diterapkan ketika status revisi berubah menjadi `APPROVED`.
 - Saat revisi di-approve, aplikasi menerapkan **selisih bersih** antara detail revisi pending dan **baseline efektif** per item (latest approved sibling dalam lineage, atau parent original jika belum ada approved sibling).
 - Semua revisi pada satu lineage tetap sibling ke parent original (tidak ada revision chaining).
-- Dalam satu lineage, maksimal hanya satu sibling berstatus `PENDING` pada waktu yang sama.
+- Dalam satu lineage, maksimal hanya satu sibling berstatus `PENDING` pada waktu yang sama; repeated submit memperbarui sibling `PENDING` yang sama, bukan membuat sibling pending baru.
 
 Index lineage revisi:
 

@@ -1388,14 +1388,14 @@ Workflow revisi transaksi stok berikut sudah diimplementasikan setelah Milestone
 
 - submit revision dapat dilakukan oleh `admin` dan `gudang`;
 - approve/reject revision hanya dapat dilakukan oleh `admin`;
-- submit revision membuat child transaction dengan `is_revision = true` dan `approval_status_id = PENDING`;
-- submit revision menolak request baru jika masih ada sibling revision berstatus `PENDING` pada lineage yang sama;
+- submit revision membuat child transaction dengan `is_revision = true` dan `approval_status_id = PENDING`, atau memperbarui child revision `PENDING` yang sudah ada untuk parent yang sama;
+- submit revision tidak membuat multiple sibling revision berstatus `PENDING` secara bersamaan; repeated submit sebelum admin action akan mereuse revision `PENDING` yang sama;
 - submit revision **tidak** mengubah `items.qty`;
 - `items.qty` baru berubah ketika revision di-approve;
 - saat approve, sistem **tidak** memperlakukan qty revision sebagai mutasi baru yang ditambahkan di atas parent;
 - saat approve, sistem menghitung **selisih bersih (net difference)** antara detail revision pending dan baseline efektif per item;
 - baseline efektif saat approve = latest approved sibling dalam lineage yang sama, jika ada; jika tidak ada maka baseline = parent original;
-- successive approved sibling revisions diperbolehkan sepanjang alur tetap sequential (satu pending per lineage);
+- successive approved sibling revisions diperbolehkan sepanjang alur tetap sequential (maksimal satu pending sibling yang direuse per lineage);
 - revision-on-revision tetap ditolak;
 - reject revision tidak mengubah `items.qty`;
 - reject revision menerima body JSON opsional `{ "reason": "..." }` untuk catatan penolakan admin;
@@ -2126,7 +2126,7 @@ Request dengan konversi satuan:
 }
 ```
 
-Submit revision hanya membuat child revision pending dan tidak langsung mengubah stok.
+Submit revision hanya membuat atau memperbarui child revision pending dan tidak langsung mengubah stok. Jika parent yang sama sudah memiliki revision `PENDING`, payload terbaru akan menggantikan header/detail revision pending tersebut tanpa membuat sibling pending baru.
 
 ### 7.4 Approve Revision
 
