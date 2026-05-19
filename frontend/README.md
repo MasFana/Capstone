@@ -411,8 +411,8 @@ await sdk.auth.login({
 - create supports `type_id` or `type_name`
 - direct correction is admin-only and requires `item_id`, `expected_current_qty`, `target_qty`, and `reason`
 - direct correction is stored as a normal stock transaction (not a revision), with the server deriving whether the adjustment is `IN` or `OUT`
-- submit revision only creates a pending child revision; it does not change stock immediately
-- only one pending revision is allowed at a time for the same original transaction lineage; after a revision is approved or rejected, a new sibling revision can be submitted against the same original transaction
+- submit revision creates a pending child revision on first submit, then reuses and replaces that same pending child revision if the same parent is resubmitted before admin review; it does not change stock immediately
+- only one pending revision is allowed at a time for the same original transaction lineage; repeated submits update that same pending sibling, and after a revision is approved or rejected, a new sibling revision can be submitted against the same original transaction
 - approve revision applies the revision as a **net correction** against the latest approved revision in the lineage (or the original parent when no approved sibling exists), not as a second additive stock movement
 - `sdk.stockTransactions.details(id)` returns normalized detail rows with item metadata, including `satuan` as the base-unit label for `qty`; use `input_qty` + `input_unit` for the original entered quantity mode
 - detail rows still use `item_id`; there is no item-name write shortcut in transaction details
