@@ -624,25 +624,23 @@ $routes->group(
     },
 );
 
-// ─── Next.js static pages ─────────────────────────────────────────────────────
+// Root
 $routes->get("/", static function () {
     return response()
         ->setHeader("Content-Type", "text/html; charset=UTF-8")
         ->setBody(file_get_contents(FCPATH . "index.html"));
 });
 
+// All other paths
 $routes->get("(:any)", static function (string $path) {
     $file = FCPATH . rtrim($path, "/") . "/index.html";
 
-    // Exact static page match (e.g. /about → public/about/index.html)
-    if (file_exists($file)) {
-        return response()
-            ->setHeader("Content-Type", "text/html; charset=UTF-8")
-            ->setBody(file_get_contents($file));
-    }
-
-    // Fallback to root index.html for client-side (SPA) routing
     return response()
         ->setHeader("Content-Type", "text/html; charset=UTF-8")
-        ->setBody(file_get_contents(FCPATH . "index.html"));
+        ->setBody(
+            file_get_contents(
+                // Serve matching static page, or fall back to SPA root
+                file_exists($file) ? $file : FCPATH . "index.html",
+            ),
+        );
 });
