@@ -413,7 +413,10 @@ $routes->group(
                         'StockTransactions::submitRevision/$1',
                     );
                     $routes->post("stock-opnames", "StockOpnames::create");
-                    $routes->put("stock-opnames/(:num)", 'StockOpnames::update/$1');
+                    $routes->put(
+                        "stock-opnames/(:num)",
+                        'StockOpnames::update/$1',
+                    );
                     $routes->get(
                         "stock-opnames/(:num)",
                         'StockOpnames::show/$1',
@@ -461,7 +464,10 @@ $routes->group(
                         'MenuSchedules::update/$1',
                     );
                     $routes->post("daily-patients", "DailyPatients::create");
-                    $routes->put("daily-patients/(:num)", 'DailyPatients::update/$1');
+                    $routes->put(
+                        "daily-patients/(:num)",
+                        'DailyPatients::update/$1',
+                    );
                 },
             );
 
@@ -617,3 +623,26 @@ $routes->group(
         });
     },
 );
+
+// ─── Next.js static pages ─────────────────────────────────────────────────────
+$routes->get("/", static function () {
+    return response()
+        ->setHeader("Content-Type", "text/html; charset=UTF-8")
+        ->setBody(file_get_contents(FCPATH . "index.html"));
+});
+
+$routes->get("(:any)", static function (string $path) {
+    $file = FCPATH . rtrim($path, "/") . "/index.html";
+
+    // Exact static page match (e.g. /about → public/about/index.html)
+    if (file_exists($file)) {
+        return response()
+            ->setHeader("Content-Type", "text/html; charset=UTF-8")
+            ->setBody(file_get_contents($file));
+    }
+
+    // Fallback to root index.html for client-side (SPA) routing
+    return response()
+        ->setHeader("Content-Type", "text/html; charset=UTF-8")
+        ->setBody(file_get_contents(FCPATH . "index.html"));
+});
