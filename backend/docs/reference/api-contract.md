@@ -188,7 +188,7 @@ Authenticated users can change their own password. This endpoint requires the us
 
 ### 5.2 Inventory Lookup Endpoints
 
-These endpoints provide reference data for creating and filtering inventory operations. All lookup list endpoints are restricted to users with `admin` or `gudang` roles. Write operations on `item-units` and `item-categories` are restricted to `admin` only.
+These endpoints provide reference data for creating and filtering inventory operations. All inventory lookup GET endpoints are accessible to users with `admin`, `dapur`, or `gudang` roles. Write operations on `item-units` and `item-categories` remain restricted to `admin` only.
 
 All lookup list endpoints support pagination by default and return the standard `data/meta/links` envelope. Soft-deleted rows are excluded from all list and show responses.
 
@@ -225,7 +225,7 @@ Supported query parameters for all lookup list endpoints:
 
 #### 5.2.1 Item Categories
 
-**Access:** `admin`, `gudang`
+**Access:** GET/list-show for `admin`, `dapur`, `gudang`; write routes are `admin` only.
 
 ##### Response
 
@@ -299,7 +299,7 @@ Supported query parameters for all lookup list endpoints:
 
 #### 5.2.2 Transaction Types
 
-**Access:** `admin`, `gudang`
+**Access:** `admin`, `dapur`, `gudang`
 
 ##### Response
 
@@ -344,7 +344,7 @@ Supported query parameters for all lookup list endpoints:
 
 #### 5.2.3 Approval Statuses
 
-**Access:** `admin`, `gudang`
+**Access:** `admin`, `dapur`, `gudang`
 
 ##### Response
 
@@ -388,7 +388,7 @@ Supported query parameters for all lookup list endpoints:
 
 #### 5.2.4 Item Units
 
-**List / Show access:** `admin`, `gudang`
+**List / Show access:** `admin`, `dapur`, `gudang`
 **Create / Update / Delete access:** `admin` only
 
 `item_units` is a soft-deletable lookup table used as FK backing for item units. Soft-deleted item units are excluded from list and show responses, cannot be assigned to items, and delete is blocked while active items still reference the unit.
@@ -731,8 +731,8 @@ Phase 1 item management covers item master CRUD only. `qty` is read-only in this
 #### 5.4.1 Access Rules
 
 - `admin` and `gudang` can list, create, view, and update items.
+- `dapur` can list and view items only.
 - `admin` only can soft delete or restore items.
-- `dapur` has no access to item master management.
 
 #### 5.4.2 List Items
 
