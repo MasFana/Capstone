@@ -345,10 +345,10 @@ $routes->group(
                 },
             );
 
-            // [MODULE: Inventory & Stock Operations] Roles: admin, gudang | Controller: App\Controllers\Api\V1\ItemCategories, ItemUnits, Items, StockTransactions, StockOpnames
+            // [MODULE: Inventory Lookup Read Surface] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\ItemCategories, TransactionTypes, ApprovalStatuses, MealTimes, ItemUnits, Items
             $routes->group(
                 "",
-                ["filter" => "role:admin,gudang"],
+                ["filter" => "role:admin,dapur,gudang"],
                 static function ($routes) {
                     $routes->get("item-categories", "ItemCategories::index");
                     $routes->get(
@@ -366,14 +366,21 @@ $routes->group(
                     $routes->get("meal-times", "MealTimes::index");
                     $routes->get("item-units", "ItemUnits::index");
                     $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
-
                     $routes->get("items", "Items::index");
+                    $routes->get("items/(:num)", 'Items::show/$1');
+                },
+            );
+
+            // [MODULE: Inventory & Stock Operations] Roles: admin, gudang | Controller: App\Controllers\Api\V1\Items, StockTransactions, StockOpnames
+            $routes->group(
+                "",
+                ["filter" => "role:admin,gudang"],
+                static function ($routes) {
                     $routes->options(
                         "items",
                         static fn() => service("response")->setStatusCode(204),
                     );
                     $routes->post("items", "Items::create");
-                    $routes->get("items/(:num)", 'Items::show/$1');
                     $routes->options(
                         "items/(:num)",
                         static fn() => service("response")->setStatusCode(204),
