@@ -289,8 +289,8 @@ await sdk.auth.login({
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.itemCategories.list(query?)` | `GET /api/v1/item-categories` | `admin`, `gudang` |
-| `sdk.itemCategories.get(id)` | `GET /api/v1/item-categories/{id}` | `admin`, `gudang` |
+| `sdk.itemCategories.list(query?)` | `GET /api/v1/item-categories` | `admin`, `dapur`, `gudang` |
+| `sdk.itemCategories.get(id)` | `GET /api/v1/item-categories/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.itemCategories.create(payload)` | `POST /api/v1/item-categories` | `admin` only |
 | `sdk.itemCategories.update(id, payload)` | `PUT /api/v1/item-categories/{id}` | `admin` only |
 | `sdk.itemCategories.delete(id)` | `DELETE /api/v1/item-categories/{id}` | `admin` only |
@@ -307,8 +307,8 @@ await sdk.auth.login({
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.itemUnits.list(query?)` | `GET /api/v1/item-units` | `admin`, `gudang` |
-| `sdk.itemUnits.get(id)` | `GET /api/v1/item-units/{id}` | `admin`, `gudang` |
+| `sdk.itemUnits.list(query?)` | `GET /api/v1/item-units` | `admin`, `dapur`, `gudang` |
+| `sdk.itemUnits.get(id)` | `GET /api/v1/item-units/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.itemUnits.create(payload)` | `POST /api/v1/item-units` | `admin` only |
 | `sdk.itemUnits.update(id, payload)` | `PUT /api/v1/item-units/{id}` | `admin` only |
 | `sdk.itemUnits.delete(id)` | `DELETE /api/v1/item-units/{id}` | `admin` only |
@@ -325,26 +325,26 @@ await sdk.auth.login({
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.transactionTypes.list(query?)` | `GET /api/v1/transaction-types` | `admin`, `gudang` |
+| `sdk.transactionTypes.list(query?)` | `GET /api/v1/transaction-types` | `admin`, `dapur`, `gudang` |
 
 ### `approvalStatuses`
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.approvalStatuses.list(query?)` | `GET /api/v1/approval-statuses` | `admin`, `gudang` |
+| `sdk.approvalStatuses.list(query?)` | `GET /api/v1/approval-statuses` | `admin`, `dapur`, `gudang` |
 
 ### `mealTimes`
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.mealTimes.list(query?)` | `GET /api/v1/meal-times` | `admin`, `gudang` |
+| `sdk.mealTimes.list(query?)` | `GET /api/v1/meal-times` | `admin`, `dapur`, `gudang` |
 
 ### `items`
 
 | SDK method | HTTP endpoint | Access |
 |---|---|---|
-| `sdk.items.list(query?)` | `GET /api/v1/items` | `admin`, `gudang` |
-| `sdk.items.get(id)` | `GET /api/v1/items/{id}` | `admin`, `gudang` |
+| `sdk.items.list(query?)` | `GET /api/v1/items` | `admin`, `dapur`, `gudang` |
+| `sdk.items.get(id)` | `GET /api/v1/items/{id}` | `admin`, `dapur`, `gudang` |
 | `sdk.items.create(payload)` | `POST /api/v1/items` | `admin`, `gudang` |
 | `sdk.items.update(id, payload)` | `PUT /api/v1/items/{id}` | `admin`, `gudang` |
 | `sdk.items.delete(id)` | `DELETE /api/v1/items/{id}` | `admin` only |

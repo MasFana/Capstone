@@ -290,7 +290,7 @@ var ApprovalStatusesResource = class {
    * Lists approval statuses with pagination, filtering, and optional full lookup reads.
    *
    * @endpoint GET /api/v1/approval-statuses
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    *
    * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
    * @returns {Promise<ApiListResponse<ApprovalStatus>>}
@@ -537,7 +537,7 @@ var ItemCategoriesResource = class {
    * Lists item categories with pagination, filtering, and optional full lookup reads.
    *
    * @endpoint GET /api/v1/item-categories
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
    * @returns {Promise<ApiListResponse<ItemCategory>>}
    * @throws {ValidationApiError} if query validation fails (400)
@@ -556,7 +556,7 @@ var ItemCategoriesResource = class {
    * Returns one active item category.
    *
    * @endpoint GET /api/v1/item-categories/{id}
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @returns {Promise<ApiDataResponse<ItemCategory>>}
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
@@ -670,7 +670,7 @@ var ItemsResource = class {
    * Lists active items with pagination, filtering, and search.
    *
    * @endpoint GET /api/v1/items
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @param query - Supports `page`, `perPage`, `item_category_id`, `is_active`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted items are excluded.
    * @returns {Promise<ApiListResponse<Item>>}
    * @throws {ValidationApiError} if query validation fails (400)
@@ -689,7 +689,7 @@ var ItemsResource = class {
    * Returns one active item.
    *
    * @endpoint GET /api/v1/items/{id}
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @returns {Promise<ApiDataResponse<Item>>}
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
@@ -828,7 +828,7 @@ var ItemUnitsResource = class {
    * Lists item units with pagination, filtering, and optional full lookup reads.
    *
    * @endpoint GET /api/v1/item-units
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
    * @returns {Promise<ApiListResponse<ItemUnit>>}
    * @throws {ValidationApiError} if query validation fails (400)
@@ -847,7 +847,7 @@ var ItemUnitsResource = class {
    * Returns one active item unit.
    *
    * @endpoint GET /api/v1/item-units/{id}
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    * @returns {Promise<ApiDataResponse<ItemUnit>>}
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
@@ -962,7 +962,7 @@ var MealTimesResource = class {
    * Lists meal times with pagination, filtering, and optional full lookup reads.
    *
    * @endpoint GET /api/v1/meal-times
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    *
    * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
    * @returns {Promise<ApiListResponse<MealTime>>}
@@ -1798,7 +1798,7 @@ var TransactionTypesResource = class {
    * Lists transaction types with pagination, filtering, and optional full lookup reads.
    *
    * @endpoint GET /api/v1/transaction-types
-   * @access   admin | gudang
+   * @access   admin | dapur | gudang
    *
    * @param query - Supports `paginate`, `page`, `perPage`, `q`/`search` (`q` wins), `sortBy`, `sortDir`, `created_at_from/to`, and `updated_at_from/to`. Unknown params return 400. Soft-deleted rows are excluded. `paginate=false` keeps the same envelope and sets `meta.paginated=false`.
    * @returns {Promise<ApiListResponse<TransactionType>>}
