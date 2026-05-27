@@ -15,6 +15,8 @@ Manages the core kitchen schedule, dish recipes, and patient counts.
 - `POST /api/v1/dishes`: Create a new dish (Admin/Dapur).
 - `PUT /api/v1/dishes/{id}`: Update a dish (Admin/Dapur).
 - `DELETE /api/v1/dishes/{id}`: Delete a dish (Admin/Dapur).
+- `PATCH /api/v1/dishes/{id}/deactivate`: Deactivate a dish (Admin/Dapur).
+- `PATCH /api/v1/dishes/{id}/reactivate`: Reactivate a dish (Admin/Dapur).
 
 ### Scheduling & Patient Data
 - `GET /api/v1/menu-schedules`: List manual schedule overrides for days of the month.
@@ -31,6 +33,7 @@ Manages the core kitchen schedule, dish recipes, and patient counts.
 
 - **Slots**: Each menu (Package) is assigned to a meal time (`PAGI`, `SIANG`, `SORE`).
 - **Compositions**: Dish recipes must use valid `items` and `item-units`.
+- **Lifecycle**: Deactivating a dish removes it from all active menu slots. Reactivation allows new assignments but does not restore old ones. Inactive dishes are rejected when writing to menu slots with the message `The selected dish is inactive.`
 - **Estimation**: SPK generation uses the `daily-patients` count as the primary multiplier for calculations.
 
 ## Related Documentation

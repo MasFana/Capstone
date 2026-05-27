@@ -357,7 +357,7 @@ var DishesResource = class {
     this.client = client;
   }
   client;
-  /** @endpoint GET /api/v1/dishes @access admin | gudang | dapur @param query - Supports standard list pagination, search, sorting, and created/updated date ranges. @returns {Promise<DishesListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
+  /** @endpoint GET /api/v1/dishes @access admin | gudang | dapur @param query - Supports standard list pagination, `paginate`, `is_active`, search, sorting, and created/updated date ranges. `paginate=false` keeps the same envelope and sets `meta.paginated=false`. @returns {Promise<DishesListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -388,7 +388,21 @@ var DishesResource = class {
       body: payload
     });
   }
-  /** @endpoint DELETE /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageResponse>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Permanently deletes the dish row. */
+  /** @endpoint PATCH /api/v1/dishes/{id}/deactivate @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Sets `is_active=false`, preserves dish compositions, and removes linked menu slot assignments. */
+  deactivate(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/dishes/${id}/deactivate`
+    });
+  }
+  /** @endpoint PATCH /api/v1/dishes/{id}/reactivate @access admin | dapur @returns {Promise<ApiMessageDataResponse<Dish>>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Sets `is_active=true` and makes the dish assignable again without restoring prior menu slot assignments. */
+  reactivate(id) {
+    return this.client.request({
+      method: "PATCH",
+      path: `/dishes/${id}/reactivate`
+    });
+  }
+  /** @endpoint DELETE /api/v1/dishes/{id} @access admin | dapur @returns {Promise<ApiMessageResponse>} @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @throws {NotFoundApiError} if the dish does not exist (404) @sideeffect Permanently deletes the dish row only after it is inactive and detached from menu slots; dish compositions are removed by DB cascade. */
   delete(id) {
     return this.client.request({
       method: "DELETE",
@@ -398,8 +412,10 @@ var DishesResource = class {
 };
 function buildDishesQuery(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate;
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
+  if (query.is_active !== void 0) result.is_active = query.is_active;
   if (query.q !== void 0) result.q = query.q;
   if (query.search !== void 0) result.search = query.search;
   if (query.sortBy !== void 0) result.sortBy = query.sortBy;
@@ -417,7 +433,7 @@ var DishCompositionsResource = class {
     this.client = client;
   }
   client;
-  /** @endpoint GET /api/v1/dish-compositions @access admin | gudang | dapur @param query - Supports standard list pagination, `dish_id`, `item_id`, search, sorting, and created/updated date ranges. @returns {Promise<DishCompositionsListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
+  /** @endpoint GET /api/v1/dish-compositions @access admin | gudang | dapur @param query - Supports standard list pagination, `paginate`, `dish_id`, `item_id`, search, sorting, and created/updated date ranges. `paginate=false` keeps the same envelope and sets `meta.paginated=false`. @returns {Promise<DishCompositionsListResponse>} @throws {ValidationApiError} if query validation fails (400) @throws {AuthenticationApiError} if no valid Bearer token is provided (401) @throws {AuthorizationApiError} if the caller lacks the required role (403) @sideeffect None */
   list(query) {
     return this.client.request({
       method: "GET",
@@ -458,6 +474,7 @@ var DishCompositionsResource = class {
 };
 function buildDishCompositionsQuery(query) {
   const result = {};
+  if (query.paginate !== void 0) result.paginate = query.paginate;
   if (query.page !== void 0) result.page = query.page;
   if (query.perPage !== void 0) result.perPage = query.perPage;
   if (query.dish_id !== void 0) result.dish_id = query.dish_id;
@@ -986,9 +1003,9 @@ var MenusResource = class {
    *
    * @endpoint POST /api/v1/menu-dishes
    * @access   admin | dapur
-   * @param payload - Writable fields: `menu_id`, `meal_time_id`, `dish_id`. Occupied slots are rejected; this is not an upsert endpoint.
+    * @param payload - Writable fields: `menu_id`, `meal_time_id`, `dish_id`. Occupied slots are rejected, inactive dishes are rejected with `The selected dish is inactive.`, and this is not an upsert endpoint.
    * @returns {Promise<ApiMessageDataResponse<MenuSlot>>}
-   * @throws {ValidationApiError} if validation fails or the slot is already occupied (400)
+    * @throws {ValidationApiError} if validation fails, the selected dish is inactive, or the slot is already occupied (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
    * @sideeffect Creates a menu slot assignment.
@@ -1006,11 +1023,11 @@ var MenusResource = class {
    * @endpoint PUT /api/v1/menu-dishes/{id}
    * @access   admin | dapur
    * @returns {Promise<ApiMessageDataResponse<MenuSlot>>}
-   * @throws {ValidationApiError} if validation fails or the target slot conflicts (400)
+    * @throws {ValidationApiError} if validation fails, the selected dish is inactive, or the target slot conflicts (400)
    * @throws {AuthenticationApiError} if no valid Bearer token is provided (401)
    * @throws {AuthorizationApiError} if the caller lacks the required role (403)
    * @throws {NotFoundApiError} if the slot assignment does not exist (404)
-   * @sideeffect Replaces slot assignment metadata.
+    * @sideeffect Replaces slot assignment metadata when the replacement dish is still active.
    */
   updateSlot(id, payload) {
     return this.client.request({

@@ -1440,11 +1440,28 @@ These endpoints manage meal planning, including dishes, compositions, and cyclic
 | DELETE | `/api/v1/menu-dishes/{id}` | Delete a slot assignment |
 | GET | `/api/v1/dishes` | List dishes |
 | GET | `/api/v1/dishes/{id}` | Get dish detail |
+
+All `dishes` collection endpoints support the standard filtering and pagination parameters. Specifically:
+- `is_active` — filter by active status (`true` / `false` / `1` / `0`)
+
+| Method | Endpoint | Description |
+|---|---|---|
 | POST | `/api/v1/dishes` | Create a dish |
 | PUT | `/api/v1/dishes/{id}` | Update a dish |
 | DELETE | `/api/v1/dishes/{id}` | Delete a dish |
+| PATCH | `/api/v1/dishes/{id}/deactivate` | Deactivate a dish (unlinks from menus) |
+| PATCH | `/api/v1/dishes/{id}/reactivate` | Reactivate a dish |
 
-#### 5.6.3 Dish Compositions
+#### 5.6.3 Dish Lifecycle Semantics
+
+- **Deactivate**: Sets `is_active = false`. This action preserves the dish row and its compositions but **removes all associated menu slot assignments** (`menu_dishes`).
+- **Reactivate**: Sets `is_active = true`. This allows the dish to be assigned to menu slots again. It does **not** restore prior menu slot assignments.
+- **Delete**: 
+  - Deletion is blocked if the dish is currently `is_active = true` OR still referenced by any menu slots.
+  - Only inactive, detached dishes can be deleted.
+  - Associated `dish_compositions` are removed by database cascade on final delete.
+
+#### 5.6.4 Dish Compositions
 
 Compositions define the items and quantities required for each dish per patient.
 

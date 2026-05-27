@@ -88,6 +88,14 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "dishes/(:num)/deactivate",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "dishes/(:num)/reactivate",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
             "dish-compositions",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -446,6 +454,14 @@ $routes->group(
                     // [MODULE: Menu & Nutrition Write Surface] Roles: admin, dapur | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, DailyPatients, SpkBasah, SpkKeringPengemas, SpkStockInPrefill
                     $routes->post("dishes", "Dishes::create");
                     $routes->put("dishes/(:num)", 'Dishes::update/$1');
+                    $routes->patch(
+                        "dishes/(:num)/deactivate",
+                        'Dishes::deactivate/$1',
+                    );
+                    $routes->patch(
+                        "dishes/(:num)/reactivate",
+                        'Dishes::reactivate/$1',
+                    );
                     $routes->delete("dishes/(:num)", 'Dishes::delete/$1');
                     $routes->post(
                         "dish-compositions",

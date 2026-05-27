@@ -485,9 +485,34 @@ These resources provide management for nutrition standards and calendar scheduli
 |---|---|---|---|
 | `menus` | `list` | None (Fixed) | `admin`, `dapur`, `gudang` |
 | `menus` (slots) | `slots`, `assignSlot`, `updateSlot`, `deleteSlot` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
-| `dishes` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
+| `dishes` | `list`, `get`, `create`, `update`, `deactivate`, `reactivate`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
 | `dishCompositions` | `list`, `get`, `create`, `update`, `delete` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
 | `menuSchedules` | `list`, `get`, `create`, `update`, `calendarProjection` | `admin`, `dapur` | `admin`, `dapur`, `gudang` |
+
+#### Important dish lifecycle behavior
+
+- `Dish` responses now include `is_active`
+- `sdk.dishes.list({ paginate, is_active })` forwards the supported list controls to `GET /api/v1/dishes`; `paginate=false` keeps the same `data/meta/links` envelope and sets `meta.paginated=false`
+- `sdk.dishes.deactivate(id)` calls `PATCH /api/v1/dishes/{id}/deactivate`, keeps the dish row and compositions, and removes linked menu slot assignments
+- `sdk.dishes.reactivate(id)` calls `PATCH /api/v1/dishes/{id}/reactivate` and only restores availability for future slot writes
+- `sdk.dishes.delete(id)` is only valid after the dish is inactive and detached from menu slots; final delete removes compositions by DB cascade
+
+#### Important dish composition list behavior
+
+- `sdk.dishCompositions.list({ paginate, dish_id, item_id })` forwards the supported list controls to `GET /api/v1/dish-compositions`; `paginate=false` keeps the same `data/meta/links` envelope and sets `meta.paginated=false`
+
+#### Important menu slot write behavior
+
+- `sdk.menus.assignSlot()` and `sdk.menus.updateSlot()` reject inactive dishes with the validation message `The selected dish is inactive.`
+
+#### Example dish lifecycle flow
+
+```ts
+const dishes = await sdk.dishes.list({ paginate: false, is_active: false, sortBy: "updated_at", sortDir: "DESC" });
+
+await sdk.dishes.deactivate(9);
+await sdk.dishes.reactivate(9);
+```
 
 ### `notifications`
 
