@@ -459,7 +459,7 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,dapur"],
                 static function ($routes) {
-                    // [MODULE: Menu & Nutrition Write Surface] Roles: admin, dapur | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, DailyPatients, SpkBasah, SpkKeringPengemas, SpkStockInPrefill
+                    // [MODULE: Menu & Nutrition Write Surface] Roles: admin, dapur | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, SpkBasah, SpkKeringPengemas, SpkStockInPrefill
                     $routes->post("dishes", "Dishes::create");
                     $routes->put("dishes/(:num)", 'Dishes::update/$1');
                     $routes->patch(
@@ -494,6 +494,14 @@ $routes->group(
                         "menu-schedules/(:num)",
                         'MenuSchedules::update/$1',
                     );
+                },
+            );
+
+            $routes->group(
+                "",
+                ["filter" => "role:admin,gudang"],
+                static function ($routes) {
+                    // [MODULE: Daily Patients Write Surface] Roles: admin, gudang | Controller: App\Controllers\Api\V1\DailyPatients
                     $routes->post("daily-patients", "DailyPatients::create");
                     $routes->put(
                         "daily-patients/(:num)",
