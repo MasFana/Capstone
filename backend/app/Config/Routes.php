@@ -251,6 +251,10 @@ $routes->group(
             "reports/evaluation",
             static fn() => service("response")->setStatusCode(204),
         );
+        $routes->options(
+            "reports/monthly-stock-export",
+            static fn() => service("response")->setStatusCode(204),
+        );
 
         if (ENVIRONMENT === "testing") {
             $routes->get(
@@ -291,6 +295,10 @@ $routes->group(
                     );
                     $routes->get("reports/spk-history", "Reports::spkHistory");
                     $routes->get("reports/evaluation", "Reports::evaluation");
+                    $routes->get(
+                        "reports/monthly-stock-export",
+                        "Reports::monthlyStockExport",
+                    );
                 },
             );
 
