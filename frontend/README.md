@@ -548,7 +548,7 @@ These resources provide analytical views and auditing tools.
 | Resource | Methods | Access |
 |---|---|---|
 | `dashboard` | `getAggregate` | `admin`, `dapur`, `gudang` |
-| `reports` | `getStocks`, `getTransactions`, `getSpkHistory`, `getEvaluation` | `admin`, `dapur`, `gudang` |
+| `reports` | `getStocks`, `getTransactions`, `getSpkHistory`, `getEvaluation`, `getMonthlyStockExport` | `admin`, `dapur`, `gudang` |
 | `stockOpnames` | `create`, `get`, `submit` | `admin`, `gudang` |
 | `stockOpnames` | `approve`, `reject`, `post` | `admin` |
 
