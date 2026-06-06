@@ -55,6 +55,7 @@ class TestSeeder extends Seeder
         $this->call("StockTransactionSeeder"); // Stock transactions: IN/OUT/RETURN_IN lifecycle samples
         $this->call("StockOpnameSeeder"); // Stock opnames: opname lifecycle samples (DRAFT..POSTED)
         $this->call("SpkPersistenceSeeder"); // SPK calculations/recommendations: versioned baseline
+        $this->call("MonthlyExportScenarioSeeder"); // 2-month operational history for export reports
         $this->call("RuntimeCurrentMonthSpkScenarioSeeder"); // Runtime-relative current-month SPK scenario without reseeding shared prerequisites
     }
 }
