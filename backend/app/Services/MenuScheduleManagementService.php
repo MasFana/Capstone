@@ -115,7 +115,7 @@ class MenuScheduleManagementService
             $errors['menu_id'] = 'The selected menu is invalid.';
         }
 
-        if ($this->menuScheduleModel->findByDayOfMonth($resolvedDayOfMonth, $id) !== null) {
+        if ($this->menuScheduleModel->findAssignmentsByDay($resolvedDayOfMonth, $id) !== null) {
             $errors['day_of_month'] = 'The day_of_month has already been taken.';
         }
 
@@ -343,10 +343,10 @@ class MenuScheduleManagementService
             return 11;
         }
 
-        $schedule = $this->menuScheduleModel->findByDayOfMonth((int) $date->format('j'));
+        $schedules = $this->menuScheduleModel->findAssignmentsByDay((int) $date->format('j'));
 
-        if ($schedule !== null) {
-            return (int) $schedule['menu_id'];
+        if (! empty($schedules)) {
+            return (int) $schedules[0]['menu_id'];
         }
 
         return $this->calendarContract->resolvePackageId($date);
