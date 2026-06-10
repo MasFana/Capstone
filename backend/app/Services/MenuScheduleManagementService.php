@@ -53,7 +53,7 @@ class MenuScheduleManagementService
         $dayOfMonth = (int) $data['day_of_month'];
         $menuId     = (int) $data['menu_id'];
 
-        if ($this->menuScheduleModel->findByDayOfMonth($dayOfMonth) !== null) {
+        if (!empty($this->menuScheduleModel->findAssignmentsByDay($dayOfMonth))) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',

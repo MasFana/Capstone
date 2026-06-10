@@ -107,8 +107,8 @@ class MenuPackageManagementService
             ];
         }
 
-        $existing = $this->menuDishModel->findBySlot($menuId, $mealTimeId);
-        if ($existing !== null) {
+        $existing = $this->menuDishModel->findDishesBySlot($menuId, $mealTimeId);
+        if (!empty($existing)) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
