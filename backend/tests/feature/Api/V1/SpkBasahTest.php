@@ -304,10 +304,6 @@ class SpkBasahTest extends CIUnitTestCase
     {
         $token = $this->login('admin');
 
-        if (! function_exists('cal_days_in_month')) {
-            $this->markTestSkipped('calendar extension is unavailable in this runtime.');
-        }
-
         $month = '2026-03';
         $canonicalMonthResult = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('api/v1/menu-calendar?month=' . $month);

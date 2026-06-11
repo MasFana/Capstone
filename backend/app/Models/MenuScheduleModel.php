@@ -53,7 +53,7 @@ class MenuScheduleModel extends Model
 
         $map = [];
         foreach ($rows as $row) {
-            $map[(int) $row['day_of_month']] = (int) $row['menu_id'];
+            $map[(int) $row['day_of_month']][] = (int) $row['menu_id'];
         }
 
         return $map;

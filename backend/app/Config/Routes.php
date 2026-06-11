@@ -326,38 +326,20 @@ $routes->group(
                         "menu-schedules/(:num)",
                         'MenuSchedules::show/$1',
                     );
-                    $routes->get(
-                        "menu-calendar",
-                        "MenuSchedules::calendarProjection",
-                    );
+                    $routes->get("menu-calendar", "MenuSchedules::calendarProjection");
                     $routes->get("daily-patients", "DailyPatients::index");
                     $routes->get(
                         "daily-patients/(:segment)",
                         'DailyPatients::show/$1',
                     );
 
-                    $routes->get(
-                        "spk/basah/menu-calendar",
-                        "SpkBasah::menuCalendarProjection",
-                    );
+                    $routes->get("spk/basah/menu-calendar", "SpkBasah::menuCalendarProjection");
                     $routes->get("spk/basah/history", "SpkBasah::history");
-                    $routes->get(
-                        "spk/basah/history/(:num)",
-                        'SpkBasah::show/$1',
-                    );
+                    $routes->get("spk/basah/history/(:num)", 'SpkBasah::show/$1');
 
-                    $routes->get(
-                        "spk/kering-pengemas/menu-calendar",
-                        "SpkKeringPengemas::menuCalendarProjection",
-                    );
-                    $routes->get(
-                        "spk/kering-pengemas/history",
-                        "SpkKeringPengemas::history",
-                    );
-                    $routes->get(
-                        "spk/kering-pengemas/history/(:num)",
-                        'SpkKeringPengemas::show/$1',
-                    );
+                    $routes->get("spk/kering-pengemas/menu-calendar", "SpkKeringPengemas::menuCalendarProjection");
+                    $routes->get("spk/kering-pengemas/history", "SpkKeringPengemas::history");
+                    $routes->get("spk/kering-pengemas/history/(:num)", 'SpkKeringPengemas::show/$1');
                 },
             );
 

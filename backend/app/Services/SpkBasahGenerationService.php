@@ -204,13 +204,22 @@ class SpkBasahGenerationService
 
             $remainingPatients      = max(0, $adjustedPatients - $allocatedPatients);
             $nullCountAssignments   = array_filter($assignments, fn ($a) => ! isset($a['patient_count']));
-            $defaultPatientsPerNull = count($nullCountAssignments) > 0 ? (int) floor($remainingPatients / count($nullCountAssignments)) : 0;
+            $nullCountCount         = count($nullCountAssignments);
+            $defaultPatientsPerNull = $nullCountCount > 0 ? (int) floor($remainingPatients / $nullCountCount) : 0;
+            $remainder              = $nullCountCount > 0 ? $remainingPatients % $nullCountCount : 0;
 
+            $firstNullHandled = false;
             foreach ($assignments as $assignment) {
-                $menuId              = (int) $assignment['menu_id'];
-                $patientsForThisMenu = isset($assignment['patient_count'])
-                    ? (int) $assignment['patient_count']
-                    : $defaultPatientsPerNull;
+                $menuId = (int) $assignment['menu_id'];
+                if (isset($assignment['patient_count'])) {
+                    $patientsForThisMenu = (int) $assignment['patient_count'];
+                } else {
+                    $patientsForThisMenu = $defaultPatientsPerNull;
+                    if (! $firstNullHandled) {
+                        $patientsForThisMenu += $remainder;
+                        $firstNullHandled = true;
+                    }
+                }
 
                 if ($patientsForThisMenu <= 0) {
                     continue;
