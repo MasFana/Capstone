@@ -47,15 +47,7 @@ class MenuDishSeeder extends Seeder
             }
         }
 
-        // 2. Add an EXTRA dish to Paket 1 Siang (Test Multiple Dishes per Slot)
-        // Assume mealTimeIds[1] is Siang
-        $rows[] = [
-            'menu_id'      => 1,
-            'meal_time_id' => $mealTimeIds[1],
-            'dish_id'      => $dishes[30]['id'], // Use another dish
-        ];
-
-        // 3. Setup Suplemen Extra (Menu 12)
+        // 2. Setup Suplemen Extra (Menu 12)
         // Only Pagi and Sore have supplements
         $rows[] = [
             'menu_id'      => 12,
