@@ -150,6 +150,7 @@ class DishCompositionModel extends Model
             ->select('dishes.id, dishes.name')
             ->join('dishes', 'dishes.id = dish_compositions.dish_id')
             ->where('dish_compositions.item_id', $itemId)
+            ->groupBy('dishes.id')
             ->get()
             ->getResultArray();
     }
