@@ -632,14 +632,15 @@ class Items extends BaseController
         $result = $this->itemService->deleteItem($id);
 
         if (! $result['success']) {
-            $statusCode = $result['message'] === 'Item not found.' ? 404 : 409;
+            $statusCode = $result['code'] ?? 404;
+            $payload = ['message' => $result['message']];
+            if (isset($result['data'])) {
+                $payload['data'] = $result['data'];
+            }
 
             return $this->response
                 ->setStatusCode($statusCode)
-                ->setJSON([
-                    'message' => $result['message'],
-                    'errors'  => $result['errors'] ?? [],
-                ]);
+                ->setJSON($payload);
         }
 
         return $this->response
