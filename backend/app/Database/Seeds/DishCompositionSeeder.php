@@ -28,16 +28,22 @@ class DishCompositionSeeder extends Seeder
             }
         }
 
-        $itemCycle = array_values($itemIds);
-        $itemCount = count($itemCycle);
-        $rows      = [];
+        $keringItems = [$itemIds['Beras'], $itemIds['Minyak Goreng']];
+        $basahItems  = [$itemIds['Daging Ayam'], $itemIds['Telur']];
+        $rows        = [];
 
         foreach ($dishes as $index => $dish) {
-            $itemId = $itemCycle[$index % $itemCount];
+            // Assign one KERING item
             $rows[] = [
                 'dish_id'         => $dish['id'],
-                'item_id'         => $itemId,
-                'qty_per_patient' => '100.00',
+                'item_id'         => $keringItems[$index % 2],
+                'qty_per_patient' => '50.00',
+            ];
+            // Assign one BASAH item
+            $rows[] = [
+                'dish_id'         => $dish['id'],
+                'item_id'         => $basahItems[$index % 2],
+                'qty_per_patient' => '50.00',
             ];
         }
 
