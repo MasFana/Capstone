@@ -42,7 +42,6 @@ class DishSeeder extends Seeder
             ['name' => 'Nasi Ayam Panggang'],
             ['name' => 'Sup Bening Sore'],
             ['name' => 'Nasi Gurih Sore'],
-            ['name' => 'Susu Supplement'],
         ]);
     }
 }

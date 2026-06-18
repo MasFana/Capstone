@@ -21,7 +21,7 @@ class MenuDishSeeder extends Seeder
 
         $mealTimeIds = array_column($mealTimes, 'id');
         $dishCount   = count($dishes);
-        $menuCount   = 12; // Increased to 12
+        $menuCount   = 11;
 
         if (count($mealTimeIds) !== 3) {
             throw new RuntimeException('MenuDishSeeder requires exactly 3 seeded meal times before assigning menu slots.');
@@ -53,19 +53,6 @@ class MenuDishSeeder extends Seeder
             'menu_id'      => 1,
             'meal_time_id' => $mealTimeIds[1],
             'dish_id'      => $dishes[30]['id'], // Use another dish
-        ];
-
-        // 3. Setup Suplemen Extra (Menu 12)
-        // Only Pagi and Sore have supplements
-        $rows[] = [
-            'menu_id'      => 12,
-            'meal_time_id' => $mealTimeIds[0], // Pagi
-            'dish_id'      => $dishes[33]['id'], // Susu Supplement
-        ];
-        $rows[] = [
-            'menu_id'      => 12,
-            'meal_time_id' => $mealTimeIds[2], // Sore
-            'dish_id'      => $dishes[33]['id'], // Susu Supplement
         ];
 
         $this->db->table('menu_dishes')->insertBatch($rows);
