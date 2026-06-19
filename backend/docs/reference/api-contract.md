@@ -1639,6 +1639,15 @@ SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generat
 | POST | `/api/v1/spk/basah/history/{id}/override` | Override rekomendasi qty per item |
 | POST | `/api/v1/spk/basah/history/{id}/post-stock` | Explicit stock posting action (membukukan rekomendasi SPK sebagai transaksi stok `IN`), finalizes SPK (`is_finish=true`) |
 
+SPK basah calculation rules:
+
+- `qty_per_patient`, `current_stock_qty`, `required_qty`, `system_recommended_qty`, and `recommended_qty` use `items.unit_base`.
+- SPK basah does not convert quantities to `unit_convert` during generation.
+- `required_qty = round(estimated_patients × 1.05 × qty_per_patient, 4)`.
+- `system_recommended_qty = max(required_qty - current_stock_qty, 0)`.
+- Multiple menus assigned to the same date deduplicate shared dishes by `dish_id`; different dishes on the same date still sum.
+- SPK basah does not apply whole-unit `ceil()` rounding.
+
 #### 5.7.3 SPK Kering/Pengemas Route Family
 
 SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
@@ -1651,6 +1660,12 @@ SPK kering dan pengemas digabung dalam satu family route `spk/kering-pengemas`.
 | GET | `/api/v1/spk/kering-pengemas/history/{id}` | Detail histori |
 | POST | `/api/v1/spk/kering-pengemas/history/{id}/override` | Override rekomendasi qty per item |
 | POST | `/api/v1/spk/kering-pengemas/history/{id}/post-stock` | Explicit stock posting action (membukukan rekomendasi SPK sebagai transaksi stok `IN`), finalizes SPK (`is_finish=true`) |
+
+SPK kering/pengemas calculation rules:
+
+- `required_qty = previous_month_out_usage × 1.10`.
+- `system_recommended_qty = ceil(max(required_qty - current_stock_qty, 0))`.
+- Whole-unit `ceil()` rounding applies only after subtracting current stock.
 
 #### 5.7.4 Shared SPK Utility
 
