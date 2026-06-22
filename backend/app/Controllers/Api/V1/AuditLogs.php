@@ -118,7 +118,20 @@ class AuditLogs extends BaseController
         ]);
     }
 
-    public function types(): ResponseInterface
+    /**
+     * @OA\Get(
+     *     path="/api/v1/audit-logs/types",
+     *     operationId="getAuditLogTypes",
+     *     tags={"Audit Logs"},
+     *     summary="Get audit log filter metadata",
+     *     description="Returns distinct action types, module types, and audited table names for UI filter dropdowns.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(response=200, description="Filter metadata with actionTypes, moduleTypes, tableNames.", @OA\JsonContent(type="object", @OA\Property(property="actionTypes", type="array", @OA\Items(type="string")), @OA\Property(property="moduleTypes", type="array", @OA\Items(type="string")), @OA\Property(property="tableNames", type="array", @OA\Items(type="string")))),
+     *     @OA\Response(response=401, ref="#/components/responses/UnauthorizedMessageResponse"),
+     *     @OA\Response(response=403, description="Authenticated user lacks the admin role required by the route group.", @OA\JsonContent(ref="#/components/schemas/MessageResponse"))
+     * )
+     */
+     public function types(): ResponseInterface
     {
         $actionTypes = $this->auditLogModel
             ->builder()

@@ -193,6 +193,21 @@ Admin-only endpoint for reading audit trail history. This endpoint returns the s
 
 **Access:** Requires valid Bearer token and `admin` role
 
+##### Query Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | `1` | Page number (minimum 1) |
+| `perPage` | integer | `10` | Results per page (1–100) |
+| `paginate` | string | `true` | Set to `false` or `0` to return all matched rows |
+| `q` | string | — | Full-text search across message, table name, action type, user name, and username |
+| `action_type` | string | — | Filter by raw action type value (e.g. `stock_opname_post`) |
+| `table_name` | string | — | Filter by source table name (e.g. `stock_opnames`) |
+| `sortBy` | string | `created_at` | Sort column: `id`, `created_at`, `action_type`, `table_name`, `record_id` |
+| `sortDir` | string | `DESC` | Sort direction: `ASC` or `DESC` |
+
+Unknown query parameters return `400` validation errors.
+
 ##### Response
 
 ```json
@@ -262,6 +277,20 @@ Admin-only endpoint for reading audit trail history. This endpoint returns the s
 ```
 
 `before` berisi snapshot sebelum perubahan. `after` berisi snapshot sesudah perubahan. `diff` berisi field yang berubah. `actorInfo`, `target`, `ipAddress`, dan `rawActionType` ikut dikirim runtime untuk backward-compatible audit UI.
+
+##### Filter Metadata Endpoint
+
+`GET /api/v1/audit-logs/types` returns available filter values for the audit log UI.
+
+**Access:** Requires valid Bearer token and `admin` role
+
+```json
+{
+  "actionTypes": ["approval", "create", "delete", "post", "rejection", "submit", "update"],
+  "moduleTypes": ["Transaksi", "Master Barang", "Menu", "Pengguna", "SPK", "Stok", "Laporan", "Data Sistem"],
+  "tableNames": ["stock_transactions", "stock_opnames", "spk_calculations", "users", "items", "dishes", "daily_patients"]
+}
+```
 
 ### 5.2 Inventory Lookup Endpoints
 
