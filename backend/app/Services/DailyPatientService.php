@@ -102,7 +102,7 @@ class DailyPatientService
             ];
         }
 
-        if (!$this->auditService->log((int) ($data['user_id'] ?? null), AuditActionType::Create, 'daily_patients', (int) $created, 'Daily patient created.', null, $data, null)) {
+        if (!$this->auditService->log($data['user_id'] ?? null, AuditActionType::Create, 'daily_patients', (int) $created, 'Daily patient created.', null, $data, null)) {
             return [
                 'success' => false,
                 'message' => 'Failed to write audit log.',
@@ -186,7 +186,7 @@ class DailyPatientService
             ];
         }
 
-        if (!$this->auditService->log((int) ($data['user_id'] ?? null), AuditActionType::Update, 'daily_patients', $id, 'Daily patient updated.', $existingRow, $payload, null)) {
+        if (!$this->auditService->log($data['user_id'] ?? null, AuditActionType::Update, 'daily_patients', $id, 'Daily patient updated.', $existingRow, $payload, null)) {
             return [
                 'success' => false,
                 'message' => 'Failed to write audit log.',
