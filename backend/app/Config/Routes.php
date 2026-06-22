@@ -434,6 +434,7 @@ $routes->group(
                     'StockTransactions::submitRevision/$1',
                 );
                 $routes->post("stock-opnames", "StockOpnames::create");
+                $routes->get("stock-opnames", "StockOpnames::index");
                 $routes->put(
                     "stock-opnames/(:num)",
                     'StockOpnames::update/$1',
