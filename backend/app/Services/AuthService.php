@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AuditActionType;
 use App\Models\AppUserProvider;
 use App\Models\UserModel;
 use CodeIgniter\Shield\Entities\User;
@@ -10,11 +11,13 @@ class AuthService
 {
     protected AppUserProvider $userProvider;
     protected UserModel $userModel;
+    protected AuditService $auditService;
 
     public function __construct()
     {
         $this->userProvider = new AppUserProvider();
         $this->userModel = new UserModel();
+        $this->auditService = new AuditService();
     }
 
     public function attemptLogin(string $username, string $password): array
@@ -110,6 +113,17 @@ class AuthService
         }
 
         $this->userProvider->revokeAllUserTokens((int) $user->id);
+
+        $this->auditService->log(
+            (int) $user->id,
+            AuditActionType::PasswordChange,
+            'users',
+            (int) $user->id,
+            'Password changed via self-service.',
+            null,
+            ['password_updated' => true],
+            null
+        );
 
         return [
             "success" => true,

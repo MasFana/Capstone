@@ -142,6 +142,7 @@ Bagian ini hanya berisi endpoint yang saat ini benar-benar tersedia sebagai rout
 | GET | `/api/v1/auth/me` | Get current user profile from Bearer token |
 | PATCH | `/api/v1/auth/password` | Self-service password change (requires valid token and current password, revokes all tokens) |
 | GET | `/api/v1/roles` | List roles (paginated), restricted to `admin` via role filter |
+| GET | `/api/v1/audit-logs` | List audit trail history (paginated), restricted to `admin` via role filter |
 
 #### 5.1.1 Self-Service Password Change
 
@@ -185,6 +186,82 @@ Authenticated users can change their own password. This endpoint requires the us
   }
 }
 ```
+
+#### 5.1.2 Audit Logs
+
+Admin-only endpoint for reading audit trail history. This endpoint returns the standard `data/meta/links` envelope.
+
+**Access:** Requires valid Bearer token and `admin` role
+
+##### Response
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "date": "2026-06-22",
+      "time": "10:00",
+      "actor": "Admin User",
+      "actorInfo": {
+        "id": 12,
+        "name": "Admin User",
+        "username": "admin"
+      },
+      "activityType": "update",
+      "activityLabel": "Update",
+      "module": "Transaksi",
+      "detail": "Updated stock transaction 99",
+      "description": "Updated stock transaction 99",
+      "target": {
+        "table": "stock_transactions",
+        "recordId": 99
+      },
+      "changes": {
+        "before": {
+          "qty": 10,
+          "status": "DRAFT"
+        },
+        "after": {
+          "qty": 12,
+          "status": "SUBMITTED"
+        },
+        "diff": [
+          {
+            "field": "qty",
+            "before": 10,
+            "after": 12
+          },
+          {
+            "field": "status",
+            "before": "DRAFT",
+            "after": "SUBMITTED"
+          }
+        ]
+      },
+      "ipAddress": "127.0.0.1",
+      "rawActionType": "update",
+      "created_at": "2026-06-22 10:00:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 10,
+    "total": 1,
+    "totalPages": 1,
+    "paginated": true
+  },
+  "links": {
+    "self": "/api/v1/audit-logs?page=1&perPage=10",
+    "first": "/api/v1/audit-logs?page=1&perPage=10",
+    "last": "/api/v1/audit-logs?page=1&perPage=10",
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+`before` berisi snapshot sebelum perubahan. `after` berisi snapshot sesudah perubahan. `diff` berisi field yang berubah. `actorInfo`, `target`, `ipAddress`, dan `rawActionType` ikut dikirim runtime untuk backward-compatible audit UI.
 
 ### 5.2 Inventory Lookup Endpoints
 
@@ -1641,12 +1718,12 @@ SPK basah dipisahkan menjadi tiga surface yang berbeda: menu projection, generat
 
 SPK basah calculation rules:
 
-- `qty_per_patient`, `current_stock_qty`, `required_qty`, `system_recommended_qty`, and `recommended_qty` use `items.unit_base`.
-- SPK basah does not convert quantities to `unit_convert` during generation.
-- `required_qty = round(estimated_patients × 1.05 × qty_per_patient, 4)`.
-- `system_recommended_qty = max(required_qty - current_stock_qty, 0)`.
-- Multiple menus assigned to the same date deduplicate shared dishes by `dish_id`; different dishes on the same date still sum.
-- SPK basah does not apply whole-unit `ceil()` rounding.
+ - `qty_per_patient`, `current_stock_qty`, `required_qty`, `system_recommended_qty`, and `recommended_qty` use `items.unit_base`.
+ - SPK basah does not convert quantities to `unit_convert` during generation.
+ - `required_qty = ceil(qty_per_patient × (estimated_patients + ceil(estimated_patients × 0.05)))`.
+ - `system_recommended_qty = max(required_qty - current_stock_qty, 0)`.
+ - Multiple menus assigned to the same date deduplicate shared dishes by `dish_id`; different dishes on the same date still sum.
+ - SPK basah applies ceil to final required quantity, so 66.6666 becomes 67.
 
 #### 5.7.3 SPK Kering/Pengemas Route Family
 
@@ -2166,13 +2243,12 @@ Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 - stock usage locking rules
 - stock transaction integration
 
-### 6.4 Planned Audit & Reporting Endpoints
+### 6.4 Planned Reporting Endpoints
 
 Endpoint berikut masih planned dan belum tersedia sebagai route aktif.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/v1/audit-logs` | List audit logs |
 | POST | `/api/v1/reports/export-pdf` | Export report as PDF |
 
 ## 7. Example Request/Response Contracts

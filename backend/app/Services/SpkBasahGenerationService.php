@@ -256,7 +256,7 @@ class SpkBasahGenerationService
                         continue;
                     }
 
-                    $requiredQty = ((float) $composition['qty_per_patient']) * $estimatedPatients;
+                    $requiredQty = ceil(((float) $composition['qty_per_patient']) * ($estimatedPatients + (int) ceil($estimatedPatients * 0.05)));
                     if (! isset($requiredByDate[$targetDate])) {
                         $requiredByDate[$targetDate] = [];
                     }
@@ -300,8 +300,8 @@ class SpkBasahGenerationService
                     continue;
                 }
 
-                // Apply 5% safety buffer. Keep decimal precision because basah quantities use item base units.
-                $requiredQty = round($rawRequiredQty * 1.05, 4);
+                // Carry forward required qty already buffered per patient count.
+                $requiredQty = round($rawRequiredQty, 4);
 
                 $systemRecommended = max(0.0, $requiredQty - $remainingStock);
                 $remainingStock    = max(0.0, $remainingStock - $requiredQty);

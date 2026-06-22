@@ -302,45 +302,55 @@ $routes->group(
                 },
             );
 
+            // [MODULE: Audit Logs] Roles: admin | Controller: App\Controllers\Api\V1\AuditLogs
+            $routes->group(
+                "",
+                ["filter" => "role:admin"],
+                static function ($routes) {
+                $routes->get("audit-logs", "AuditLogs::index");
+                $routes->get("audit-logs/types", "AuditLogs::types");
+            },
+            );
+
             // [MODULE: Menu & Nutrition Read Surface] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\Dishes, DishCompositions, Menus, MenuSchedules, DailyPatients, SpkBasah, SpkKeringPengemas
             $routes->group(
                 "",
                 ["filter" => "role:admin,dapur,gudang"],
                 static function ($routes) {
-                    $routes->get("dishes", "Dishes::index");
-                    $routes->get("dishes/(:num)", 'Dishes::show/$1');
+                $routes->get("dishes", "Dishes::index");
+                $routes->get("dishes/(:num)", 'Dishes::show/$1');
 
-                    $routes->get(
-                        "dish-compositions",
-                        "DishCompositions::index",
-                    );
-                    $routes->get(
-                        "dish-compositions/(:num)",
-                        'DishCompositions::show/$1',
-                    );
+                $routes->get(
+                    "dish-compositions",
+                    "DishCompositions::index",
+                );
+                $routes->get(
+                    "dish-compositions/(:num)",
+                    'DishCompositions::show/$1',
+                );
 
-                    $routes->get("menus", "Menus::index");
-                    $routes->get("menu-dishes", "Menus::slots");
-                    $routes->get("menu-schedules", "MenuSchedules::index");
-                    $routes->get(
-                        "menu-schedules/(:num)",
-                        'MenuSchedules::show/$1',
-                    );
-                    $routes->get("menu-calendar", "MenuSchedules::calendarProjection");
-                    $routes->get("daily-patients", "DailyPatients::index");
-                    $routes->get(
-                        "daily-patients/(:segment)",
-                        'DailyPatients::show/$1',
-                    );
+                $routes->get("menus", "Menus::index");
+                $routes->get("menu-dishes", "Menus::slots");
+                $routes->get("menu-schedules", "MenuSchedules::index");
+                $routes->get(
+                    "menu-schedules/(:num)",
+                    'MenuSchedules::show/$1',
+                );
+                $routes->get("menu-calendar", "MenuSchedules::calendarProjection");
+                $routes->get("daily-patients", "DailyPatients::index");
+                $routes->get(
+                    "daily-patients/(:segment)",
+                    'DailyPatients::show/$1',
+                );
 
-                    $routes->get("spk/basah/menu-calendar", "SpkBasah::menuCalendarProjection");
-                    $routes->get("spk/basah/history", "SpkBasah::history");
-                    $routes->get("spk/basah/history/(:num)", 'SpkBasah::show/$1');
+                $routes->get("spk/basah/menu-calendar", "SpkBasah::menuCalendarProjection");
+                $routes->get("spk/basah/history", "SpkBasah::history");
+                $routes->get("spk/basah/history/(:num)", 'SpkBasah::show/$1');
 
-                    $routes->get("spk/kering-pengemas/menu-calendar", "SpkKeringPengemas::menuCalendarProjection");
-                    $routes->get("spk/kering-pengemas/history", "SpkKeringPengemas::history");
-                    $routes->get("spk/kering-pengemas/history/(:num)", 'SpkKeringPengemas::show/$1');
-                },
+                $routes->get("spk/kering-pengemas/menu-calendar", "SpkKeringPengemas::menuCalendarProjection");
+                $routes->get("spk/kering-pengemas/history", "SpkKeringPengemas::history");
+                $routes->get("spk/kering-pengemas/history/(:num)", 'SpkKeringPengemas::show/$1');
+            },
             );
 
             // [MODULE: Inventory Lookup Read Surface] Roles: admin, dapur, gudang | Controller: App\Controllers\Api\V1\ItemCategories, TransactionTypes, ApprovalStatuses, MealTimes, ItemUnits, Items
@@ -348,25 +358,25 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,dapur,gudang"],
                 static function ($routes) {
-                    $routes->get("item-categories", "ItemCategories::index");
-                    $routes->get(
-                        "item-categories/(:num)",
-                        'ItemCategories::show/$1',
-                    );
-                    $routes->get(
-                        "transaction-types",
-                        "TransactionTypes::index",
-                    );
-                    $routes->get(
-                        "approval-statuses",
-                        "ApprovalStatuses::index",
-                    );
-                    $routes->get("meal-times", "MealTimes::index");
-                    $routes->get("item-units", "ItemUnits::index");
-                    $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
-                    $routes->get("items", "Items::index");
-                    $routes->get("items/(:num)", 'Items::show/$1');
-                },
+                $routes->get("item-categories", "ItemCategories::index");
+                $routes->get(
+                    "item-categories/(:num)",
+                    'ItemCategories::show/$1',
+                );
+                $routes->get(
+                    "transaction-types",
+                    "TransactionTypes::index",
+                );
+                $routes->get(
+                    "approval-statuses",
+                    "ApprovalStatuses::index",
+                );
+                $routes->get("meal-times", "MealTimes::index");
+                $routes->get("item-units", "ItemUnits::index");
+                $routes->get("item-units/(:num)", 'ItemUnits::show/$1');
+                $routes->get("items", "Items::index");
+                $routes->get("items/(:num)", 'Items::show/$1');
+            },
             );
 
             // [MODULE: Inventory & Stock Operations] Roles: admin, gudang | Controller: App\Controllers\Api\V1\Items, StockTransactions, StockOpnames
@@ -374,67 +384,71 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
-                    $routes->options(
-                        "items",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                    $routes->post("items", "Items::create");
-                    $routes->options(
-                        "items/(:num)",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                    $routes->put("items/(:num)", 'Items::update/$1');
+                $routes->options(
+                    "audit-logs",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->options(
+                    "items",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->post("items", "Items::create");
+                $routes->options(
+                    "items/(:num)",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->put("items/(:num)", 'Items::update/$1');
 
-                    $routes->get(
-                        "stock-transactions",
-                        "StockTransactions::index",
-                    );
-                    $routes->options(
-                        "stock-transactions",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                    $routes->post(
-                        "stock-transactions",
-                        "StockTransactions::create",
-                    );
-                    $routes->get(
-                        "stock-transactions/(:num)",
-                        'StockTransactions::show/$1',
-                    );
-                    $routes->options(
-                        "stock-transactions/(:num)",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                    $routes->get(
-                        "stock-transactions/(:num)/details",
-                        'StockTransactions::details/$1',
-                    );
-                    $routes->options(
-                        "stock-transactions/(:num)/details",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                    $routes->post(
-                        "stock-transactions/(:num)/submit-revision",
-                        'StockTransactions::submitRevision/$1',
-                    );
-                    $routes->post("stock-opnames", "StockOpnames::create");
-                    $routes->put(
-                        "stock-opnames/(:num)",
-                        'StockOpnames::update/$1',
-                    );
-                    $routes->get(
-                        "stock-opnames/(:num)",
-                        'StockOpnames::show/$1',
-                    );
-                    $routes->post(
-                        "stock-opnames/(:num)/submit",
-                        'StockOpnames::submit/$1',
-                    );
-                    $routes->options(
-                        "stock-transactions/(:num)/submit-revision",
-                        static fn() => service("response")->setStatusCode(204),
-                    );
-                },
+                $routes->get(
+                    "stock-transactions",
+                    "StockTransactions::index",
+                );
+                $routes->options(
+                    "stock-transactions",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->post(
+                    "stock-transactions",
+                    "StockTransactions::create",
+                );
+                $routes->get(
+                    "stock-transactions/(:num)",
+                    'StockTransactions::show/$1',
+                );
+                $routes->options(
+                    "stock-transactions/(:num)",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->get(
+                    "stock-transactions/(:num)/details",
+                    'StockTransactions::details/$1',
+                );
+                $routes->options(
+                    "stock-transactions/(:num)/details",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+                $routes->post(
+                    "stock-transactions/(:num)/submit-revision",
+                    'StockTransactions::submitRevision/$1',
+                );
+                $routes->post("stock-opnames", "StockOpnames::create");
+                $routes->put(
+                    "stock-opnames/(:num)",
+                    'StockOpnames::update/$1',
+                );
+                $routes->get(
+                    "stock-opnames/(:num)",
+                    'StockOpnames::show/$1',
+                );
+                $routes->post(
+                    "stock-opnames/(:num)/submit",
+                    'StockOpnames::submit/$1',
+                );
+                $routes->options(
+                    "stock-transactions/(:num)/submit-revision",
+                    static fn() => service("response")->setStatusCode(204),
+                );
+            },
             );
 
             $routes->group(
@@ -537,9 +551,7 @@ $routes->group(
                 },
             );
 
-            $routes->group("", ["filter" => "role:admin"], static function (
-                $routes,
-            ) {
+            $routes->group("", ["filter" => "role:admin"], static function ($routes, ) {
                 // [MODULE: Admin Surface] Roles: admin | Controller: App\Controllers\Api\V1\Roles, ItemCategories, ItemUnits, StockTransactions, StockOpnames, SpkBasah, SpkKeringPengemas, Users, Items
                 $routes->get("roles", "Roles::index");
 

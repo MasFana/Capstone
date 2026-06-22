@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AuditActionType;
 use App\Models\DishCompositionModel;
 use App\Models\DishModel;
 use App\Models\ItemModel;
@@ -27,12 +28,14 @@ class DishCompositionManagementService
     protected DishCompositionModel $dishCompositionModel;
     protected DishModel $dishModel;
     protected ItemModel $itemModel;
+    protected AuditService $auditService;
 
     public function __construct()
     {
         $this->dishCompositionModel = new DishCompositionModel();
-        $this->dishModel            = new DishModel();
-        $this->itemModel            = new ItemModel();
+        $this->dishModel = new DishModel();
+        $this->itemModel = new ItemModel();
+        $this->auditService = new AuditService();
     }
 
     public function getAllCompositions(array $queryParams): array
@@ -42,7 +45,7 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => [
+                'errors' => [
                     'query' => 'Unsupported query parameter(s): ' . implode(', ', $unknownParams),
                 ],
             ];
@@ -53,18 +56,18 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $queryErrors,
+                'errors' => $queryErrors,
             ];
         }
 
-        $page      = max(1, (int) ($queryParams['page'] ?? 1));
-        $perPage   = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
-        $paginate  = $this->shouldPaginate($queryParams['paginate'] ?? null);
-        $dishId    = isset($queryParams['dish_id']) ? (int) $queryParams['dish_id'] : null;
-        $itemId    = isset($queryParams['item_id']) ? (int) $queryParams['item_id'] : null;
-        $search    = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
-        $sortBy    = (string) ($queryParams['sortBy'] ?? 'id');
-        $sortDir   = (string) ($queryParams['sortDir'] ?? 'ASC');
+        $page = max(1, (int) ($queryParams['page'] ?? 1));
+        $perPage = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
+        $paginate = $this->shouldPaginate($queryParams['paginate'] ?? null);
+        $dishId = isset($queryParams['dish_id']) ? (int) $queryParams['dish_id'] : null;
+        $itemId = isset($queryParams['item_id']) ? (int) $queryParams['item_id'] : null;
+        $search = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
+        $sortBy = (string) ($queryParams['sortBy'] ?? 'id');
+        $sortDir = (string) ($queryParams['sortDir'] ?? 'ASC');
 
         $result = $this->dishCompositionModel->getAllCompositions(
             $page,
@@ -83,13 +86,13 @@ class DishCompositionManagementService
 
         return [
             'success' => true,
-            'data'    => array_map(fn (array $row): array => $this->formatCompositionResponse($row), $result['compositions']),
-            'meta'    => [
-                'page'       => $result['page'],
-                'perPage'    => $result['perPage'],
-                'total'      => $result['total'],
+            'data' => array_map(fn(array $row): array => $this->formatCompositionResponse($row), $result['compositions']),
+            'meta' => [
+                'page' => $result['page'],
+                'perPage' => $result['perPage'],
+                'total' => $result['total'],
                 'totalPages' => $result['totalPages'],
-                'paginated'  => $paginate,
+                'paginated' => $paginate,
             ],
         ];
     }
@@ -107,15 +110,17 @@ class DishCompositionManagementService
     public function createComposition(array $data): array
     {
         $validation = service('validation');
-        if (! $validation->setRules([
-            'dish_id'          => 'required|is_natural_no_zero',
-            'item_id'          => 'required|is_natural_no_zero',
-            'qty_per_patient'  => 'required|numeric|greater_than[0]',
-        ])->run($data)) {
+        if (
+            !$validation->setRules([
+                'dish_id' => 'required|is_natural_no_zero',
+                'item_id' => 'required|is_natural_no_zero',
+                'qty_per_patient' => 'required|numeric|greater_than[0]',
+            ])->run($data)
+        ) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $validation->getErrors(),
+                'errors' => $validation->getErrors(),
             ];
         }
 
@@ -124,7 +129,7 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $domainErrors,
+                'errors' => $domainErrors,
             ];
         }
 
@@ -132,13 +137,13 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => ['dish_id,item_id' => 'The dish_id and item_id combination has already been taken.'],
+                'errors' => ['dish_id,item_id' => 'The dish_id and item_id combination has already been taken.'],
             ];
         }
 
         $created = $this->dishCompositionModel->insert([
-            'dish_id'         => (int) $data['dish_id'],
-            'item_id'         => (int) $data['item_id'],
+            'dish_id' => (int) $data['dish_id'],
+            'item_id' => (int) $data['item_id'],
             'qty_per_patient' => (string) $data['qty_per_patient'],
         ], true);
 
@@ -146,12 +151,14 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Failed to create dish composition.',
-                'errors'  => $this->dishCompositionModel->errors(),
+                'errors' => $this->dishCompositionModel->errors(),
             ];
         }
 
+        $this->auditService->log(null, AuditActionType::Create, 'dish_compositions', (int) $created, 'Dish composition created.', null, $data, null);
+
         return [
-            'success'     => true,
+            'success' => true,
             'composition' => $this->getCompositionById((int) $created),
         ];
     }
@@ -167,33 +174,35 @@ class DishCompositionManagementService
         }
 
         $validation = service('validation');
-        if (! $validation->setRules([
-            'dish_id'         => 'permit_empty|is_natural_no_zero',
-            'item_id'         => 'permit_empty|is_natural_no_zero',
-            'qty_per_patient' => [
-                'rules'  => 'permit_empty|numeric|greater_than[0]|less_than_equal_to[2000]',
-                'errors' => [
-                    'less_than_equal_to' => 'The quantity per patient is unrealistic. Max is 2000.',
+        if (
+            !$validation->setRules([
+                'dish_id' => 'permit_empty|is_natural_no_zero',
+                'item_id' => 'permit_empty|is_natural_no_zero',
+                'qty_per_patient' => [
+                    'rules' => 'permit_empty|numeric|greater_than[0]|less_than_equal_to[2000]',
+                    'errors' => [
+                        'less_than_equal_to' => 'The quantity per patient is unrealistic. Max is 2000.',
+                    ],
                 ],
-            ],
-        ])->run($data)) {
+            ])->run($data)
+        ) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $validation->getErrors(),
+                'errors' => $validation->getErrors(),
             ];
         }
 
         $resolvedDishId = isset($data['dish_id']) ? (int) $data['dish_id'] : (int) $existing['dish_id'];
         $resolvedItemId = isset($data['item_id']) ? (int) $data['item_id'] : (int) $existing['item_id'];
-        $resolvedQty    = isset($data['qty_per_patient']) ? (float) $data['qty_per_patient'] : (float) $existing['qty_per_patient'];
+        $resolvedQty = isset($data['qty_per_patient']) ? (float) $data['qty_per_patient'] : (float) $existing['qty_per_patient'];
 
         $domainErrors = $this->validateDomainReferences($resolvedDishId, $resolvedItemId, $resolvedQty);
         if ($domainErrors !== []) {
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $domainErrors,
+                'errors' => $domainErrors,
             ];
         }
 
@@ -201,7 +210,7 @@ class DishCompositionManagementService
             return [
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => ['dish_id,item_id' => 'The dish_id and item_id combination has already been taken.'],
+                'errors' => ['dish_id,item_id' => 'The dish_id and item_id combination has already been taken.'],
             ];
         }
 
@@ -218,21 +227,23 @@ class DishCompositionManagementService
 
         if ($updateData === []) {
             return [
-                'success'     => true,
+                'success' => true,
                 'composition' => $this->formatCompositionResponse($existing),
             ];
         }
 
-        if (! $this->dishCompositionModel->update($id, $updateData)) {
+        if (!$this->dishCompositionModel->update($id, $updateData)) {
             return [
                 'success' => false,
                 'message' => 'Failed to update dish composition.',
-                'errors'  => $this->dishCompositionModel->errors(),
+                'errors' => $this->dishCompositionModel->errors(),
             ];
         }
 
+        $this->auditService->log(null, AuditActionType::Update, 'dish_compositions', $id, 'Dish composition updated.', $existing, $updateData, null);
+
         return [
-            'success'     => true,
+            'success' => true,
             'composition' => $this->getCompositionById($id),
         ];
     }
@@ -247,12 +258,14 @@ class DishCompositionManagementService
             ];
         }
 
-        if (! $this->dishCompositionModel->delete($id)) {
+        if (!$this->dishCompositionModel->delete($id)) {
             return [
                 'success' => false,
                 'message' => 'Failed to delete dish composition.',
             ];
         }
+
+        $this->auditService->log(null, AuditActionType::Delete, 'dish_compositions', $id, 'Dish composition deleted.', $existing, null, null);
 
         return [
             'success' => true,
@@ -271,13 +284,13 @@ class DishCompositionManagementService
         $item = $this->itemModel->find($itemId);
         if ($item === null) {
             $errors['item_id'] = 'The selected item is invalid.';
-        } elseif (! (bool) $item['is_active']) {
+        } elseif (!(bool) $item['is_active']) {
             $errors['item_id'] = 'The selected item is inactive.';
         }
 
         if ($qtyPerPatient !== null && $item !== null) {
             $unitBase = $item['unit_base'] ?? '';
-            $limit    = null;
+            $limit = null;
 
             if ($unitBase === 'gram') {
                 $limit = 2000;
@@ -300,19 +313,19 @@ class DishCompositionManagementService
     private function formatCompositionResponse(array $row): array
     {
         return [
-            'id'              => (int) $row['id'],
-            'dish_id'         => (int) $row['dish_id'],
-            'item_id'         => (int) $row['item_id'],
+            'id' => (int) $row['id'],
+            'dish_id' => (int) $row['dish_id'],
+            'item_id' => (int) $row['item_id'],
             'qty_per_patient' => number_format((float) $row['qty_per_patient'], 2, '.', ''),
-            'created_at'      => $row['created_at'],
-            'updated_at'      => $row['updated_at'],
-            'dish'            => [
-                'id'   => (int) $row['dish_id'],
+            'created_at' => $row['created_at'],
+            'updated_at' => $row['updated_at'],
+            'dish' => [
+                'id' => (int) $row['dish_id'],
                 'name' => $row['dish_name'] ?? null,
             ],
-            'item'            => [
-                'id'        => (int) $row['item_id'],
-                'name'      => $row['item_name'] ?? null,
+            'item' => [
+                'id' => (int) $row['item_id'],
+                'name' => $row['item_name'] ?? null,
                 'unit_base' => $row['item_unit_base'] ?? null,
                 'is_active' => isset($row['item_is_active']) ? (bool) $row['item_is_active'] : null,
             ],
@@ -323,31 +336,31 @@ class DishCompositionManagementService
     {
         $errors = [];
 
-        if (isset($queryParams['page']) && (! ctype_digit((string) $queryParams['page']) || (int) $queryParams['page'] < 1)) {
+        if (isset($queryParams['page']) && (!ctype_digit((string) $queryParams['page']) || (int) $queryParams['page'] < 1)) {
             $errors['page'] = 'The page field must be a positive integer.';
         }
 
-        if (isset($queryParams['perPage']) && (! ctype_digit((string) $queryParams['perPage']) || (int) $queryParams['perPage'] < 1 || (int) $queryParams['perPage'] > 100)) {
+        if (isset($queryParams['perPage']) && (!ctype_digit((string) $queryParams['perPage']) || (int) $queryParams['perPage'] < 1 || (int) $queryParams['perPage'] > 100)) {
             $errors['perPage'] = 'The perPage field must be an integer between 1 and 100.';
         }
 
-        if (isset($queryParams['dish_id']) && (! ctype_digit((string) $queryParams['dish_id']) || (int) $queryParams['dish_id'] < 1)) {
+        if (isset($queryParams['dish_id']) && (!ctype_digit((string) $queryParams['dish_id']) || (int) $queryParams['dish_id'] < 1)) {
             $errors['dish_id'] = 'The dish_id field must be a positive integer.';
         }
 
-        if (isset($queryParams['item_id']) && (! ctype_digit((string) $queryParams['item_id']) || (int) $queryParams['item_id'] < 1)) {
+        if (isset($queryParams['item_id']) && (!ctype_digit((string) $queryParams['item_id']) || (int) $queryParams['item_id'] < 1)) {
             $errors['item_id'] = 'The item_id field must be a positive integer.';
         }
 
-        if (isset($queryParams['paginate']) && ! in_array(strtolower((string) $queryParams['paginate']), ['true', 'false', '1', '0'], true)) {
+        if (isset($queryParams['paginate']) && !in_array(strtolower((string) $queryParams['paginate']), ['true', 'false', '1', '0'], true)) {
             $errors['paginate'] = 'The paginate field must be a boolean value.';
         }
 
-        if (isset($queryParams['sortBy']) && ! in_array($queryParams['sortBy'], DishCompositionModel::SORTABLE_COLUMNS, true)) {
+        if (isset($queryParams['sortBy']) && !in_array($queryParams['sortBy'], DishCompositionModel::SORTABLE_COLUMNS, true)) {
             $errors['sortBy'] = 'The sortBy field must be one of: ' . implode(', ', DishCompositionModel::SORTABLE_COLUMNS) . '.';
         }
 
-        if (isset($queryParams['sortDir']) && ! in_array(strtoupper((string) $queryParams['sortDir']), ['ASC', 'DESC'], true)) {
+        if (isset($queryParams['sortDir']) && !in_array(strtoupper((string) $queryParams['sortDir']), ['ASC', 'DESC'], true)) {
             $errors['sortDir'] = 'The sortDir field must be ASC or DESC.';
         }
 
@@ -366,6 +379,6 @@ class DishCompositionManagementService
             return true;
         }
 
-        return ! in_array(strtolower((string) $value), ['false', '0'], true);
+        return !in_array(strtolower((string) $value), ['false', '0'], true);
     }
 }
