@@ -244,7 +244,7 @@ class ReportingService
 
         $builder = $this->db
             ->table('spk_calculations sc')
-            ->select('sc.id, sc.spk_type, sc.version, sc.calculation_scope, sc.calculation_date, sc.target_date_start, sc.target_date_end, sc.target_month, sc.estimated_patients, sc.is_finish, sc.category_id, ic.name AS category_name, sc.user_id, u.name AS user_name, COUNT(sr.id) AS total_recommendations, COALESCE(SUM(sr.required_qty), 0) AS total_required_qty, COALESCE(SUM(sr.recommended_qty), 0) AS total_recommended_qty')
+            ->select('sc.id, sc.spk_type, sc.version, sc.calculation_scope, sc.calculation_date, sc.target_date_start, sc.target_date_end, sc.target_month, sc.estimated_patients, sc.is_finish, sc.category_id, ic.name AS category_name, sc.user_id, u.name AS user_name, COUNT(DISTINCT sr.item_id) AS total_recommendations, COALESCE(SUM(sr.required_qty), 0) AS total_required_qty, COALESCE(SUM(sr.recommended_qty), 0) AS total_recommended_qty')
             ->join('item_categories ic', 'ic.id = sc.category_id', 'left')
             ->join('users u', 'u.id = sc.user_id', 'left')
             ->join('spk_recommendations sr', 'sr.spk_id = sc.id', 'left')
