@@ -6,6 +6,7 @@ use App\Enums\AuditActionType;
 use App\Models\AppUserProvider;
 use App\Models\RoleModel;
 use CodeIgniter\Database\BaseConnection;
+use Config\Database;
 use CodeIgniter\Shield\Entities\User;
 
 class UserManagementService
@@ -14,11 +15,13 @@ class UserManagementService
     protected RoleModel $roleModel;
     protected AuditService $auditService;
 
+    protected BaseConnection $db;
     public function __construct()
     {
         $this->userProvider = new AppUserProvider();
         $this->roleModel = new RoleModel();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     private const ALLOWED_QUERY_PARAMS = [
@@ -174,9 +177,11 @@ class UserManagementService
 
         $user->fill(['password' => $data['password']]);
 
+        $this->db->transStart();
         $inserted = $this->userProvider->insert($user, true);
 
         if (!$inserted) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to create user.',
@@ -187,7 +192,7 @@ class UserManagementService
         $userId = $this->userProvider->getInsertID();
         $createdUser = $this->getUserById((int) $userId);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Create,
             'users',
@@ -196,7 +201,22 @@ class UserManagementService
             null,
             $createdUser,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to create user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -286,10 +306,12 @@ class UserManagementService
 
         $before = $this->getUserById($id);
 
+        $this->db->transStart();
         if ($updateData !== []) {
             $updated = $this->userProvider->update($id, $updateData);
 
             if (!$updated) {
+                $this->db->transRollback();
                 return [
                     'success' => false,
                     'message' => 'Failed to update user.',
@@ -302,6 +324,7 @@ class UserManagementService
             $identityUser = $this->userProvider->findById($id);
 
             if (!$identityUser) {
+                $this->db->transRollback();
                 return [
                     'success' => false,
                     'message' => 'User not found.',
@@ -313,6 +336,7 @@ class UserManagementService
             $identitySynced = $this->userProvider->save($identityUser);
 
             if (!$identitySynced) {
+                $this->db->transRollback();
                 return [
                     'success' => false,
                     'message' => 'Failed to update user.',
@@ -323,7 +347,7 @@ class UserManagementService
 
         $updatedUser = $this->getUserById($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Update,
             'users',
@@ -332,7 +356,22 @@ class UserManagementService
             $before,
             $updatedUser,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -353,12 +392,14 @@ class UserManagementService
 
         $before = $this->getUserById($id);
 
+        $this->db->transStart();
         $updated = $this->userProvider->update($id, [
             'is_active' => true,
             'active' => true,
         ]);
 
         if (!$updated) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to activate user.',
@@ -367,7 +408,7 @@ class UserManagementService
 
         $updatedUser = $this->getUserById($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Activate,
             'users',
@@ -376,7 +417,22 @@ class UserManagementService
             $before,
             $updatedUser,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to activate user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to activate user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -397,12 +453,14 @@ class UserManagementService
 
         $before = $this->getUserById($id);
 
+        $this->db->transStart();
         $updated = $this->userProvider->update($id, [
             'is_active' => false,
             'active' => false,
         ]);
 
         if (!$updated) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to deactivate user.',
@@ -411,7 +469,7 @@ class UserManagementService
 
         $updatedUser = $this->getUserById($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Deactivate,
             'users',
@@ -420,7 +478,22 @@ class UserManagementService
             $before,
             $updatedUser,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to deactivate user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to deactivate user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -440,9 +513,11 @@ class UserManagementService
         }
 
         $user->fill(['password' => $newPassword]);
+        $this->db->transStart();
         $updated = $this->userProvider->save($user);
 
         if (!$updated) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update password.',
@@ -451,7 +526,7 @@ class UserManagementService
 
         $this->userProvider->revokeAllUserTokens($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::PasswordChange,
             'users',
@@ -460,7 +535,22 @@ class UserManagementService
             null,
             null,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update password due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update password due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -480,16 +570,18 @@ class UserManagementService
         }
 
         $before = $this->getUserById($id);
+        $this->db->transStart();
         $deleted = $this->userProvider->delete($id);
 
         if (!$deleted) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to delete user.',
             ];
         }
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Delete,
             'users',
@@ -498,7 +590,22 @@ class UserManagementService
             $before,
             null,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to delete user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -556,7 +663,9 @@ class UserManagementService
             ];
         }
 
+        $this->db->transStart();
         if (!$this->userProvider->restore($id)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to restore user.',
@@ -565,7 +674,7 @@ class UserManagementService
 
         $restoredUser = $this->getUserById($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Restore,
             'users',
@@ -574,7 +683,22 @@ class UserManagementService
             null,
             $restoredUser,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to restore user due to audit logging failure.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to restore user due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,

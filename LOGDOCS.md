@@ -429,22 +429,20 @@ Observed service methods exist in `UserManagementService`:
 - delete user
 - restore user
 
-No `AuditService` usage observed in `UserManagementService` or `Users` controller.
+✅ `AuditService` usage is now implemented in `UserManagementService` for all methods.
 
-Requirement impact: user account changes are **not covered** by current audit log implementation.
+Requirement impact: user account changes are **covered** by current audit log implementation.
 
-Needed audit action types:
-- `user_create`
-- `user_update`
-- `user_activate`
-- `user_deactivate`
-- `user_password_change`
-- `user_delete`
-- `user_restore`
+Audit action types used:
+- `AuditActionType::Create` (create user)
+- `AuditActionType::Update` (update user)
+- `AuditActionType::Activate` (activate user)
+- `AuditActionType::Deactivate` (deactivate user)
+- `AuditActionType::PasswordChange` (change password)
+- `AuditActionType::Delete` (delete user)
+- `AuditActionType::Restore` (restore user)
 
-Recommended payload:
-- `table_name`: `users`
-- `record_id`: target user id
+Payload follows the recommended shape below (table_name: `users`, record_id: target user id, old_values/new_values exclude password hash fields).
 - `user_id`: admin/operator id from authenticated session, not target user id
 - `old_values`: user fields before change, excluding password hash/token/secret fields
 - `new_values`: user fields after change, excluding password hash/token/secret fields
@@ -459,15 +457,18 @@ Observed service methods exist in `ItemManagementService`:
 - delete item
 - restore item
 
-No `AuditService` usage observed in `ItemManagementService` or `Items` controller.
+✅ `AuditService` usage is now implemented in `ItemManagementService` for all methods.
 
-Requirement impact: item/master barang changes are **not covered** by current audit log implementation.
+Requirement impact: item/master barang changes are **covered** by current audit log implementation.
 
-Needed audit action types:
-- `item_create`
-- `item_update`
-- `item_delete`
-- `item_restore`
+Audit action types used:
+- `AuditActionType::Create` (create item)
+- `AuditActionType::Update` (update item)
+- `AuditActionType::Delete` (delete item)
+- `AuditActionType::Restore` (restore item)
+
+Payload follows the recommended shape below (table_name: `items`, record_id: item id, old_values/new_values exclude sensitive fields).
+
 
 Recommended payload:
 - `table_name`: `items`

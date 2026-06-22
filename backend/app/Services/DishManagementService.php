@@ -129,9 +129,13 @@ class DishManagementService
             ];
         }
 
+        $this->db->transStart();
+
         $created = $this->dishModel->insert(['name' => $name], true);
 
         if ($created === false) {
+            $this->db->transRollback();
+
             return [
                 'success' => false,
                 'message' => 'Failed to create dish.',
@@ -140,6 +144,15 @@ class DishManagementService
         }
 
         $this->auditService->log(null, AuditActionType::Create, 'dishes', (int) $created, 'Dish created.', null, ['name' => $name], null);
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create dish.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -192,7 +205,11 @@ class DishManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->dishModel->update($id, ['name' => $name])) {
+            $this->db->transRollback();
+
             return [
                 'success' => false,
                 'message' => 'Failed to update dish.',
@@ -201,6 +218,15 @@ class DishManagementService
         }
 
         $this->auditService->log(null, AuditActionType::Update, 'dishes', $id, 'Dish updated.', $existing, ['name' => $name], null);
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update dish.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -235,7 +261,11 @@ class DishManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->dishModel->delete($id)) {
+            $this->db->transRollback();
+
             return [
                 'success' => false,
                 'message' => 'Failed to delete dish.',
@@ -243,6 +273,15 @@ class DishManagementService
         }
 
         $this->auditService->log(null, AuditActionType::Delete, 'dishes', $id, 'Dish deleted.', $existing, null, null);
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete dish.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -329,7 +368,11 @@ class DishManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->dishModel->update($id, ['is_active' => true])) {
+            $this->db->transRollback();
+
             return [
                 'success' => false,
                 'message' => 'Failed to reactivate dish.',
@@ -338,6 +381,15 @@ class DishManagementService
         }
 
         $this->auditService->log(null, AuditActionType::Activate, 'dishes', $id, 'Dish reactivated.', $existing, ['is_active' => true], null);
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to reactivate dish.',
+            ];
+        }
 
         return [
             'success' => true,

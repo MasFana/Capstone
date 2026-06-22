@@ -232,6 +232,11 @@ $routes->group(
             static fn() => service("response")->setStatusCode(204),
         );
         $routes->options(
+            "audit-logs",
+            static fn() => service("response")->setStatusCode(204),
+        );
+
+        $routes->options(
             "dashboard",
             static fn() => service("response")->setStatusCode(204),
         );
@@ -384,10 +389,7 @@ $routes->group(
                 "",
                 ["filter" => "role:admin,gudang"],
                 static function ($routes) {
-                $routes->options(
-                    "audit-logs",
-                    static fn() => service("response")->setStatusCode(204),
-                );
+
                 $routes->options(
                     "items",
                     static fn() => service("response")->setStatusCode(204),

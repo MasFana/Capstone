@@ -6,6 +6,8 @@ use App\Enums\AuditActionType;
 use App\Models\MenuModel;
 use App\Models\MenuScheduleModel;
 use DateTimeImmutable;
+use CodeIgniter\Database\BaseConnection;
+use Config\Database;
 
 class MenuScheduleManagementService
 {
@@ -13,6 +15,7 @@ class MenuScheduleManagementService
     protected MenuModel $menuModel;
     protected MenuCalendarContract $calendarContract;
     protected AuditService $auditService;
+    protected BaseConnection $db;
 
     public function __construct()
     {
@@ -20,6 +23,7 @@ class MenuScheduleManagementService
         $this->menuModel = new MenuModel();
         $this->calendarContract = new MenuCalendarContract();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     public function getAllSchedules(): array
@@ -55,7 +59,7 @@ class MenuScheduleManagementService
 
         $dayOfMonth = (int) $data['day_of_month'];
         $menuId = (int) $data['menu_id'];
-        $patientCount = isset($data['patient_count']) && $data['patient_count'] !== '' ? (int) $data['patient_count'] : null;
+        $this->db->transStart();
 
         $created = $this->menuScheduleModel->insert([
             'day_of_month' => $dayOfMonth,
@@ -64,6 +68,7 @@ class MenuScheduleManagementService
         ], true);
 
         if ($created === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to create menu schedule.',
@@ -71,7 +76,22 @@ class MenuScheduleManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Create, 'menu_schedules', (int) $created, 'Menu schedule created.', null, $data, null);
+        if (!$this->auditService->log(null, AuditActionType::Create, 'menu_schedules', (int) $created, 'Menu schedule created.', null, $data, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to create menu schedule.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create menu schedule.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -143,7 +163,10 @@ class MenuScheduleManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->menuScheduleModel->update($id, $updateData)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update menu schedule.',
@@ -151,7 +174,22 @@ class MenuScheduleManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Update, 'menu_schedules', $id, 'Menu schedule updated.', $existing, $updateData, null);
+        if (!$this->auditService->log(null, AuditActionType::Update, 'menu_schedules', $id, 'Menu schedule updated.', $existing, $updateData, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update menu schedule.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update menu schedule.',
+            ];
+        }
 
         return [
             'success' => true,

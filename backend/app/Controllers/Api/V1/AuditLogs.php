@@ -135,7 +135,8 @@ class AuditLogs extends BaseController
     {
         $actionTypes = $this->auditLogModel
             ->builder()
-            ->select('DISTINCT action_type')
+            ->select('action_type')
+            ->distinct()
             ->orderBy('action_type', 'ASC')
             ->get()
             ->getResultArray();
@@ -427,16 +428,11 @@ class AuditLogs extends BaseController
         return $diffs;
     }
 
-    /**
-     * @return list<string>
-     */
     private function getAuditedTables(): array
     {
         return [
             'stock_transactions',
-            'stock_transaction_details',
             'stock_opnames',
-            'stock_opname_details',
             'spk_calculations',
             'spk_recommendations',
             'daily_patients',
@@ -454,7 +450,7 @@ class AuditLogs extends BaseController
     {
         return match ($tableName) {
             'stock_transactions', 'daily_patients' => 'Transaksi',
-            'items', 'item_categories', 'item_units', 'approval_statuses' => 'Master Barang',
+            'stock_opnames', 'monthly_stock_snapshots' => 'Stok',
             'dishes', 'dish_compositions', 'menus', 'menu_dishes', 'menu_schedules', 'meal_times' => 'Menu',
             'users' => 'Pengguna',
             'spk_calculations', 'spk_recommendations' => 'SPK',

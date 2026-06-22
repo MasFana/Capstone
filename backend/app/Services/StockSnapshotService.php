@@ -69,6 +69,7 @@ class StockSnapshotService
         $batch = [];
         $now = date('Y-m-d H:i:s');
 
+        $this->db->transStart();
         foreach ($items as $item) {
             $batch[] = [
                 'period_month' => $periodMonth,
@@ -83,7 +84,22 @@ class StockSnapshotService
             $this->db->table('monthly_stock_snapshots')->insertBatch($batch);
         }
 
-        $this->auditService->log(null, AuditActionType::Create, 'monthly_stock_snapshots', 0, 'Monthly opening stock snapshot taken.', null, ['period' => $periodMonth, 'item_count' => count($batch)], null);
+        if (!$this->auditService->log(null, AuditActionType::Create, 'monthly_stock_snapshots', 0, 'Monthly opening stock snapshot taken.', null, ['period' => $periodMonth, 'item_count' => count($batch)], null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to log audit trail.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to complete stock snapshot transaction.',
+            ];
+        }
 
         return [
             'success' => true,

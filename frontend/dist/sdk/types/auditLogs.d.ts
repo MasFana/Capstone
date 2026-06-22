@@ -26,6 +26,16 @@ export interface AuditLogEntry {
             before: unknown;
             after: unknown;
         }>;
+        /** Present only for stock transaction revision records. */
+        itemDiff?: Array<{
+            item_id: number;
+            label: string;
+            qty_before: string | null;
+            qty_after: string | null;
+            unit_before: string | null;
+            unit_after: string | null;
+            status: "added" | "removed" | "changed";
+        }>;
     };
     ipAddress: string | null;
     rawActionType: string | null;

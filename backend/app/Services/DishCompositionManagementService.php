@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\AuditActionType;
 use App\Models\DishCompositionModel;
 use App\Models\DishModel;
+use Config\Database;
+use CodeIgniter\Database\BaseConnection;
 use App\Models\ItemModel;
 
 class DishCompositionManagementService
@@ -29,6 +31,8 @@ class DishCompositionManagementService
     protected DishModel $dishModel;
     protected ItemModel $itemModel;
     protected AuditService $auditService;
+    protected BaseConnection $db;
+
 
     public function __construct()
     {
@@ -36,6 +40,7 @@ class DishCompositionManagementService
         $this->dishModel = new DishModel();
         $this->itemModel = new ItemModel();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     public function getAllCompositions(array $queryParams): array
@@ -140,6 +145,7 @@ class DishCompositionManagementService
                 'errors' => ['dish_id,item_id' => 'The dish_id and item_id combination has already been taken.'],
             ];
         }
+        $this->db->transStart();
 
         $created = $this->dishCompositionModel->insert([
             'dish_id' => (int) $data['dish_id'],
@@ -148,6 +154,7 @@ class DishCompositionManagementService
         ], true);
 
         if ($created === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to create dish composition.',
@@ -155,7 +162,22 @@ class DishCompositionManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Create, 'dish_compositions', (int) $created, 'Dish composition created.', null, $data, null);
+        if (!$this->auditService->log(null, AuditActionType::Create, 'dish_compositions', (int) $created, 'Dish composition created.', null, $data, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to create dish composition.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create dish composition.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -232,7 +254,10 @@ class DishCompositionManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->dishCompositionModel->update($id, $updateData)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update dish composition.',
@@ -240,7 +265,22 @@ class DishCompositionManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Update, 'dish_compositions', $id, 'Dish composition updated.', $existing, $updateData, null);
+        if (!$this->auditService->log(null, AuditActionType::Update, 'dish_compositions', $id, 'Dish composition updated.', $existing, $updateData, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update dish composition.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update dish composition.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -258,14 +298,32 @@ class DishCompositionManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->dishCompositionModel->delete($id)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to delete dish composition.',
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Delete, 'dish_compositions', $id, 'Dish composition deleted.', $existing, null, null);
+        if (!$this->auditService->log(null, AuditActionType::Delete, 'dish_compositions', $id, 'Dish composition deleted.', $existing, null, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to delete dish composition.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete dish composition.',
+            ];
+        }
 
         return [
             'success' => true,

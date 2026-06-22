@@ -36,7 +36,23 @@ use OpenApi\Annotations as OA;
  *         type="object",
  *         @OA\Property(property="before", type="object", nullable=true),
  *         @OA\Property(property="after", type="object", nullable=true),
- *         @OA\Property(property="diff", type="array", @OA\Items(type="object"))
+ *         @OA\Property(property="diff", type="array", @OA\Items(type="object")),
+ *         @OA\Property(
+ *             property="itemDiff",
+ *             type="array",
+ *             nullable=true,
+ *             description="Item-level diff for stock transaction revision records.",
+ *             @OA\Items(
+ *                 type="object",
+ *                 @OA\Property(property="item_id", type="integer", example=5),
+ *                 @OA\Property(property="label", type="string", example="Tepung Terigu"),
+ *                 @OA\Property(property="qty_before", type="string", nullable=true, example="10.00"),
+ *                 @OA\Property(property="qty_after", type="string", nullable=true, example="15.00"),
+ *                 @OA\Property(property="unit_before", type="string", nullable=true, example="kg"),
+ *                 @OA\Property(property="unit_after", type="string", nullable=true, example="kg"),
+ *                 @OA\Property(property="status", type="string", enum={"added","removed","changed"})
+ *             )
+ *         )
  *     ),
  *     @OA\Property(property="ipAddress", type="string", nullable=true, example="127.0.0.1"),
  *     @OA\Property(property="rawActionType", type="string", example="stock_opname_approve"),

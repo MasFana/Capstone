@@ -6,6 +6,8 @@ use App\Enums\AuditActionType;
 use App\Models\DishModel;
 use App\Models\MealTimeModel;
 use App\Models\MenuModel;
+use Config\Database;
+use CodeIgniter\Database\BaseConnection;
 
 class MenuPackageManagementService
 {
@@ -14,6 +16,7 @@ class MenuPackageManagementService
     protected DishModel $dishModel;
     protected $menuDishModel;
     protected AuditService $auditService;
+    protected BaseConnection $db;
 
     public function __construct()
     {
@@ -23,6 +26,7 @@ class MenuPackageManagementService
         $modelClass = 'App\\Models\\MenuDishModel';
         $this->menuDishModel = new $modelClass();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     public function getAllMenus(): array
@@ -125,6 +129,7 @@ class MenuPackageManagementService
             }
         }
 
+        $this->db->transStart();
         $created = $this->menuDishModel->insert([
             'menu_id' => $menuId,
             'meal_time_id' => $mealTimeId,
@@ -132,6 +137,7 @@ class MenuPackageManagementService
         ], true);
 
         if ($created === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to assign menu slot.',
@@ -139,7 +145,21 @@ class MenuPackageManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Create, 'menu_dishes', (int) $created, 'Menu dish assigned.', null, $data, null);
+        if (!$this->auditService->log(null, AuditActionType::Create, 'menu_dishes', (int) $created, 'Menu dish assigned.', null, $data, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to assign menu slot.',
+            ];
+        }
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to assign menu slot.',
+            ];
+        }
 
         $row = $this->menuDishModel
             ->builder()
@@ -280,8 +300,10 @@ class MenuPackageManagementService
         }
 
         // Perform update
+        $this->db->transStart();
         $updated = $this->menuDishModel->update($id, $updateData);
         if ($updated === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update menu slot.',
@@ -289,7 +311,21 @@ class MenuPackageManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Update, 'menu_dishes', $id, 'Menu dish assignment updated.', $existing, $updateData, null);
+        if (!$this->auditService->log(null, AuditActionType::Update, 'menu_dishes', $id, 'Menu dish assignment updated.', $existing, $updateData, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update menu slot.',
+            ];
+        }
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update menu slot.',
+            ];
+        }
 
         // Fetch updated row with relations
         $row = $this->menuDishModel->getByIdWithRelations($id);
@@ -313,8 +349,10 @@ class MenuPackageManagementService
         }
 
         // Perform delete
+        $this->db->transStart();
         $deleted = $this->menuDishModel->delete($id);
         if ($deleted === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to delete menu slot.',
@@ -322,7 +360,21 @@ class MenuPackageManagementService
             ];
         }
 
-        $this->auditService->log(null, AuditActionType::Delete, 'menu_dishes', $id, 'Menu dish assignment deleted.', $existing, null, null);
+        if (!$this->auditService->log(null, AuditActionType::Delete, 'menu_dishes', $id, 'Menu dish assignment deleted.', $existing, null, null)) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to delete menu slot.',
+            ];
+        }
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete menu slot.',
+            ];
+        }
 
         return [
             'success' => true,

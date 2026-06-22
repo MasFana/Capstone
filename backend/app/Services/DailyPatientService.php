@@ -4,16 +4,20 @@ namespace App\Services;
 
 use App\Enums\AuditActionType;
 use App\Models\DailyPatientModel;
+use CodeIgniter\Database\BaseConnection;
+use Config\Database;
 
 class DailyPatientService
 {
     protected DailyPatientModel $dailyPatientModel;
+    protected BaseConnection $db;
     protected AuditService $auditService;
 
     public function __construct()
     {
         $this->dailyPatientModel = new DailyPatientModel();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     public function getAllDailyPatients(): array
@@ -88,6 +92,7 @@ class DailyPatientService
             ];
         }
 
+        $this->db->transStart();
         $created = $this->dailyPatientModel->insert([
             'service_date' => $data['service_date'],
             'total_patients' => (int) $data['total_patients'],
@@ -95,6 +100,7 @@ class DailyPatientService
         ], true);
 
         if ($created === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to create daily patient.',
@@ -103,9 +109,19 @@ class DailyPatientService
         }
 
         if (!$this->auditService->log($data['user_id'] ?? null, AuditActionType::Create, 'daily_patients', (int) $created, 'Daily patient created.', null, $data, null)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to write audit log.',
+                'errors' => [],
+            ];
+        }
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create daily patient.',
                 'errors' => [],
             ];
         }
@@ -178,7 +194,9 @@ class DailyPatientService
                 : $existingRow['notes'],
         ];
 
+        $this->db->transStart();
         if (!$this->dailyPatientModel->update($id, $payload)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update daily patient.',
@@ -187,9 +205,19 @@ class DailyPatientService
         }
 
         if (!$this->auditService->log($data['user_id'] ?? null, AuditActionType::Update, 'daily_patients', $id, 'Daily patient updated.', $existingRow, $payload, null)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to write audit log.',
+                'errors' => [],
+            ];
+        }
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update daily patient.',
                 'errors' => [],
             ];
         }

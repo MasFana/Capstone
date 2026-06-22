@@ -6,6 +6,8 @@ use App\Enums\AuditActionType;
 use App\Models\ItemCategoryModel;
 use App\Models\ItemModel;
 use App\Models\ItemUnitModel;
+use Config\Database;
+use CodeIgniter\Database\BaseConnection;
 
 class ItemManagementService
 {
@@ -29,6 +31,7 @@ class ItemManagementService
     protected ItemCategoryModel $itemCategoryModel;
     protected ItemUnitModel $itemUnitModel;
     protected AuditService $auditService;
+    protected BaseConnection $db;
 
     public function __construct()
     {
@@ -36,6 +39,7 @@ class ItemManagementService
         $this->itemCategoryModel = new ItemCategoryModel();
         $this->itemUnitModel = new ItemUnitModel();
         $this->auditService = new AuditService();
+        $this->db = Database::connect();
     }
 
     public function getAllItems(array $queryParams): array
@@ -203,9 +207,12 @@ class ItemManagementService
                 : true,
         ];
 
+        $this->db->transStart();
+
         $created = $this->itemModel->insert($insertData, true);
 
         if ($created === false) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to create item.',
@@ -215,7 +222,7 @@ class ItemManagementService
 
         $item = $this->getItemById((int) $created);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Create,
             'items',
@@ -224,7 +231,22 @@ class ItemManagementService
             null,
             $item,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to log audit trail.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create item due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -354,9 +376,12 @@ class ItemManagementService
         }
 
         $before = $this->formatItemResponse($existing);
+        $this->db->transStart();
+
         $updated = $this->itemModel->update($id, $updateData);
 
         if (!$updated) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to update item.',
@@ -366,7 +391,7 @@ class ItemManagementService
 
         $item = $this->getItemById($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Update,
             'items',
@@ -375,7 +400,22 @@ class ItemManagementService
             $before,
             $item,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to log audit trail.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to update item due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -404,7 +444,10 @@ class ItemManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->itemModel->delete($id)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to delete item.',
@@ -413,7 +456,7 @@ class ItemManagementService
 
         $before = is_array($existing) ? $existing : $this->formatItemResponse($this->itemModel->findWithCategory($id) ?? []);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Delete,
             'items',
@@ -422,7 +465,22 @@ class ItemManagementService
             $before,
             null,
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to log audit trail.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to delete item due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -501,7 +559,10 @@ class ItemManagementService
             ];
         }
 
+        $this->db->transStart();
+
         if (!$this->itemModel->restore($id)) {
+            $this->db->transRollback();
             return [
                 'success' => false,
                 'message' => 'Failed to restore item.',
@@ -510,7 +571,7 @@ class ItemManagementService
 
         $restored = $this->itemModel->findWithCategory($id);
 
-        $this->auditService->log(
+        if (!$this->auditService->log(
             $actorId,
             AuditActionType::Restore,
             'items',
@@ -519,7 +580,22 @@ class ItemManagementService
             null,
             $this->formatItemResponse($restored),
             $ipAddress,
-        );
+        )) {
+            $this->db->transRollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to log audit trail.',
+            ];
+        }
+
+        $this->db->transComplete();
+
+        if (!$this->db->transStatus()) {
+            return [
+                'success' => false,
+                'message' => 'Failed to restore item due to a database error.',
+            ];
+        }
 
         return [
             'success' => true,

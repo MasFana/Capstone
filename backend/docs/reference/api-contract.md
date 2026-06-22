@@ -275,8 +275,7 @@ Unknown query parameters return `400` validation errors.
   }
 }
 ```
-
-`before` berisi snapshot sebelum perubahan. `after` berisi snapshot sesudah perubahan. `diff` berisi field yang berubah. `actorInfo`, `target`, `ipAddress`, dan `rawActionType` ikut dikirim runtime untuk backward-compatible audit UI.
+`before` berisi snapshot sebelum perubahan. `after` berisi snapshot sesudah perubahan. `diff` berisi field yang berubah. Saat table_name bernilai `stock_transactions` dan action_type mengandung `revision`, objek `changes` juga berisi `itemDiff` berisi daftar perubahan per-item (added/removed/changed) dengan qty_before/qty_after untuk setiap item_id. `actorInfo`, `target`, `ipAddress`, dan `rawActionType` ikut dikirim runtime untuk backward-compatible audit UI.
 
 ##### Filter Metadata Endpoint
 
@@ -288,7 +287,7 @@ Unknown query parameters return `400` validation errors.
 {
   "actionTypes": ["approval", "create", "delete", "post", "rejection", "submit", "update"],
   "moduleTypes": ["Transaksi", "Master Barang", "Menu", "Pengguna", "SPK", "Stok", "Laporan", "Data Sistem"],
-  "tableNames": ["stock_transactions", "stock_opnames", "spk_calculations", "users", "items", "dishes", "daily_patients"]
+  "tableNames": ["stock_transactions", "stock_transaction_details", "stock_opnames", "stock_opname_details", "spk_calculations", "spk_recommendations", "daily_patients", "dishes", "dish_compositions", "menu_dishes", "menu_schedules", "users", "items", "monthly_stock_snapshots"]
 }
 ```
 
