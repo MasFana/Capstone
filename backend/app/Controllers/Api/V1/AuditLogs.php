@@ -247,7 +247,11 @@ class AuditLogs extends BaseController
                 'before' => $before,
                 'after' => $after,
                 'diff' => $this->buildChangeDiff($before, $after),
-            ],
+            ] + (
+                $row['table_name'] === 'stock_transactions' && str_contains(strtolower((string) $row['action_type']), 'revision')
+                    ? ['itemDiff' => $this->buildRevisionItemDiff($before, $after)]
+                    : []
+            ),
             'ipAddress' => $row['ip_address'] ?? null,
             'rawActionType' => $row['action_type'] ?? null,
             'created_at' => $row['created_at'] ?? null,
@@ -341,6 +345,86 @@ class AuditLogs extends BaseController
         }
 
         return $diff;
+    }
+
+    /**
+     * Build item-level diff for stock transaction revision details.
+     * Compares details by item_id.
+     *
+     * @param array|null $before Old values (parent transaction or previous revision)
+     * @param array|null $after New values (current revision)
+     * @return list<array{item_id: int, label: string, qty_before: ?string, qty_after: ?string, unit_before: ?string, unit_after: ?string, status: string}>
+     */
+    private function buildRevisionItemDiff(?array $before, ?array $after): array
+    {
+        $before ??= [];
+        $after ??= [];
+        $beforeDetails = $before['parent_details'] ?? $before['revision_details'] ?? [];
+        $afterDetails = $after['revision_details'] ?? [];
+
+        /** @var array<int, array<string, mixed>> $beforeIndexed */
+        $beforeIndexed = [];
+        foreach ($beforeDetails as $detail) {
+            $itemId = (int) ($detail['item_id'] ?? 0);
+            if ($itemId > 0) {
+                $beforeIndexed[$itemId] = $detail;
+            }
+        }
+
+        /** @var array<int, array<string, mixed>> $afterIndexed */
+        $afterIndexed = [];
+        foreach ($afterDetails as $detail) {
+            $itemId = (int) ($detail['item_id'] ?? 0);
+            if ($itemId > 0) {
+                $afterIndexed[$itemId] = $detail;
+            }
+        }
+
+        /** @var list<int> $allItemIds */
+        $allItemIds = array_values(array_unique(array_merge(array_keys($beforeIndexed), array_keys($afterIndexed))));
+        $diffs = [];
+
+        foreach ($allItemIds as $itemId) {
+            $b = $beforeIndexed[$itemId] ?? null;
+            $a = $afterIndexed[$itemId] ?? null;
+
+            if ($b === null && $a !== null) {
+                $diffs[] = [
+                    'item_id' => $itemId,
+                    'label' => $a['item_name'] ?? "Item #{$itemId}",
+                    'qty_before' => null,
+                    'qty_after' => (string) ($a['qty'] ?? ''),
+                    'unit_before' => null,
+                    'unit_after' => (string) ($a['input_unit'] ?? ''),
+                    'status' => 'added',
+                ];
+            } elseif ($b !== null && $a === null) {
+                $diffs[] = [
+                    'item_id' => $itemId,
+                    'label' => $b['item_name'] ?? "Item #{$itemId}",
+                    'qty_before' => (string) ($b['qty'] ?? ''),
+                    'qty_after' => null,
+                    'unit_before' => (string) ($b['input_unit'] ?? ''),
+                    'unit_after' => null,
+                    'status' => 'removed',
+                ];
+            } elseif ($b !== null && $a !== null && (
+                (string) ($b['qty'] ?? '') !== (string) ($a['qty'] ?? '') ||
+                ($b['input_unit'] ?? '') !== ($a['input_unit'] ?? '')
+            )) {
+                $diffs[] = [
+                    'item_id' => $itemId,
+                    'label' => $a['item_name'] ?? $b['item_name'] ?? "Item #{$itemId}",
+                    'qty_before' => (string) ($b['qty'] ?? ''),
+                    'qty_after' => (string) ($a['qty'] ?? ''),
+                    'unit_before' => (string) ($b['input_unit'] ?? ''),
+                    'unit_after' => (string) ($a['input_unit'] ?? ''),
+                    'status' => 'changed',
+                ];
+            }
+        }
+
+        return $diffs;
     }
 
     /**
