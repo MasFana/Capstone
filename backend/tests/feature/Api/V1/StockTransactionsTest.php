@@ -12,6 +12,7 @@ use App\Models\RoleModel;
 use App\Models\StockTransactionDetailModel;
 use App\Models\StockTransactionModel;
 use App\Models\TransactionTypeModel;
+use App\Services\StockSnapshotService;
 use App\Services\AuditService;
 use App\Services\StockTransactionService;
 use App\Database\Migrations\AddMinStockToItems;
@@ -722,6 +723,11 @@ class StockTransactionsTest extends CIUnitTestCase
     public function testSuccessfulCreateWritesAuditLog(): void
     {
         $token = $this->login('admin');
+        // Pre-create opening snapshot so auto-trigger in createTransaction is a no-op
+        // (otherwise ensureOpeningSnapshot logs an extra audit entry for 2026-04)
+        (new StockSnapshotService())->takeOpeningSnapshot('2026-04');
+
+        $typeModel = new TransactionTypeModel();
 
         $typeModel = new TransactionTypeModel();
         $inType    = $typeModel->where('name', 'IN')->first();
@@ -911,6 +917,7 @@ class StockTransactionsTest extends CIUnitTestCase
             ]);
 
         $result->assertStatus(400);
+
         $json = json_decode($result->getJSON(), true);
         $this->assertArrayHasKey('fields', $json['errors']);
     }
@@ -921,6 +928,9 @@ class StockTransactionsTest extends CIUnitTestCase
 
         $itemModel = new ItemModel();
         $before    = (float) $itemModel->find(2)['qty'];
+
+        // Pre-create opening snapshot so auto-trigger is a no-op
+        (new StockSnapshotService())->takeOpeningSnapshot('2026-04');
 
         $auditModel  = new AuditLogModel();
         $countBefore = $auditModel->countAllResults();

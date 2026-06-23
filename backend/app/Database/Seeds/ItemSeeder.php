@@ -187,6 +187,9 @@ class ItemSeeder extends Seeder
             ['cat' => 'KERING', 'name' => 'Esence Leci', 'unit' => 'botol', 'qty' => 0],
             ['cat' => 'KERING', 'name' => 'Pewarna Merah Muda', 'unit' => 'botol', 'qty' => 0],
             ['cat' => 'KERING', 'name' => 'Pasta Coklat', 'unit' => 'botol', 'qty' => 0],
+            ['cat' => 'BASAH', 'name' => 'Daun Kelor', 'unit' => 'kg', 'qty' => 0],
+            ['cat' => 'BASAH', 'name' => 'Ayam Giling', 'unit' => 'kg', 'qty' => 0],
+            ['cat' => 'KERING', 'name' => 'Kacang Merah', 'unit' => 'kg', 'qty' => 0],
         ];
 
         $batch = [];
