@@ -4317,4 +4317,78 @@ class StockTransactionsTest extends CIUnitTestCase
         $json = json_decode($result->getJSON(), true);
         return (int) $json['data']['id'];
     }
+
+    public function testCreateTransactionTriggersSnapshot(): void
+    {
+        $token = $this->login('admin');
+        $db = Database::connect();
+        
+        // Clean any existing snapshots for current month
+        $currentMonth = date('Y-m') . '-01';
+        $db->table('monthly_stock_snapshots')->where('period_month', $currentMonth)->delete();
+
+        $itemModel = new ItemModel();
+        $items = $itemModel->findAll();
+        $item = $items[0];
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->withBodyFormat('json')
+            ->post('api/v1/stock-transactions', [
+                'type_name'  => 'IN',
+                'transaction_date' => date('Y-m-d'),
+                'details'    => [
+                    [
+                        'item_id'  => $item['id'],
+                        'qty'      => 10,
+                    ],
+                ],
+            ]);
+
+        $result->assertStatus(201);
+
+        // Verify snapshot was created
+        $count = $db->table('monthly_stock_snapshots')
+            ->where('period_month', $currentMonth)
+            ->where('item_id', $item['id'])
+            ->countAllResults();
+
+        $this->assertSame(1, $count);
+    }
+
+    public function testSnapshotFailureDoesNotBlockTransaction(): void
+    {
+        $token = $this->login('admin');
+        $db = Database::connect();
+        $prefix = $db->getPrefix();
+        $tableName = $prefix . 'monthly_stock_snapshots';
+        $tempTableName = $prefix . 'monthly_stock_snapshots_temp';
+
+        // Rename table to simulate DB error
+        $db->query("ALTER TABLE {$tableName} RENAME TO {$tempTableName}");
+
+        try {
+            $itemModel = new ItemModel();
+            $items = $itemModel->findAll();
+            $item = $items[0];
+
+            $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                ->withBodyFormat('json')
+                ->post('api/v1/stock-transactions', [
+                    'type_name'  => 'IN',
+                    'transaction_date' => date('Y-m-d'),
+                    'details'    => [
+                        [
+                            'item_id'  => $item['id'],
+                            'qty'      => 10,
+                        ],
+                    ],
+                ]);
+
+            $result->assertStatus(201);
+        } finally {
+            // Restore table name
+            $db->query("ALTER TABLE {$tempTableName} RENAME TO {$tableName}");
+        }
+    }
 }
+

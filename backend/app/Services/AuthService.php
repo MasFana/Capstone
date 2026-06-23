@@ -6,6 +6,7 @@ use App\Enums\AuditActionType;
 use App\Models\AppUserProvider;
 use App\Models\UserModel;
 use CodeIgniter\Shield\Entities\User;
+use App\Services\StockSnapshotService;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
 
@@ -59,6 +60,9 @@ class AuthService
 
         $loggedUser = $result->extraInfo();
         $token = $loggedUser->generateAccessToken("api-access");
+
+        // Opportunistic snapshot trigger for read-only users (idempotent, failure-safe)
+        (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
 
         return [
             "success" => true,

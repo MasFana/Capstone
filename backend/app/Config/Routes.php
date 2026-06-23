@@ -260,6 +260,14 @@ $routes->group(
             "reports/monthly-stock-export",
             static fn() => service("response")->setStatusCode(204),
         );
+        $routes->options(
+            "stock-snapshots",
+            static fn() => service("response")->setStatusCode(204),
+        );
+        $routes->options(
+            "stock-snapshots/current",
+            static fn() => service("response")->setStatusCode(204),
+        );
 
         if (ENVIRONMENT === "testing") {
             $routes->get(
@@ -303,6 +311,10 @@ $routes->group(
                     $routes->get(
                         "reports/monthly-stock-export",
                         "Reports::monthlyStockExport",
+                    );
+                    $routes->get(
+                        "stock-snapshots/current",
+                        "StockSnapshots::current",
                     );
                 },
             );
@@ -401,6 +413,14 @@ $routes->group(
                 );
                 $routes->put("items/(:num)", 'Items::update/$1');
 
+                $routes->get(
+                    "stock-snapshots",
+                    "StockSnapshots::index",
+                );
+                $routes->post(
+                    "stock-snapshots",
+                    "StockSnapshots::take",
+                );
                 $routes->get(
                     "stock-transactions",
                     "StockTransactions::index",

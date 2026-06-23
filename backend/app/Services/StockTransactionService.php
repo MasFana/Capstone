@@ -11,6 +11,7 @@ use App\Models\StockTransactionModel;
 use App\Models\TransactionTypeModel;
 use App\Services\NotificationService;
 use CodeIgniter\Database\BaseConnection;
+use App\Services\StockSnapshotService;
 use Config\Database;
 
 class StockTransactionService
@@ -307,6 +308,9 @@ class StockTransactionService
                 }
             }
         }
+
+        // Auto-trigger opening stock snapshot for current month (idempotent, failure-safe)
+        (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
 
         $this->db->transStart();
 
@@ -651,6 +655,9 @@ class StockTransactionService
                 'errors' => [],
             ];
         }
+
+        // Auto-trigger opening stock snapshot for current month (idempotent, failure-safe)
+        (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
 
         $this->db->transStart();
 
