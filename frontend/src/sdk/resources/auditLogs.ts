@@ -1,5 +1,5 @@
 import type { ApiClient } from "../client";
-import type { AuditLogListQuery, AuditLogListResponse, AuditLogTypesResponse } from "../types";
+import type { AuditLogListQuery, AuditLogListResponse, AuditLogTypesResponse, AuditLogSummaryResponse } from "../types";
 
 export class AuditLogsResource {
     public constructor(private readonly client: ApiClient) { }
@@ -18,6 +18,13 @@ export class AuditLogsResource {
             path: "/audit-logs/types"
         });
     }
+
+    public summary(): Promise<AuditLogSummaryResponse> {
+        return this.client.request<AuditLogSummaryResponse>({
+            method: "GET",
+            path: "/audit-logs/summary"
+        });
+    }
 }
 
 function buildAuditLogQuery(query: AuditLogListQuery): Record<string, string | number> {
@@ -31,6 +38,9 @@ function buildAuditLogQuery(query: AuditLogListQuery): Record<string, string | n
     if (query.table_name !== undefined) result.table_name = query.table_name;
     if (query.sortBy !== undefined) result.sortBy = query.sortBy;
     if (query.sortDir !== undefined) result.sortDir = query.sortDir;
+    if (query.start_date !== undefined) result.start_date = query.start_date;
+    if (query.end_date !== undefined) result.end_date = query.end_date;
+    if (query.user_id !== undefined) result.user_id = query.user_id;
 
     return result;
 }

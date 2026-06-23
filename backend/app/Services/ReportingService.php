@@ -8,6 +8,8 @@ use App\Models\TransactionTypeModel;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
 use DateTimeImmutable;
+use App\Enums\AuditActionType;
+use App\Services\AuditService;
 
 class ReportingService
 {
@@ -15,6 +17,7 @@ class ReportingService
     protected TransactionTypeModel $transactionTypeModel;
     protected ApprovalStatusModel $approvalStatusModel;
     protected SpkReportCompatibilityService $spkReportCompatibilityService;
+    protected AuditService $auditService;
 
     public function __construct()
     {
@@ -22,6 +25,7 @@ class ReportingService
         $this->transactionTypeModel = new TransactionTypeModel();
         $this->approvalStatusModel = new ApprovalStatusModel();
         $this->spkReportCompatibilityService = new SpkReportCompatibilityService();
+        $this->auditService = new AuditService();
     }
 
     public function getStockReport(array $query): array
@@ -66,6 +70,21 @@ class ReportingService
             }
         }
 
+        $ipAddress = function_exists('service') ? service('request')?->getIPAddress() : null;
+        try {
+            $this->auditService->log(
+                null,
+                AuditActionType::Create,
+                'reports',
+                0,
+                'Exported stock report',
+                null,
+                ['report_type' => 'getStockReport', 'query_params' => json_encode($query)],
+                $ipAddress
+            );
+        } catch (\Throwable $e) {
+            // silently ignore audit failures
+        }
         return [
             'success' => true,
             'data' => [
@@ -137,6 +156,21 @@ class ReportingService
         $totalQty = 0.0;
         foreach ($rows as $row) {
             $totalQty += (float) $row['qty'];
+        }
+        $ipAddress = function_exists('service') ? service('request')?->getIPAddress() : null;
+        try {
+            $this->auditService->log(
+                null,
+                AuditActionType::Create,
+                'reports',
+                0,
+                'Exported transaction report',
+                null,
+                ['report_type' => 'getTransactionReport', 'query_params' => json_encode($query)],
+                $ipAddress
+            );
+        } catch (\Throwable $e) {
+            // silently ignore audit failures
         }
 
         return [
@@ -278,6 +312,21 @@ class ReportingService
 
             $compatibilityRows[] = $this->spkReportCompatibilityService->projectForSrs($headerRow, $recommendationRows);
         }
+        $ipAddress = function_exists('service') ? service('request')?->getIPAddress() : null;
+        try {
+            $this->auditService->log(
+                null,
+                AuditActionType::Create,
+                'reports',
+                0,
+                'Exported SPK history report',
+                null,
+                ['report_type' => 'getSpkHistoryReport', 'query_params' => json_encode($query)],
+                $ipAddress
+            );
+        } catch (\Throwable $e) {
+            // silently ignore audit failures
+        }
 
         return [
             'success' => true,
@@ -405,6 +454,21 @@ class ReportingService
                 'realization_qty' => round($realization, 2),
                 'variance_qty' => round($variance, 2),
             ];
+        }
+        $ipAddress = function_exists('service') ? service('request')?->getIPAddress() : null;
+        try {
+            $this->auditService->log(
+                null,
+                AuditActionType::Create,
+                'reports',
+                0,
+                'Exported evaluation report',
+                null,
+                ['report_type' => 'getEvaluationReport', 'query_params' => json_encode($query)],
+                $ipAddress
+            );
+        } catch (\Throwable $e) {
+            // silently ignore audit failures
         }
 
         return [
@@ -581,6 +645,21 @@ class ReportingService
                 'stok_awal' => $stokAwal,
                 'harian' => $harian,
             ];
+        }
+        $ipAddress = function_exists('service') ? service('request')?->getIPAddress() : null;
+        try {
+            $this->auditService->log(
+                null,
+                AuditActionType::Create,
+                'reports',
+                0,
+                'Exported monthly stock export',
+                null,
+                ['report_type' => 'getMonthlyStockExport', 'query_params' => json_encode($query)],
+                $ipAddress
+            );
+        } catch (\Throwable $e) {
+            // silently ignore audit failures
         }
 
         return [

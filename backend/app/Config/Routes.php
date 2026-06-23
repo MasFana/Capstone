@@ -235,6 +235,10 @@ $routes->group(
             "audit-logs",
             static fn() => service("response")->setStatusCode(204),
         );
+        $routes->options(
+            "audit-logs/summary",
+            static fn() => service("response")->setStatusCode(204),
+        );
 
         $routes->options(
             "dashboard",
@@ -326,6 +330,7 @@ $routes->group(
                 static function ($routes) {
                 $routes->get("audit-logs", "AuditLogs::index");
                 $routes->get("audit-logs/types", "AuditLogs::types");
+                $routes->get("audit-logs/summary", "AuditLogs::summary");
             },
             );
 

@@ -1236,6 +1236,12 @@ var AuditLogsResource = class {
       path: "/audit-logs/types"
     });
   }
+  summary() {
+    return this.client.request({
+      method: "GET",
+      path: "/audit-logs/summary"
+    });
+  }
 };
 function buildAuditLogQuery(query) {
   const result = {};
@@ -1247,6 +1253,9 @@ function buildAuditLogQuery(query) {
   if (query.table_name !== void 0) result.table_name = query.table_name;
   if (query.sortBy !== void 0) result.sortBy = query.sortBy;
   if (query.sortDir !== void 0) result.sortDir = query.sortDir;
+  if (query.start_date !== void 0) result.start_date = query.start_date;
+  if (query.end_date !== void 0) result.end_date = query.end_date;
+  if (query.user_id !== void 0) result.user_id = query.user_id;
   return result;
 }
 

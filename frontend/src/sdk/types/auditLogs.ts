@@ -9,6 +9,7 @@ export interface AuditLogEntry {
         id: number | null;
         name: string;
         username: string | null;
+        role: string | null;
     };
     activityType: string;
     activityLabel: string;
@@ -48,6 +49,9 @@ export interface AuditLogListQuery {
     table_name?: string;
     sortBy?: string;
     sortDir?: string;
+    start_date?: string;
+    end_date?: string;
+    user_id?: number;
 }
 
 export interface AuditLogListResponse {
@@ -60,4 +64,15 @@ export interface AuditLogTypesResponse {
     actionTypes: string[];
     moduleTypes: string[];
     tableNames: string[];
+}
+
+export interface AuditLogSummary {
+    total: number;
+    byRole: Record<string, number>;
+    byActionType: Record<string, number>;
+    byModule: Record<string, number>;
+}
+
+export interface AuditLogSummaryResponse {
+    data: AuditLogSummary;
 }

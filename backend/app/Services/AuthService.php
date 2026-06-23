@@ -25,7 +25,7 @@ class AuthService
         $this->db = Database::connect();
     }
 
-    public function attemptLogin(string $username, string $password): array
+    public function attemptLogin(string $username, string $password, ?string $ipAddress = null): array
     {
         $user = $this->userProvider->findByUsername($username);
 
@@ -60,6 +60,16 @@ class AuthService
 
         $loggedUser = $result->extraInfo();
         $token = $loggedUser->generateAccessToken("api-access");
+        $this->auditService->log(
+            (int) $loggedUser->id,
+            AuditActionType::Login,
+            'users',
+            (int) $loggedUser->id,
+            'User logged in.',
+            null,
+            ['username' => $username],
+            $ipAddress
+        );
 
         // Opportunistic snapshot trigger for read-only users (idempotent, failure-safe)
         (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
@@ -71,13 +81,24 @@ class AuthService
         ];
     }
 
-    public function logout(User $user): bool
+    public function logout(User $user, ?string $ipAddress = null): bool
     {
         $token = $user->currentAccessToken();
 
         if ($token === null) {
             return false;
         }
+
+        $this->auditService->log(
+            (int) $user->id,
+            AuditActionType::Logout,
+            'users',
+            (int) $user->id,
+            'User logged out.',
+            null,
+            null,
+            $ipAddress
+        );
 
         $user->revokeAccessTokenBySecret($token->secret);
 
