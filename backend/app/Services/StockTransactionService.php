@@ -45,6 +45,7 @@ class StockTransactionService
         'transaction_date',
         'spk_id',
         'details',
+        'reason',
     ];
 
     private const ALLOWED_DIRECT_CORRECTION_FIELDS = [
@@ -309,8 +310,8 @@ class StockTransactionService
             }
         }
 
-        // Auto-trigger opening stock snapshot for current month (idempotent, failure-safe)
-        (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
+        // Auto-trigger opening stock snapshot for the transaction's month (idempotent, failure-safe)
+        (new StockSnapshotService())->ensureOpeningSnapshot(substr((string) $data['transaction_date'], 0, 7));
 
         $this->db->transStart();
 
@@ -656,8 +657,8 @@ class StockTransactionService
             ];
         }
 
-        // Auto-trigger opening stock snapshot for current month (idempotent, failure-safe)
-        (new StockSnapshotService())->ensureOpeningSnapshot(date('Y-m'));
+        // Auto-trigger opening stock snapshot for the transaction's month (idempotent, failure-safe)
+        (new StockSnapshotService())->ensureOpeningSnapshot(substr((string) $data['transaction_date'], 0, 7));
 
         $this->db->transStart();
 

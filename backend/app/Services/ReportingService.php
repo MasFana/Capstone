@@ -525,13 +525,18 @@ class ReportingService
             }
         }
 
+        $periodMonth = substr($validated['period_start'], 0, 7);
+
+        // Auto-trigger snapshot if none exists for this month (idempotent, failure-safe)
+        (new \App\Services\StockSnapshotService())->ensureOpeningSnapshot($periodMonth);
+
         $snapshotMap = [];
         if ($itemRows !== []) {
             $itemIds = array_map(static fn(array $row): int => (int) $row['id'], $itemRows);
             $snapshotRows = $this->db
                 ->table('monthly_stock_snapshots')
                 ->select('item_id, opening_qty')
-                ->where('period_month', substr($validated['period_start'], 0, 7) . '-01')
+                ->where('period_month', $periodMonth . '-01')
                 ->whereIn('item_id', $itemIds)
                 ->get()
                 ->getResultArray();
@@ -602,7 +607,7 @@ class ReportingService
      */
     private function validateReportQuery(array $query, array $allowedFilterKeys): array
     {
-        $allowedParams = array_merge(['period_start', 'period_end'], $allowedFilterKeys);
+        $allowedParams = array_merge(['period_start', 'period_end', 'month', 'year'], $allowedFilterKeys);
         $unknown = array_values(array_diff(array_keys($query), $allowedParams));
         if ($unknown !== []) {
             return [
@@ -616,23 +621,43 @@ class ReportingService
         }
 
         $errors = [];
-
         $periodStart = trim((string) ($query['period_start'] ?? ''));
         $periodEnd = trim((string) ($query['period_end'] ?? ''));
+        $month = trim((string) ($query['month'] ?? ''));
+        $year = trim((string) ($query['year'] ?? ''));
+
+        // Resolve month/year shorthand into period_start/period_end
+        if ($periodStart === '' && $periodEnd === '') {
+            if ($month !== '') {
+                if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                    $errors['month'] = 'The month field must be in YYYY-MM format.';
+                } else {
+                    $periodStart = $month . '-01';
+                    $periodEnd = date('Y-m-t', strtotime($periodStart));
+                }
+            } elseif ($year !== '') {
+                if (!preg_match('/^\d{4}$/', $year)) {
+                    $errors['year'] = 'The year field must be in YYYY format.';
+                } else {
+                    $periodStart = $year . '-01-01';
+                    $periodEnd = $year . '-12-31';
+                }
+            }
+        }
 
         if ($periodStart === '') {
-            $errors['period_start'] = 'The period_start field is required.';
+            $errors['period_start'] = 'The period_start field is required (or provide month or year).';
         }
 
         if ($periodEnd === '') {
-            $errors['period_end'] = 'The period_end field is required.';
+            $errors['period_end'] = 'The period_end field is required (or provide month or year).';
         }
 
-        if ($periodStart !== '' && ! $this->isValidDate($periodStart)) {
+        if (! isset($errors['period_start']) && ! $this->isValidDate($periodStart)) {
             $errors['period_start'] = 'The period_start field must be a valid date in Y-m-d format.';
         }
 
-        if ($periodEnd !== '' && ! $this->isValidDate($periodEnd)) {
+        if (! isset($errors['period_end']) && ! $this->isValidDate($periodEnd)) {
             $errors['period_end'] = 'The period_end field must be a valid date in Y-m-d format.';
         }
 

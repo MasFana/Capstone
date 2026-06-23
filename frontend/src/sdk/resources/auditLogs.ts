@@ -25,7 +25,7 @@ function buildAuditLogQuery(query: AuditLogListQuery): Record<string, string | n
 
     if (query.page !== undefined) result.page = query.page;
     if (query.perPage !== undefined) result.perPage = query.perPage;
-    if (query.paginate !== undefined) result.paginate = query.paginate;
+    if (query.paginate !== undefined) result.paginate = query.paginate ? "true" : "false";
     if (query.q !== undefined) result.q = query.q;
     if (query.action_type !== undefined) result.action_type = query.action_type;
     if (query.table_name !== undefined) result.table_name = query.table_name;

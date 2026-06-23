@@ -42,12 +42,12 @@ export interface AuditLogEntry {
 export interface AuditLogListQuery {
     page?: number;
     perPage?: number;
-    paginate?: string;
+    paginate?: boolean;
     q?: string;
     action_type?: string;
     table_name?: string;
-    sortBy?: "id" | "created_at" | "action_type" | "table_name" | "record_id";
-    sortDir?: "ASC" | "DESC";
+    sortBy?: string;
+    sortDir?: string;
 }
 
 export interface AuditLogListResponse {
