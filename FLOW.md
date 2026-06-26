@@ -151,6 +151,8 @@ Step 5     OUT BASAH (Draft)        OUT non-BASAH (Direct)
 **Service**: `SpkBasahGenerationService::generate()` → `SpkPersistenceService::createVersionedSpk()`
 **Role**: `admin, dapur, gudang`
 **Controller**: `SpkBasah::generate()`
+**Preview endpoint**: `POST /api/v1/spk/basah/operational-stock-preview` — resolves menu projection, item requirements, and projected shortage for a given service_date + meal_time + total_patients without persisting any SPK data. Read-only calculation preview.
+**Controller**: `SpkBasah::operationalStockPreview()`
 
 Generates fresh-item (BASAH category) procurement recommendations based on menu plan + daily patient count.
 
@@ -162,7 +164,7 @@ Generates fresh-item (BASAH category) procurement recommendations based on menu 
 | `menu_schedules` | all rows where `day_of_month = {target_date.day}` (can be >1 per day) |
 | `menu_dishes` | `dish_id` where `menu_id` matches each scheduled menu |
 | `dish_compositions` | `item_id`, `qty_per_patient` for each dish |
-| `items` | `qty` (current stock), `item_category_id`, `conversion_base` |
+| `items` | `qty` (current stock), `item_category_id` |
 | `item_categories` | resolve `BASAH` category id via `getIdByName()` |
 
 ### Target Dates
@@ -445,6 +447,15 @@ UPDATE spk_calculations SET is_finish = true WHERE id = {spkId}
 
 `StockSnapshotService::ensureOpeningSnapshot()` is triggered before the transaction to capture the opening stock snapshot for the transaction's month. Idempotent — skips if a snapshot already exists for that month.
 
+**Snapshot trigger scope**: The snapshot is triggered by ALL stock-mutating paths, not only IN transactions:
+- Manual IN (Path B)
+- SPK Post IN (Path A)
+- BASAH OUT draft creation (Step 5 Path A)
+- Non-BASAH OUT direct (Step 5 Path B)
+- Direct Corrections (Step 7)
+- Revision approval (Step 8)
+- Stock Opname posting (Step 6)
+
 ### Normalization & Unit Conversion
 
 When `input_unit = "convert"`, the submitted qty is multiplied by `items.conversion_base`:
@@ -475,6 +486,7 @@ When all items in the OUT request belong to the BASAH category:
 2. **Draft creation** (PENDING status, no stock mutation):
    - `approval_status_id` = PENDING
    - No stock decrement
+   - Draft can be updated (PUT), submitted (POST), or canceled (POST) via dedicated lifecycle endpoints
    - `monthly_stock_snapshots` triggered (idempotent)
 
 3. **Draft lifecycle endpoints** (role: `admin, gudang`):
@@ -536,6 +548,20 @@ Stock opname provides a physical inventory count workflow:
    - If delta is positive (actual > expected) → behaves as stock increase
    - If delta is negative (actual < expected) → behaves as stock decrease
    - Each gets a separate stock_transaction row with reason linking to opname
+
+---
+
+## Stock Snapshot Status
+
+**Endpoint**: `GET /api/v1/stock-snapshots/current`
+**Controller**: `StockSnapshots::current()`
+**Role**: `admin, dapur, gudang`
+
+Returns the current monthly stock snapshot status, showing which period's opening snapshot is active and whether it has been taken.
+
+| READ |
+|---|
+| `monthly_stock_snapshots` |
 
 ---
 

@@ -6,6 +6,7 @@ This document maps backend API endpoints to their corresponding SDK methods and 
 | :--- | :--- | :--- |
  | **Audit Logs** | | |
  | `GET /api/v1/audit-logs` | `sdk.auditLogs.list(query?)` | `AuditLogListResponse` |
+ | `GET /api/v1/audit-logs/summary` | `sdk.auditLogs.summary()` | `AuditLogSummaryResponse` |
  | `GET /api/v1/audit-logs/types` | `sdk.auditLogs.types()` | `AuditLogTypesResponse` |
 
 | **Approval Statuses** | | |
@@ -117,6 +118,9 @@ This document maps backend API endpoints to their corresponding SDK methods and 
 | `POST /api/v1/stock-transactions/{id}/submit-revision` | `sdk.stockTransactions.submitRevision(id, payload)` | `ApiMessageDataResponse<StockTransactionRevisionResult>` |
 | `POST /api/v1/stock-transactions/{id}/approve` | `sdk.stockTransactions.approve(id)` | `ApiMessageDataResponse<StockTransactionModerationResult>` |
 | `POST /api/v1/stock-transactions/{id}/reject` | `sdk.stockTransactions.reject(id, payload?)` | `ApiMessageDataResponse<StockTransactionModerationResult>` |
+ | `PUT /api/v1/stock-transactions/{id}` | `sdk.stockTransactions.updateDraft(id, payload)` | `ApiMessageDataResponse<StockTransactionCreateResult>` |
+ | `POST /api/v1/stock-transactions/{id}/submit` | `sdk.stockTransactions.submitDraft(id)` | `ApiMessageDataResponse<StockTransactionCreateResult>` |
+ | `POST /api/v1/stock-transactions/{id}/cancel` | `sdk.stockTransactions.cancelDraft(id)` | `ApiMessageDataResponse<StockTransactionCreateResult>` |
 | **Transaction Types** | | |
 | `GET /api/v1/transaction-types` | `sdk.transactionTypes.list(query?)` | `ApiListResponse<TransactionType>` |
 | **Users** | | |
