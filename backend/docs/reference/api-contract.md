@@ -1229,6 +1229,7 @@ Supported query parameters:
 - `sortDir` — sort direction: `ASC` or `DESC` (default `DESC`)
 - `type_id` — filter by transaction type ID
 - `status_id` — filter by approval status ID
+- `spk_id` — exact SPK calculation ID filter (overrides `q`/`search` when present); integer, nullable
 - `transaction_date_from`, `transaction_date_to` — date range filter on `transaction_date`
 - `created_at_from`, `created_at_to` — date range filter on `created_at`
 - `updated_at_from`, `updated_at_to` — date range filter on `updated_at`

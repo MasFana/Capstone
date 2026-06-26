@@ -159,6 +159,7 @@ class MonthlyExportScenarioSeeder extends Seeder
                     }
                 }
             }
+            $cursor = $cursor->modify('+1 day');
         }
     }
 

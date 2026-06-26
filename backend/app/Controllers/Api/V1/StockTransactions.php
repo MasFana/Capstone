@@ -36,7 +36,7 @@ class StockTransactions extends BaseController
      *     operationId="listStockTransactions",
      *     tags={"Stock Transactions"},
      *     summary="List stock transactions",
-     *     description="Returns stock transaction headers in the standard data/meta/links envelope. Accessible to admin and gudang users. Runtime accepts page, perPage, q, search, sortBy, sortDir, type_id, status_id, transaction_date_from, transaction_date_to, created_at_from, created_at_to, updated_at_from, and updated_at_to. Unknown query parameters return HTTP 400. List rows include user_name and approved_by_name resolved from user ids when available.",
+ *     description="Returns stock transaction headers in the standard data/meta/links envelope. Accessible to admin and gudang users. Runtime accepts page, perPage, q, search, sortBy, sortDir, type_id, status_id, spk_id, transaction_date_from, transaction_date_to, created_at_from, created_at_to, updated_at_from, and updated_at_to. Unknown query parameters return HTTP 400. List rows include user_name and approved_by_name resolved from user ids when available.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer", minimum=1, example=1)),
      *     @OA\Parameter(name="perPage", in="query", @OA\Schema(type="integer", minimum=1, maximum=100, example=10)),
@@ -46,6 +46,7 @@ class StockTransactions extends BaseController
      *     @OA\Parameter(name="sortDir", in="query", @OA\Schema(type="string", enum={"ASC","DESC"}, example="DESC")),
      *     @OA\Parameter(name="type_id", in="query", @OA\Schema(type="integer", minimum=1, example=1)),
      *     @OA\Parameter(name="status_id", in="query", @OA\Schema(type="integer", minimum=1, example=2)),
+ *     @OA\Parameter(name="spk_id", in="query", description="Exact SPK calculation id filter. Overrides q when both are sent.", @OA\Schema(type="integer", minimum=1, example=31)),
      *     @OA\Parameter(name="transaction_date_from", in="query", @OA\Schema(type="string", example="2026-04-01")),
      *     @OA\Parameter(name="transaction_date_to", in="query", @OA\Schema(type="string", example="2026-04-30")),
      *     @OA\Parameter(name="created_at_from", in="query", @OA\Schema(type="string", example="2026-04-01 00:00:00")),
@@ -102,6 +103,14 @@ class StockTransactions extends BaseController
         $sortBy   = (string) ($queryParams['sortBy'] ?? 'transaction_date');
         $sortDir  = (string) ($queryParams['sortDir'] ?? 'DESC');
         $spkId = isset($queryParams['spk_id']) ? (int) $queryParams['spk_id'] : null;
+        $typeId              = isset($queryParams['type_id']) ? (int) $queryParams['type_id'] : null;
+        $statusId            = isset($queryParams['status_id']) ? (int) $queryParams['status_id'] : null;
+        $transactionDateFrom = $queryParams['transaction_date_from'] ?? null;
+        $transactionDateTo   = $queryParams['transaction_date_to'] ?? null;
+        $createdAtFrom       = $queryParams['created_at_from'] ?? null;
+        $createdAtTo         = $queryParams['created_at_to'] ?? null;
+        $updatedAtFrom       = $queryParams['updated_at_from'] ?? null;
+        $updatedAtTo         = $queryParams['updated_at_to'] ?? null;
 
         $result = $this->transactionModel->getAllPaginatedFiltered(
             $page, $perPage, $search, $sortBy, $sortDir,
