@@ -16,6 +16,7 @@
 
 # CI_ENVIRONMENT = production
 CI_ENVIRONMENT = development
+CI_DEBUG = false
 
 #--------------------------------------------------------------------
 # APP
