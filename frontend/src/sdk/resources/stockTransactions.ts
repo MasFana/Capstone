@@ -198,7 +198,7 @@ export class StockTransactionsResource {
     id: number,
     payload: UpdateDraftRequest,
   ): Promise<ApiMessageDataResponse<StockTransactionCreateResult>> {
-    return this.client.request({
+    return this.client.request<ApiMessageDataResponse<StockTransactionCreateResult>>({
       method: "PUT",
       path: `/stock-transactions/${id}`,
       body: payload,
@@ -213,7 +213,7 @@ export class StockTransactionsResource {
   public submitDraft(
     id: number,
   ): Promise<ApiMessageDataResponse<StockTransactionCreateResult>> {
-    return this.client.request({
+    return this.client.request<ApiMessageDataResponse<StockTransactionCreateResult>>({
       method: "POST",
       path: `/stock-transactions/${id}/submit`,
     });
@@ -227,7 +227,7 @@ export class StockTransactionsResource {
   public cancelDraft(
     id: number,
   ): Promise<ApiMessageDataResponse<StockTransactionCreateResult>> {
-    return this.client.request({
+    return this.client.request<ApiMessageDataResponse<StockTransactionCreateResult>>({
       method: "POST",
       path: `/stock-transactions/${id}/cancel`,
     });

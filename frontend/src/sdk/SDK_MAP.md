@@ -110,6 +110,10 @@ This document maps backend API endpoints to their corresponding SDK methods and 
  | `POST /api/v1/stock-opnames/{id}/approve` | `sdk.stockOpnames.approve(id)` | `StockOpnameActionResponse` |
  | `POST /api/v1/stock-opnames/{id}/reject` | `sdk.stockOpnames.reject(id, request)` | `StockOpnameActionResponse` |
  | `POST /api/v1/stock-opnames/{id}/post` | `sdk.stockOpnames.post(id)` | `StockOpnameActionResponse` |
+ | **Stock Snapshots** | | |
+ | `GET /api/v1/stock-snapshots` | `sdk.stockSnapshots.list(query?)` | `ApiListResponse<StockSnapshotRow>` |
+ | `POST /api/v1/stock-snapshots/take` | `sdk.stockSnapshots.take(request?)` | `CreateSnapshotResponse` |
+ | `GET /api/v1/stock-snapshots/current` | `sdk.stockSnapshots.current()` | `CurrentSnapshotStatus` |
 | `GET /api/v1/stock-transactions` | `sdk.stockTransactions.list(query?)` | `ApiListResponse<StockTransaction>` |
 | `GET /api/v1/stock-transactions/{id}` | `sdk.stockTransactions.get(id)` | `ApiDataResponse<StockTransaction>` |
 | `GET /api/v1/stock-transactions/{id}/details` | `sdk.stockTransactions.details(id)` | `ApiDataResponse<StockTransactionDetail[]>` |
