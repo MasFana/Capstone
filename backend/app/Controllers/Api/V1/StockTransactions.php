@@ -103,6 +103,7 @@ class StockTransactions extends BaseController
         $perPage  = max(1, min(100, (int) ($queryParams['perPage'] ?? 10)));
         $search   = trim((string) ($queryParams['q'] ?? $queryParams['search'] ?? ''));
         $sortBy   = (string) ($queryParams['sortBy'] ?? 'transaction_date');
+        $sortDir  = (string) ($queryParams['sortDir'] ?? 'DESC');
         $spkId        = isset($queryParams['spk_id']) ? (int) $queryParams['spk_id'] : null;
         $typeId       = isset($queryParams['type_id']) ? (int) $queryParams['type_id'] : null;
         $statusId     = isset($queryParams['status_id']) ? (int) $queryParams['status_id'] : null;
